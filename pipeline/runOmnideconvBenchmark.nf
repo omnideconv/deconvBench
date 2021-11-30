@@ -16,7 +16,7 @@ process createSignature {
 
 	"""
 	echo '$sc $data $mode $rnaseq'
-	Rscript /nfs/proj/omnideconv_benchmarking/benchmark/pipeline/bin/computeSignaturesNF.R --path '$data' --single_cell '$sc' --rna_seq '$rnaseq' --method '$mode'
+	Rscript $PWD/bin/computeSignaturesNF.R --path '$data' --single_cell '$sc' --rna_seq '$rnaseq' --method '$mode'
 	""" 
 }
 

@@ -1,3 +1,7 @@
 *.Rproj
 *.RData
 data/
+pipeline/work/
+pipeline/results
+pipeline/.nextflow.log*
+pipeline/.nextflow/

@@ -1,36 +1,38 @@
+#!/usr/bin/env Rscript
+'
+computeSignatureNF.R
+' 
 options(echo=TRUE)
 args <- commandArgs(trailingOnly = TRUE)
 print(args)
+#args <- list("","/nfs/data/omnideconv_benchmarking/data/singleCell", "","lambrechts","", "/nfs/data/omnideconv_benchmarking/data/PBMC","","hoek","","bseqsc")
 
-path <- args[2]
+sc_path <- args[2]
 sc_ds <- args[4]
-sc_path <- paste(path, args[4], ".Rdata", sep="") #figure out best way to flexibly load data
-#currently thought would be RData Object with sc, batch, celltype_annotations
-rnaseq_ds <- args[6]
-load(paste(path, "/", rnaseq_ds, "/", rnaseq_ds, "_pbmc_tpm.RData", sep=""))
-method <- args[8]
+sc_matrix <- readRDS(file.path(sc_path, sc_ds, "matrix.rds"))
+sc_celltype_annotations <- readRDS(file.path(sc_path, sc_ds, "celltype_annotations.rds"))
+sc_batch <- readRDS(file.path(sc_path, sc_ds, "batch.rds"))
+sc_marker <- readRDS(file.path(sc_path, sc_ds, "marker.rds"))
 
-###HARDCODING###
-#load("/nfs/data/omnideconv_benchmarking/data/PBMC/hoek/hoek_pbmc_tpm.RData")
-sc <- t(read.csv("/nfs/data/omnideconv_benchmarking/maynard_2020_annotated_fine/X_tpm.csv", header = FALSE))
-obs <- read.csv("/nfs/data/omnideconv_benchmarking/maynard_2020_annotated_fine/obs.csv")
-var <- read.csv("/nfs/data/omnideconv_benchmarking/maynard_2020_annotated_fine/var.csv")
-colnames(sc) <- obs$Run
-rownames(sc) <- var$symbol
-batch <- obs$patient
-marker <- var$symbol
-################
+rnaseq_path <- args[6]
+rnaseq_ds <- args[8]
+load(file.path(rnaseq_path, rnaseq_ds, paste(rnaseq_ds, "_pbmc_tpm.RData", sep="")))
+
+method <- args[10]
+
+
 if(method=="cibersortx"){
   omnideconv::set_cibersortx_credentials("k.reinisch@campus.lmu.de", "a05114832330fda42ce0f5596875ee0d")
 }
 
-signature <- omnideconv::build_model(single_cell_object = as.data.frame(sc), 
-                                     cell_type_annotations = obs$cell_type, 
+signature <- omnideconv::build_model(single_cell_object = as.data.frame(sc_matrix), 
+                                     cell_type_annotations = sc_celltype_annotations, 
 				                            bulk_gene_expression = get(paste(rnaseq_ds, "_pbmc_tpm", sep="")), 
-				                            batch_ids = batch, 
+				                            markers = sc_marker,
+				                            batch_ids = sc_batch, 
+				                            verbose=TRUE,
 				                            method = method)
-#if method has no build_model, what happens?
+print(signature)
 saveRDS(signature, 
         paste("signature_", method, "_", sc_ds, "_", rnaseq_ds, ".rds", sep=""), 
         compress = FALSE)
-

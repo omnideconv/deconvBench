@@ -3,58 +3,40 @@ nextflow.enable.dsl=2
 
 process createSignature {
 
-	publishDir params.results_dir
+	publishDir params.results_dir, mode: params.publishDirMode
 
 	input:
 	each sc
 	each rnaseq
 	each mode 
-	path data
+	path rnaseq_data
+	path sc_data
 
 	output:
-	tuple val(sc), val(rnaseq), val(mode), file('*.rds')
+	tuple val(sc), val(rnaseq), val(mode), file('*.rds'), emit: signature
 
 	"""
-	echo '$sc $data $mode $rnaseq'
-	Rscript $PWD/bin/computeSignaturesNF.R --path '$data' --single_cell '$sc' --rna_seq '$rnaseq' --method '$mode'
+	echo '$sc $sc_data $rnaseq_data $mode $rnaseq'
+	#./computeSignaturesNF.R --sc_path '$sc_data' --single_cell '$sc' --rnaseq_path '$rnaseq_data' --rna_seq '$rnaseq' --method '$mode'
+	Rscript /nfs/proj/omnideconv_benchmarking/benchmark/pipeline/bin/computeSignaturesNF.R --sc_path '$sc_data' --single_cell '$sc' --rnaseq_path '$rnaseq_data' --rna_seq '$rnaseq' --method '$mode'
 	""" 
 }
 
-process test { //this is only for testing using createSignatures output
+process deconvolute { 
 
-	publishDir params.results_dir
+	publishDir params.results_dir, mode: params.publishDirMode
 
 	input:
 	tuple val(sc), val(rnaseq), val(mode), val(signature) 
-	path data
-	//how can i use all tuples with this path and not only one??
-	//how can i access the signatures?? when i load it as file, i get an error: file not found since it's only the filename and not the work/.../whatever path
+	path rnaseq_data
+	path sc_data
 	
 	output:
-	stdout
+	path '*.rds', emit: deconvolution
 
 	"""
-	echo '$sc $rnaseq $signature $data'
-	""" 
-}
-
-process deconvolute {
-
-	publishDir params.results_dir
-
-	input:
-	val sc
-	each rnaseq
-	each mode
-	path data
-	file signature
-
-	output:
-	path '*.rds'
-
-	"""
-	echo '$sc $data $mode $rnaseq $signature'
-	Rscript /nfs/proj/omnideconv_benchmarking/benchmark/pipeline/bin/runDeconvolutionNF.R --path '$data' --single_cell '$sc' --rna_seq '$rnaseq' --method '$mode' --signature '$signature'
+	echo '$sc $rnaseq $signature $sc_data $rnaseq_data'
+	Rscript /nfs/proj/omnideconv_benchmarking/benchmark/pipeline/bin/runDeconvolutionNF.R --sc_path '$sc_data' --single_cell '$sc' --rnaseq_path '$rnaseq_data' --rna_seq '$rnaseq' --method '$mode' --signature '$signature'
 	""" 
 }
 
@@ -63,11 +45,10 @@ workflow{
   single_cell = Channel.fromList(params.single_cell_list)
   rna_seq = Channel.fromList(params.rnaseq_list)
   methods = params.method_list
-  data = Channel.fromPath(params.data_dir)
-  createSignature(single_cell, rna_seq, methods, data)
-  test(createSignature.out, Channel.fromPath(params.data_dir))
-  //deconvolute(createSignature.out)
-  //deconvolute.out.view()
-  test.out.view()
-
+  rnaseq_data = Channel.fromPath(params.data_dir_rnaseq).collect()
+  sc_data = Channel.fromPath(params.data_dir_sc).collect()
+  createSignature(single_cell, rna_seq, methods, rnaseq_data, sc_data)
+  deconvolute(createSignature.out.signature, rnaseq_data, sc_data)
+  deconvolute.out.deconvolution.view()
+  
 }

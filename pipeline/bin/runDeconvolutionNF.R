@@ -1,4 +1,4 @@
-#!/usr/bin/env Rscript
+#!/usr/bin/Rscript
  
 options(echo=TRUE)
 args <- commandArgs(trailingOnly = TRUE)

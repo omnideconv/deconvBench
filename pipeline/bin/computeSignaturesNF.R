@@ -1,11 +1,11 @@
-#!/usr/bin/env Rscript
+#!/usr/bin/Rscript
 '
 computeSignatureNF.R
 ' 
 options(echo=TRUE)
 args <- commandArgs(trailingOnly = TRUE)
 print(args)
-#args <- list("","/nfs/data/omnideconv_benchmarking/data/singleCell", "","lambrechts","", "/nfs/data/omnideconv_benchmarking/data/PBMC","","hoek","","bseqsc")
+args <- list("","/nfs/data/omnideconv_benchmarking/data/singleCell", "","lambrechts","", "/nfs/data/omnideconv_benchmarking/data/PBMC","","hoek","","scaden")
 
 sc_path <- args[2]
 sc_ds <- args[4]
@@ -33,6 +33,12 @@ signature <- omnideconv::build_model(single_cell_object = as.data.frame(sc_matri
 				                            verbose=TRUE,
 				                            method = method)
 print(signature)
+if(method=="scaden"){ 
+  #copy signature into working dir since Rtemp dir will be closed
+  file.copy(signature, getwd(), recursive = TRUE)
+  #rename signature
+  signature <- file.path(getwd(), basename(signature))
+}
 saveRDS(signature, 
         paste("signature_", method, "_", sc_ds, "_", rnaseq_ds, ".rds", sep=""), 
         compress = FALSE)

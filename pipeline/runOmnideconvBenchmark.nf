@@ -40,6 +40,22 @@ process deconvolute {
 	""" 
 }
 
+process benchmarkingPlots {
+
+	publishDir params.results_dir, mode: params.publishDirMode
+
+	input:
+	path deconvolution
+	
+	output:
+	path '*.jpeg', emit: plot
+
+	"""
+	echo '$deconvolution'
+	Rscript /nfs/proj/omnideconv_benchmarking/benchmark/pipeline/bin/plotGtruthHoekNF.R --deconv deconvolution
+	""" 
+}
+
 
 workflow{
   single_cell = Channel.fromList(params.single_cell_list)
@@ -49,6 +65,9 @@ workflow{
   sc_data = Channel.fromPath(params.data_dir_sc).collect()
   createSignature(single_cell, rna_seq, methods, rnaseq_data, sc_data)
   deconvolute(createSignature.out.signature, rnaseq_data, sc_data)
-  deconvolute.out.deconvolution.view()
-  
+  deconv = deconvolute.out.deconvolution.view()
+  hoek_samples = deconv
+    .filter{ ds -> ds.contains("hoek")}
+    .view()
+  benchmarkingPlots(hoek_samples.toList())
 }

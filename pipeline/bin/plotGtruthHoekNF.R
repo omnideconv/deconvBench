@@ -4,6 +4,10 @@ args <- commandArgs(trailingOnly = TRUE)
 print(args)
 results <- args[[2]]
 
+
+###THIS SCRIPT IS NOT MODIFIED YET#####
+#nur als platzhalter#
+
 library(ggplot2)
 library(tidyverse)
 

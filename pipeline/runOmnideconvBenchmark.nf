@@ -11,14 +11,14 @@ process createSignature {
 	each mode 
 	path rnaseq_data
 	path sc_data
+	path mapping_sheet
 
 	output:
-	tuple val(sc), val(rnaseq), val(mode), file('*.rds'), emit: signature
+	tuple val(sc), val(rnaseq), val(mode), path('*.rds'), emit: signature
 
 	"""
 	echo '$sc $sc_data $rnaseq_data $mode $rnaseq'
-	#./computeSignaturesNF.R --sc_path '$sc_data' --single_cell '$sc' --rnaseq_path '$rnaseq_data' --rna_seq '$rnaseq' --method '$mode'
-	Rscript /nfs/proj/omnideconv_benchmarking/benchmark/pipeline/bin/computeSignaturesNF.R --sc_path '$sc_data' --single_cell '$sc' --rnaseq_path '$rnaseq_data' --rna_seq '$rnaseq' --method '$mode'
+	computeSignaturesNF.R '$sc_data' '$sc' '$rnaseq_data' '$rnaseq' '$mode' '$mapping_sheet'
 	""" 
 }
 
@@ -30,13 +30,14 @@ process deconvolute {
 	tuple val(sc), val(rnaseq), val(mode), val(signature) 
 	path rnaseq_data
 	path sc_data
+	path mapping_sheet
 	
 	output:
 	path '*.rds', emit: deconvolution
 
 	"""
 	echo '$sc $rnaseq $signature $sc_data $rnaseq_data'
-	Rscript /nfs/proj/omnideconv_benchmarking/benchmark/pipeline/bin/runDeconvolutionNF.R --sc_path '$sc_data' --single_cell '$sc' --rnaseq_path '$rnaseq_data' --rna_seq '$rnaseq' --method '$mode' --signature '$signature'
+	runDeconvolutionNF.R '$sc_data' '$sc' '$rnaseq_data' '$rnaseq' '$mode' '$signature' '$mapping_sheet'
 	""" 
 }
 
@@ -45,14 +46,14 @@ process benchmarkingPlots {
 	publishDir params.results_dir, mode: params.publishDirMode
 
 	input:
-	path deconvolution
+	val deconvolution
 	
 	output:
 	path '*.jpeg', emit: plot
 
 	"""
 	echo '$deconvolution'
-	Rscript /nfs/proj/omnideconv_benchmarking/benchmark/pipeline/bin/plotGtruthHoekNF.R --deconv deconvolution
+	plotGtruthHoekNF.R --deconv deconvolution
 	""" 
 }
 
@@ -63,8 +64,9 @@ workflow{
   methods = params.method_list
   rnaseq_data = Channel.fromPath(params.data_dir_rnaseq).collect()
   sc_data = Channel.fromPath(params.data_dir_sc).collect()
-  createSignature(single_cell, rna_seq, methods, rnaseq_data, sc_data)
-  deconvolute(createSignature.out.signature, rnaseq_data, sc_data)
+  remapping = Channel.fromPath(params.mapping_sheet).collect()
+  createSignature(single_cell, rna_seq, methods, rnaseq_data, sc_data, remapping)
+  deconvolute(createSignature.out.signature, rnaseq_data, sc_data, remapping)
   deconv = deconvolute.out.deconvolution.view()
   hoek_samples = deconv
     .filter{ ds -> ds.contains("hoek")}

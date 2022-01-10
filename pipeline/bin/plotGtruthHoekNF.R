@@ -3,6 +3,7 @@ options(echo=TRUE)
 args <- commandArgs(trailingOnly = TRUE)
 print(args)
 results <- args[[2]]
+print(results)
 
 
 ###THIS SCRIPT IS NOT MODIFIED YET#####
@@ -73,8 +74,8 @@ plotQuantiseqVsGtruthPG <- function(df, dataSetName){
 
 compareGroundTruth <- function(filepath, facs, addAll=FALSE){
 	data <- NULL
-  for(method in c("bisque", "cibersortx", "dwls", "momf", "scaden", "scdc")){
-    decMatrix <- data.frame(get(paste("deconv_", method, sep="")))
+  for(method in c("autogenes", "bisque", "cdseq", "cibersortx", "dwls", "momf", "music", "scaden", "scdc")){
+    decMatrix <- data.frame(readRDS(paste("/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/","deconvolution_", method, "_lambrechts_hoek.rds", sep="")))
     data <- transformDataForPlottingPG(decMatrix, facs, remap = TRUE, addAll = addAll) %>% mutate(method = method) %>% rbind(data)
   }
   p <- ggplot(data, aes(x=true_value, y=predicted_value, color=celltype))+geom_point()+geom_abline()+
@@ -84,4 +85,5 @@ compareGroundTruth <- function(filepath, facs, addAll=FALSE){
   ggsave(filename = paste(filepath, "comparisonGtruth.jpg", sep=""),p)
 }
 
-compareGroundTruth("/nfs/proj/omnideconv_benchmarking/hoek_all_", hoek_pbmc_facs, addAll = TRUE)
+compareGroundTruth("/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/hoek_all.jpeg", hoek_pbmc_facs, addAll = TRUE)
+print("done")

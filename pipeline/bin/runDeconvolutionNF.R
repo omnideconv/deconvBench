@@ -1,25 +1,40 @@
 #!/usr/bin/Rscript
- 
-options(echo=TRUE)
-args <- commandArgs(trailingOnly = TRUE)
-print(args)
-#args <- list("","/nfs/data/omnideconv_benchmarking/data/singleCell", "","lambrechts","", "/nfs/data/omnideconv_benchmarking/data/PBMC","","finotello","","autogenes", "", "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/work/3b/738b7a0d5448a1f673a00770efecb9/signature_autogenes_lambrechts_finotello.rds")
-sc_path <- args[[2]]
-sc_ds <- args[[4]]
+
+"Usage: 
+  runDeconvolutionNF.R <sc_path> <sc_datasetname> <rna_path> <rna_datasetname> <deconv_method> <signature> <remapping_sheet>
+Options:
+<sc_path> path to sc dataset
+<sc_datasetname> name of sc dataset
+<rna_path> path to rnaseq dataset
+<rna_datasetname> name of rnaseq dataset
+<deconv_method>  deconv method
+<signature> signature matrix
+<remapping_sheet> excel mapping sheet with remapping" -> doc
+
+print(doc)
+args <- docopt::docopt(doc)
+sc_path <- args$sc_path
+sc_ds <- args$sc_datasetname
 sc_matrix <- readRDS(file.path(sc_path, sc_ds, "matrix.rds"))
 sc_celltype_annotations <- readRDS(file.path(sc_path, sc_ds, "celltype_annotations.rds"))
 sc_batch <- readRDS(file.path(sc_path, sc_ds, "batch.rds"))
 sc_marker <- readRDS(file.path(sc_path, sc_ds, "marker.rds"))
 
-rnaseq_path <- args[[6]]
-rnaseq_ds <- args[[8]]
+rnaseq_path <- args$rna_path
+rnaseq_ds <- args$rna_datasetname
 load(file.path(rnaseq_path, rnaseq_ds, paste(rnaseq_ds, "_pbmc_tpm.RData", sep="")))
 
-method <- args[[10]]
+method <- args$deconv_method
+remapping_sheet <- args$remapping_sheet
 
-signature <- readRDS(args[[12]])
-print(args[[12]])
-print(signature)
+signature <- readRDS(args$signature)
+
+##remap celltype_annotations##
+source("/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/bin/remapCelltypesNF.R")
+sc_celltype_annotations <- remapCelltypesWorkflow(remappingPath = remapping_sheet, 
+                                                  celltype_annotations = sc_celltype_annotations, 
+                                                  method_ds = sc_ds)
+
 
 library(Biobase)#necessary for music
 if(method=="cibersortx"){

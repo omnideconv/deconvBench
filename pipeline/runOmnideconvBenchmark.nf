@@ -33,7 +33,7 @@ process deconvolute {
 	path mapping_sheet
 	
 	output:
-	path '*.rds', emit: deconvolution
+	path('*.rds'), emit: deconvolution
 
 	"""
 	echo '$sc $rnaseq $signature $sc_data $rnaseq_data'
@@ -47,13 +47,18 @@ process benchmarkingPlots {
 
 	input:
 	val deconvolution
+	path facs
+	val dataset_name
+	path mapping_sheet
+
 	
 	output:
-	path '*.jpeg', emit: plot
+	stdout emit: plot
+	//path '*.jpeg', emit: plot
 
 	"""
 	echo '$deconvolution'
-	plotGtruthHoekNF.R --deconv deconvolution
+	plotGtruthHoekNF.R '$deconvolution' '$facs' '$dataset_name' '$mapping_sheet'
 	""" 
 }
 
@@ -67,9 +72,11 @@ workflow{
   remapping = Channel.fromPath(params.mapping_sheet).collect()
   createSignature(single_cell, rna_seq, methods, rnaseq_data, sc_data, remapping)
   deconvolute(createSignature.out.signature, rnaseq_data, sc_data, remapping)
-  deconv = deconvolute.out.deconvolution.view()
+  deconv = deconvolute.out.deconvolution
+  deconvolute.out.deconvolution.view()
   hoek_samples = deconv
-    .filter{ ds -> ds.contains("hoek")}
-    .view()
-  benchmarkingPlots(hoek_samples.toList())
+    .filter{ ds -> ds =~/_hoek/ }
+  hoek_samples_list = hoek_samples.toList()
+  benchmarkingPlots(hoek_samples_list, rnaseq_data, rna_seq, remapping)
+  benchmarkingPlots.out.plot.view()
 }

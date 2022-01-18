@@ -52,6 +52,7 @@ deconvolution <- omnideconv::deconvolute(bulk_gene_expression = simulated_bulk$p
 simulated_bulk <- simulate_bulk(dataset(annotation = data.frame(ID = colnames(sc_matrix), cell_type = sc_celltype_annotations),
                                         count_matrix = sc_matrix,
                                         name = sc_ds),
+                                scaling_factor = "NONE",
                                 scenario = "unique", 
                                 unique_cell_type="B cell")
 signature <- omnideconv::build_model(single_cell_object = as.data.frame(sc_matrix),

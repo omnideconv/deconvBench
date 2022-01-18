@@ -53,8 +53,8 @@ process benchmarkingPlots {
 
 	
 	output:
-	stdout emit: plot
-	//path '*.jpeg', emit: plot
+	//stdout emit: plot
+	path '*.jpeg', emit: plot
 
 	"""
 	echo '$deconvolution'
@@ -74,9 +74,9 @@ workflow{
   deconvolute(createSignature.out.signature, rnaseq_data, sc_data, remapping)
   deconv = deconvolute.out.deconvolution
   deconvolute.out.deconvolution.view()
-  hoek_samples = deconv
-    .filter{ ds -> ds =~/_hoek/ }
-  hoek_samples_list = hoek_samples.toList()
-  benchmarkingPlots(hoek_samples_list, rnaseq_data, rna_seq, remapping)
+  //hoek_samples = deconv.filter{ ds -> ds =~/_hoek/ }
+  //hoek_samples_list = hoek_samples.toList()
+  //benchmarkingPlots(hoek_samples_list, rnaseq_data, rna_seq, remapping)
+  benchmarkingPlots(deconv.toList(), rnaseq_data, rna_seq, remapping)
   benchmarkingPlots.out.plot.view()
 }

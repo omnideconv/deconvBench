@@ -14,7 +14,6 @@ Options:
 <deconv_method>  deconv method
 <remapping_sheet> excel mapping sheet with remapping" -> doc
 
-print(doc)
 args <- docopt::docopt(doc)
 
 sc_path <- args$sc_path
@@ -41,20 +40,22 @@ if(method=="cibersortx"){
                                          "a05114832330fda42ce0f5596875ee0d")
 }
 
+runtime <- system.time({
 signature <- omnideconv::build_model(single_cell_object = as.data.frame(sc_matrix), 
                                     cell_type_annotations = sc_celltype_annotations, 
 				                            bulk_gene_expression = get(paste(rnaseq_ds, "_pbmc_tpm", sep="")), 
 				                            markers = sc_marker,
 				                            batch_ids = sc_batch, 
 				                            verbose=TRUE,
-				                            method = method)
+				                            method = method)})
+
 if(method %in% c("autogenes", "scaden")){ 
   #copy signature into working dir since Rtemp dir will be closed
   file.copy(signature, getwd(), recursive = TRUE)
  #rename signature
  signature <- file.path(getwd(), basename(signature))
- print(signature)
 }
 saveRDS(signature, 
        paste("signature_", method, "_", sc_ds, "_", rnaseq_ds, ".rds", sep=""), 
         compress = FALSE)
+print(runtime)

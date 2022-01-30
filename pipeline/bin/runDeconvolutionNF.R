@@ -11,7 +11,6 @@ Options:
 <signature> signature matrix
 <remapping_sheet> excel mapping sheet with remapping" -> doc
 
-print(doc)
 args <- docopt::docopt(doc)
 sc_path <- args$sc_path
 sc_ds <- args$sc_datasetname
@@ -51,14 +50,14 @@ if(method=="cibersortx"){
 #                              cell_type_annotations = sc_celltype_annotations, 
 #                              method = method)
 
-
+runtime <- system.time({
 deconvolution <- omnideconv::deconvolute(bulk_gene_expression = get(paste(rnaseq_ds, "_pbmc_tpm", sep="")), 
                         signature = signature, 
                         single_cell_object = sc_matrix, 
                         batch_ids = sc_batch, 
                         cell_type_annotations = sc_celltype_annotations, 
-                        method = method)
-
+                        method = method)})
 saveRDS(deconvolution, 
         paste("deconvolution_", method, "_", sc_ds, "_", rnaseq_ds, ".rds", sep=""), 
         compress = FALSE)
+print(runtime)

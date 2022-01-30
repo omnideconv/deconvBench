@@ -28,7 +28,7 @@ sc_celltype_annotations <- remapCelltypesWorkflow(remappingPath = remapping_shee
                                                   celltype_annotations = sc_celltype_annotations, 
                                                   method_ds = sc_ds)
 df$celltype <- sc_celltype_annotations
-p <- ggplot(data = df, aes(X1, X2, color=celltype)) + geom_point() + labs(title=paste("UMAP", sc_ds))
+p <- ggplot(data = df[df$celltype=="other cell", ], aes(X1, X2, color=celltype)) + geom_point() + labs(title=paste("UMAP", sc_ds))
 p
 ggsave(paste("umap_singlecell_", sc_ds, ".jpg", sep=""), p)
 

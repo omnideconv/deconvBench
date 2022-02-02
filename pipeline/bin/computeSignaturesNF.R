@@ -5,14 +5,15 @@ conflicted::conflict_scout()
 #library(docopt)
 
 "Usage: 
-  computeSignatureNF.R <sc_path> <sc_datasetname> <rna_path> <rna_datasetname> <deconv_method> <remapping_sheet>
+  computeSignatureNF.R <sc_path> <sc_datasetname> <rna_path> <rna_datasetname> <deconv_method> <remapping_sheet> [<coarse>]
 Options:
 <sc_path> path to sc dataset
 <sc_datasetname> name of sc dataset
 <rna_path> path to rnaseq dataset
 <rna_datasetname> name of rnaseq dataset
 <deconv_method>  deconv method
-<remapping_sheet> excel mapping sheet with remapping" -> doc
+<remapping_sheet> excel mapping sheet with remapping
+<coarse> logical, if TRUE celltypes are mapped to higher level" -> doc
 
 args <- docopt::docopt(doc)
 
@@ -30,10 +31,18 @@ load(file.path(rnaseq_path, rnaseq_ds, paste(rnaseq_ds, "_pbmc_tpm.RData", sep="
 method <- args$deconv_method
 remapping_sheet <- args$remapping_sheet
 
+coarse <- as.logical(args$coarse)
 source("/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/bin/remapCelltypesNF.R")
-sc_celltype_annotations <- remapCelltypesWorkflow(remappingPath = remapping_sheet, 
-                                                  celltype_annotations = sc_celltype_annotations, 
-                                                  method_ds = sc_ds)
+if(is.na(coarse) | !coarse){
+  # regular
+  sc_celltype_annotations <- remapCelltypesWorkflow(remappingPath = remapping_sheet, 
+                                                    celltype_annotations = sc_celltype_annotations, 
+                                                    method_ds = sc_ds)
+} else {
+  # this is only designed for hoek!
+  
+}
+
 
 if(method=="cibersortx"){
   omnideconv::set_cibersortx_credentials("k.reinisch@campus.lmu.de", 

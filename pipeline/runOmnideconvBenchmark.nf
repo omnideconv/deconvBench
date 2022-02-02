@@ -79,7 +79,8 @@ process benchmarkingPlots {
 	
 	output:
 	//stdout emit: plot
-	path '*.jpeg', emit: plot
+	path '*.jpeg', emit: plotjpeg
+	path '*.pdf', emit: plotpdf
 
 	"""
 	echo '$deconvolution'
@@ -93,18 +94,39 @@ process simulateBulk {
 
 	input:
 	each sc
-	each rnaseq
-	each mode 
-	path rnaseq_data
+	each scenario 
+	path sc_data
+	path mapping_sheet
+	val celltypes
+
+	output:
+	path('*.rds'), emit: bulk
+	//path('*.pdf'), emit: correlation
+
+	"""
+	#echo '$sc $sc_data $scenario'
+	simulateBulkNF.R '$sc_data' '$sc' '$mapping_sheet' '$scenario' 'blood' 'Homo sapiens' '$celltypes'
+	""" 
+}
+
+process deconvoluteSimulatedBulk {
+
+	publishDir params.results_dir, mode: params.publishDirMode
+
+	input:
+	each sc
+	each method
+	each bulk
 	path sc_data
 	path mapping_sheet
 
 	output:
 	path('*.rds'), emit: deconvolution
+	path('*.pdf'), emit: correlation
 
 	"""
-	echo '$sc $sc_data $rnaseq_data $mode $rnaseq'
-	simulateBulkNF.R '$sc_data' '$sc' '$rnaseq_data' '$rnaseq' '$mode' '$mapping_sheet'
+	#echo '$sc $sc_data $method $bulk'
+	deconvoluteSimBulkNF.R '$sc_data' '$sc' '$bulk' '$method' '$mapping_sheet'
 	""" 
 }
 
@@ -115,19 +137,24 @@ workflow{
   single_cell = Channel.fromList(params.single_cell_list)
   rna_seq = Channel.fromList(params.rnaseq_list)
   methods = params.method_list
+  scenarios = params.simulation_scenarios
   rnaseq_data = Channel.fromPath(params.data_dir_rnaseq).collect()
   sc_data = Channel.fromPath(params.data_dir_sc).collect()
   remapping = Channel.fromPath(params.mapping_sheet).collect()
-  createSignature(single_cell, rna_seq, methods, rnaseq_data, sc_data, remapping, runtime)
-  deconvolute(createSignature.out.signature, rnaseq_data, sc_data, remapping, runtime)
-  deconv = deconvolute.out.deconvolution
-  deconvolute.out.deconvolution.view()
-  deconvolute.out.runtime.view()
-  //hoek_samples = deconv.filter{ ds -> ds =~/_hoek/ }
-  //hoek_samples_list = hoek_samples.toList()
-  //benchmarkingPlots(hoek_samples_list, rnaseq_data, rna_seq, remapping)
-  //benchmarkingPlots(deconv.toList(), rnaseq_data, rna_seq, remapping) das hier wieder rein
+  //createSignature(single_cell, rna_seq, methods, rnaseq_data, sc_data, remapping, runtime)
+  //deconvolute(createSignature.out.signature, rnaseq_data, sc_data, remapping, runtime)
+  //deconv = deconvolute.out.deconvolution
+  //deconvolute.out.deconvolution.view()
+  //deconvolute.out.runtime.view()
+  //hoek_samples = deconv.filter{ ds -> ds =~/_hoek/ }                      das
+  //hoek_samples_list = hoek_samples.toList()                               hier
+  //benchmarkingPlots(hoek_samples_list, rnaseq_data, rna_seq, remapping)   nicht
+  //benchmarkingPlots(deconv.toList(), rnaseq_data, rna_seq, remapping)
   //benchmarkingPlots.out.plot.view()
-  //simulateBulk(single_cell, rna_seq, methods, rnaseq_data, sc_data, remapping)
-  //simulateBulk.out.deconvolution.toList()
+  celltypes = Channel.fromList(["B cell", "T cell CD4+", "T cell CD8+"])
+  simulateBulk(single_cell, scenarios, sc_data, remapping, celltypes)
+  sims = simulateBulk.out.bulk.toList()
+  deconvoluteSimulatedBulk(single_cell, methods, sims, sc_data, remapping)
+  deconvSim = deconvoluteSimulatedBulk.out.deconvolution
+  spillover_samples = deconvSim.filter{ str -> str =~/_spillover/ }.toList()
 }

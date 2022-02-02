@@ -48,3 +48,19 @@ remapCelltypesWorkflow <- function(remappingPath, celltype_annotations, method_d
   celltype_annotations <- celltypes
   return(celltype_annotations)
 }
+
+remapCelltypesTree <- function(facs_celltypes, deconv_celltypes){
+  #remap eg Tcell CD4 and CD8 etc to the higher level that matches the facs
+  df <- data.frame(parent_type=c(), child_type=c())
+  for (celltype in facs_celltypes) {
+    children <- immunedeconv::get_all_children(cell_type = celltype)
+    df <- rbind(df, data.frame(parent_type=rep(celltype, length(children)), child_type=children))
+  }
+  #what if it's not child but child of child etc?
+  #how are we gonna deal with this --> sometimes celltypes just not in facs - need to distinguish if not finished mapping or no parent available
+  if(all(deconv_celltypes %in% df$child_type)){
+    print(deconv_celltypes)
+    print(df$child_type)
+  }
+  return(df)
+}

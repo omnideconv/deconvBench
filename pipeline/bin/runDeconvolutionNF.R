@@ -1,7 +1,7 @@
 #!/usr/bin/Rscript
 
 "Usage: 
-  runDeconvolutionNF.R <sc_path> <sc_datasetname> <rna_path> <rna_datasetname> <deconv_method> <signature> <remapping_sheet>
+  runDeconvolutionNF.R <sc_path> <sc_datasetname> <rna_path> <rna_datasetname> <deconv_method> <signature> <remapping_sheet> [<coarse>]
 Options:
 <sc_path> path to sc dataset
 <sc_datasetname> name of sc dataset
@@ -9,7 +9,8 @@ Options:
 <rna_datasetname> name of rnaseq dataset
 <deconv_method>  deconv method
 <signature> signature matrix
-<remapping_sheet> excel mapping sheet with remapping" -> doc
+<remapping_sheet> excel mapping sheet with remapping
+<coarse> logical, if TRUE celltypes are mapped to higher level" -> doc
 
 args <- docopt::docopt(doc)
 sc_path <- args$sc_path

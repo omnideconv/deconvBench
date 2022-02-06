@@ -27,7 +27,7 @@ remapping_sheet <- args$remapping_sheet
 
 tissue <- args$tissue
 organism <- args$organism
-celltypes <- args$celltypes
+celltypes <- unlist(strsplit(args$celltypes, ","))
 
 source("/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/bin/remapCelltypesNF.R")
 sc_celltype_annotations <- remapCelltypesWorkflow(remappingPath = remapping_sheet, 

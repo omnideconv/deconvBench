@@ -62,17 +62,29 @@ if(grepl("spillover", bulk_scenario)){
   
   dev.off()
 } else {
-  names <- c("Monocyte conventional", "Macrophage", "Endothelial cell",
-             "Mast cell", "B cell", "T cell CD8+", "T cell CD4+", "Epithelial cell",
-             "other cell", "NK cell", "Monocyte non-conventional",
-             "Myeloid dendritic cell", "Cancer associated fibroblast", "Club cell",
-             "B cell plasma", "T cell regulatory (Tregs)", "Plasmacytoid dendritic cell",
-             "Langerhans cell", "Goblet cell")
-  colnames(simulated_bulk$cell_fractions) <- names
-  corMatrix <- cor(deconvolution, simulated_bulk$cell_fractions)
+  facs <- simulated_bulk$cell_fractions
+  if(sc_ds=="maynard"){
+    colnames(facs) <- c("Monocyte conventional", "Macrophage", "Endothelial cell", 
+                        "Mast cell", "B cell", "T cell CD8+", "T cell CD4+", 
+                        "Epithelial cell", "other cell", "NK cell",
+                        "Monocyte non-conventional", "Myeloid dendritic cell", 
+                        "Cancer associated fibroblast", "Club cell", "B cell plasma", 
+                        "T cell regulatory (Tregs)", "Plasmacytoid dendritic cell", 
+                        "Langerhans cell", "Goblet cell")
+    
+  } else {
+    colnames(facs) <- c("B cell", "T cell regulatory (Tregs)", "other cell", 
+                        "T cell CD8+", "Monocyte non-conventional", 
+                        "Mast cell", "T cell CD4+", "Myeloid dendritic cell", 
+                        "Cancer associated fibroblast", "Macrophage", "Club cell", 
+                        "B cell plasma", "Goblet cell", "NK cell", "Langerhans cell", 
+                        "Endothelial cell", "Monocyte conventional", 
+                        "Plasmacytoid dendritic cell", "Epithelial cell")
+  }
+  corMatrix <- cor(deconvolution, facs)
   pdf(paste("correlationMatrix_", bulk_scenario, "_", method, ".pdf", sep=""))
   corrplot::corrplot(corMatrix, 
                    is.corr = TRUE, tl.col = "black", order = 'alphabet', 
-                   title = paste(bulk_scenario, "-", method))
+                   title = paste(bulk_scenario, "-", method), mar = c(0,0,2,0))
   dev.off()
 }

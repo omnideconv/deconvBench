@@ -13,18 +13,18 @@ library(dplyr)
 library(circlize)
 deconv_results <- args$deconv_results
 #load deconv results
-deconv_results <- list("/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_T cell CD4+_lambrechts_bisque.rds", 
-                       "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_T cell CD8+_lambrechts_bisque.rds", 
-                       "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_B cell_lambrechts_bisque.rds", 
-                       "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_T cell CD4+_lambrechts_cibersortx.rds", 
-                       "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_T cell CD8+_lambrechts_cibersortx.rds", 
-                       "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_B cell_lambrechts_cibersortx.rds", 
-                       "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_T cell CD4+_maynard_bisque.rds", 
-                       "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_T cell CD8+_maynard_bisque.rds", 
-                       "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_B cell_maynard_bisque.rds", 
-                       "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_T cell CD4+_maynard_cibersortx.rds", 
-                       "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_T cell CD8+_maynard_cibersortx.rds", 
-                       "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_B cell_maynard_cibersortx.rds")#, 
+# deconv_results <- list("/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_T cell CD4+_lambrechts_bisque.rds", 
+#                        "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_T cell CD8+_lambrechts_bisque.rds", 
+#                        "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_B cell_lambrechts_bisque.rds", 
+#                        "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_T cell CD4+_lambrechts_cibersortx.rds", 
+#                        "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_T cell CD8+_lambrechts_cibersortx.rds", 
+#                        "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_B cell_lambrechts_cibersortx.rds", 
+#                        "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_T cell CD4+_maynard_bisque.rds", 
+#                        "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_T cell CD8+_maynard_bisque.rds", 
+#                        "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_B cell_maynard_bisque.rds", 
+#                        "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_T cell CD4+_maynard_cibersortx.rds", 
+#                        "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_T cell CD8+_maynard_cibersortx.rds", 
+#                        "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_B cell_maynard_cibersortx.rds")#, 
 #"/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_maynard_autogenes.rds")
 resTable <- tibble(path = deconv_results) %>% mutate(results = gsub(".rds", "", gsub("deconvolution_", "", lapply(path, basename)))) %>% separate(results, c("scenario", "celltype", "dataset", "method"), sep="_") 
 data <- NULL

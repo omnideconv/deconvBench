@@ -101,10 +101,12 @@ process simulateBulk {
 
 	output:
 	path('*.rds'), emit: bulk
+	tuple val(sc), path('*.rds'), emit: bulk_tuple
+
 	//path('*.pdf'), emit: correlation
 
 	"""
-	#echo '$sc $sc_data $scenario'
+	#echo '$sc $sc_data $scenario $celltypes'
 	simulateBulkNF.R '$sc_data' '$sc' '$mapping_sheet' '$scenario' 'blood' 'Homo sapiens' '$celltypes'
 	""" 
 }
@@ -114,9 +116,8 @@ process deconvoluteSimulatedBulk {
 	publishDir params.results_dir, mode: params.publishDirMode
 
 	input:
-	each sc
 	each method
-	each bulk
+	tuple val(sc), val(bulk)
 	path sc_data
 	path mapping_sheet
 
@@ -127,6 +128,24 @@ process deconvoluteSimulatedBulk {
 	"""
 	#echo '$sc $sc_data $method $bulk'
 	deconvoluteSimBulkNF.R '$sc_data' '$sc' '$bulk' '$method' '$mapping_sheet'
+	""" 
+}
+
+process plotSimulation {
+
+	publishDir params.results_dir, mode: params.publishDirMode
+
+	input:
+	val deconv
+	val bulk
+	path mapping_sheet
+
+	output:
+	path('*.pdf'), emit: entry
+	path('*.jpeg'), emit: entry_jpeg
+
+	"""
+	plotSimulationCorrelationNF.R '$deconv' '$bulk' '$mapping_sheet'
 	""" 
 }
 
@@ -151,10 +170,15 @@ workflow{
   //benchmarkingPlots(hoek_samples_list, rnaseq_data, rna_seq, remapping)   nicht
   //benchmarkingPlots(deconv.toList(), rnaseq_data, rna_seq, remapping)
   //benchmarkingPlots.out.plot.view()
-  celltypes = Channel.fromList(["B cell", "T cell CD4+", "T cell CD8+"])
+  celltypes = Channel.value("B cell,T cell CD4+,T cell CD8+")
   simulateBulk(single_cell, scenarios, sc_data, remapping, celltypes)
-  sims = simulateBulk.out.bulk.toList()
-  deconvoluteSimulatedBulk(single_cell, methods, sims, sc_data, remapping)
-  deconvSim = deconvoluteSimulatedBulk.out.deconvolution
-  spillover_samples = deconvSim.filter{ str -> str =~/_spillover/ }.toList()
+  sim_tuple = simulateBulk.out.bulk_tuple
+  sims = simulateBulk.out.bulk.collect()
+  //sims.view()
+  deconvoluteSimulatedBulk(methods, sim_tuple, sc_data, remapping)
+  deconvSim = deconvoluteSimulatedBulk.out.deconvolution.collect()
+  deconvoluteSimulatedBulk.out.deconvolution.view()
+  plotSimulation(deconvSim, sims, remapping)
+  plotSimulation.out.entry.view()
+  //spillover_samples = deconvSim.filter{ str -> str =~/_spillover/ }.collect()
 }

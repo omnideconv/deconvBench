@@ -3,15 +3,14 @@
 "Usage: 
   plotSpilloverNF.R <deconv_results>
 Options:
-<deconv_results> list with spillover simulation deconv results
-<bulk> list with paths of the bulk simulations" -> doc
+<deconv_results> list with spillover simulation deconv results" -> doc
 
 args <- docopt::docopt(doc)
 
 library(tidyr)
 library(dplyr)
 library(circlize)
-deconv_results <- args$deconv_results
+deconv_results <- unlist(strsplit(gsub("\\[", "", gsub("\\]", "", args$deconv_results)), ", "))
 #load deconv results
 # deconv_results <- list("/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_T cell CD4+_lambrechts_bisque.rds", 
 #                        "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_T cell CD8+_lambrechts_bisque.rds", 
@@ -26,14 +25,16 @@ deconv_results <- args$deconv_results
 #                        "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_T cell CD8+_maynard_cibersortx.rds", 
 #                        "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_B cell_maynard_cibersortx.rds")#, 
 #"/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_maynard_autogenes.rds")
-resTable <- tibble(path = deconv_results) %>% mutate(results = gsub(".rds", "", gsub("deconvolution_", "", lapply(path, basename)))) %>% separate(results, c("scenario", "celltype", "dataset", "method"), sep="_") 
+resTable <- tibble(path = deconv_results) %>% 
+  mutate(results = gsub(".rds", "", gsub("deconvolution_", "", lapply(path, basename)))) %>% 
+  separate(results, c("scenario", "dataset", "celltype", "method"), sep="_") 
 data <- NULL
 for(res in deconv_results){
   result <- as.data.frame(readRDS(res))
   info <- unlist(strsplit(gsub(".rds", "", gsub("deconvolution_", "", lapply(res, basename))), "_"))
   result <- result %>% tibble::rownames_to_column(var="sample") %>% 
     pivot_longer(!"sample", names_to="celltype", values_to = "predicted_value") %>% 
-    mutate(dataset = info[3], method = info[4]) %>% mutate(true_value = ifelse(celltype == info[2], 1, 0), true_celltype = info[2]) #merge with gold standard
+    mutate(dataset = info[2], method = info[4]) %>% mutate(true_value = ifelse(celltype == info[3], 1, 0), true_celltype = info[3]) #merge with gold standard
   data <- rbind(data, result)
 } 
 ### code adopted from immunedeconv benchmarking / spillover analysis
@@ -80,4 +81,4 @@ makeChordDiagrams <- function(resultDf, overviewTable, pdfName){
   dev.off()
 }
 
-makeChordDiagrams(data, resTable, "test.pdf")
+makeChordDiagrams(data, resTable, "spilloverChordDiagram.pdf")

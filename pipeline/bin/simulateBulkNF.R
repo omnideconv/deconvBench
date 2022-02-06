@@ -22,7 +22,6 @@ sc_batch <- readRDS(file.path(sc_path, sc_ds, "batch.rds"))
 sc_marker <- readRDS(file.path(sc_path, sc_ds, "marker.rds"))
 scenario <- args$scenario
 
-method <- args$deconv_method
 remapping_sheet <- args$remapping_sheet
 
 tissue <- args$tissue
@@ -45,7 +44,9 @@ if(scenario=="uniform"){
 } else if(scenario == "spillover"){
   ###spillover###
   for (celltype in celltypes) {
-    simulated_bulk <- simulate_bulk(dataset(
+    print(celltype)
+    simulated_bulk <- SimBu::simulate_bulk(
+      dataset(
       annotation = data.frame(ID = colnames(sc_matrix), 
                               cell_type = sc_celltype_annotations),
       count_matrix = sc_matrix,
@@ -53,13 +54,11 @@ if(scenario=="uniform"){
       scaling_factor = "NONE",
       scenario = "unique", 
       unique_cell_type=celltype) #TODO make this variable
-    scenario <- paste(scenario, celltype, sep="_")
     saveRDS(simulated_bulk, 
-            paste("simulatedBulk_", scenario, "_", sc_ds, ".rds", sep=""), 
+            paste("simulatedBulk_", scenario, "_", sc_ds, "_", celltype, ".rds", sep=""), 
             compress = FALSE)
-    #last one gets saved twice but whatever
   }
-  
+  quit()
 } else if(scenario=="sfaira"){
   setup_list <- SimBu::setup_sfaira(
     python_path = "/nfs/home/students/k.reinisch/.conda/envs/sfaira/bin/python3",

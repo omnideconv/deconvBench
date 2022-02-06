@@ -1,25 +1,24 @@
 #!/usr/bin/Rscript
 
 "Usage: 
-  deconvoluteSimBulkNF.R <sc_path> <sc_datasetname> <bulk> <deconv_method> <remapping_sheet>
+  deconvoluteSimBulkNF.R <sc_path> <bulk> <deconv_method> <remapping_sheet>
 Options:
 <sc_path> path to sc dataset
-<sc_datasetname> name of sc dataset
 <bulk> simulated bulk
 <deconv_method>  deconv method
 <remapping_sheet> excel mapping sheet with remapping" -> doc
 
 args <- docopt::docopt(doc)
 
+simulated_bulk <- readRDS(args$bulk)
+bulk_scenario <- gsub("simulatedBulk_", "", gsub(".rds", "", basename(args$bulk)))
+sc_ds <- unlist(strsplit(bulk_scenario, "_"))[2]
+
 sc_path <- args$sc_path
-sc_ds <- args$sc_datasetname
 sc_matrix <- readRDS(file.path(sc_path, sc_ds, "matrix.rds"))
 sc_celltype_annotations <- readRDS(file.path(sc_path, sc_ds, "celltype_annotations.rds"))
 sc_batch <- readRDS(file.path(sc_path, sc_ds, "batch.rds"))
 sc_marker <- readRDS(file.path(sc_path, sc_ds, "marker.rds"))
-
-simulated_bulk <- readRDS(args$bulk)
-bulk_scenario <- gsub("simulatedBulk_", "", gsub(".rds", "", basename(args$bulk)))
 
 method <- args$deconv_method
 remapping_sheet <- args$remapping_sheet

@@ -6,3 +6,4 @@ pipeline/results
 pipeline/.nextflow.log*
 pipeline/.nextflow/
 pipeline/nextflow.config2
+pipeline/images

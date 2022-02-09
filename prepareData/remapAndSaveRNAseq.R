@@ -8,10 +8,10 @@ colnames(hoek_pbmc_tpm) <- hoek_mapping[,1][match(hoek_mapping[,2], colnames(hoe
 hoek_pbmc_counts <- read.table("/nfs/data/omnideconv_benchmarking/raw_count_Signature_v7.txt", header = TRUE, row.names = 1, sep = "\t") #hoek signature tpm
 colnames(hoek_pbmc_counts) <- hoek_mapping[,1][match(hoek_mapping[,2], colnames(hoek_pbmc_counts))]
 dataName <- "hoek"
-save(hoek_pbmc_facs, file=paste(saveDir, dataName, "hoek_pbmc_facs.RData", sep="/"))
-save(hoek_pbmc_tpm, file=paste(saveDir, dataName, "hoek_pbmc_tpm.RData", sep="/"))
-save(hoek_pbmc_counts, file=paste(saveDir, dataName, "hoek_pbmc_counts.RData", sep="/"))
-save(hoek_pbmc_facs, hoek_pbmc_counts, hoek_pbmc_tpm, file=paste(saveDir, dataName, "hoek_pbmc_allData.RData", sep="/"))
+saveRDS(hoek_pbmc_facs, file.path(saveDir, dataName, "hoek_pbmc_facs.rds"))
+saveRDS(hoek_pbmc_tpm, file.path(saveDir, dataName, "hoek_pbmc_tpm.rds"))
+saveRDS(hoek_pbmc_counts, file.path(saveDir, dataName, "hoek_pbmc_counts.rds"))
+#saveRDS(hoek_pbmc_facs, hoek_pbmc_counts, hoek_pbmc_tpm, file.path(saveDir, dataName, "hoek_pbmc_allData.rds"))
 
 
 finotello_pbmc_tpm <- read.table("/nfs/data/omnideconv_benchmarking/tpm_PBMC_RNAseq.txt", header = TRUE, row.names = 1, sep = "\t") #finotello rnaseq tpm
@@ -22,8 +22,8 @@ finotello_pbmc_facs <- read.table("/nfs/data/omnideconv_benchmarking/Decon_FACS_
 colnames(finotello_pbmc_facs)<-gsub("D[0]*", "pbmc_", colnames(finotello_pbmc_facs))
 rownames(finotello_pbmc_facs) <- gsub("CD8.T.cells", "T.cells.CD8", gsub("CD4.T.cells", "T.cells.CD4", rownames(finotello_pbmc_facs)))
 dataName <- "finotello"
-save(finotello_pbmc_facs, file=paste(saveDir, dataName, "finotello_pbmc_facs.RData", sep="/"))
-save(finotello_pbmc_tpm, file=paste(saveDir, dataName, "finotello_pbmc_tpm.RData", sep="/"))
-save(finotello_pbmc_counts, file=paste(saveDir, dataName, "finotello_pbmc_counts.RData", sep="/"))
-save(finotello_pbmc_facs, finotello_pbmc_counts, finotello_pbmc_tpm, file=paste(saveDir, dataName, "finotello_pbmc_allData.RData", sep="/"))
+saveRDS(finotello_pbmc_facs, file.path(saveDir, dataName, "finotello_pbmc_facs.rds"))
+saveRDS(finotello_pbmc_tpm, file.path(saveDir, dataName, "finotello_pbmc_tpm.rds"))
+saveRDS(finotello_pbmc_counts, file.path(saveDir, dataName, "finotello_pbmc_counts.rds"))
+#saveRDS(finotello_pbmc_facs, finotello_pbmc_counts, finotello_pbmc_tpm, file.path(saveDir, dataName, "finotello_pbmc_allData.rds"))
 

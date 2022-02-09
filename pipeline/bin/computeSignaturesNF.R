@@ -30,10 +30,10 @@ load(file.path(rnaseq_path, rnaseq_ds, paste(rnaseq_ds, "_pbmc_tpm.RData", sep="
 
 method <- args$deconv_method
 remapping_sheet <- args$remapping_sheet
+coarse <- ifelse(is.null(args$coarse), FALSE, as.logical(args$coarse))
 
-coarse <- as.logical(args$coarse)
 source("/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/bin/remapCelltypesNF.R")
-if(is.na(coarse) | !coarse){
+if(!coarse){
   # regular
   sc_celltype_annotations <- remapCelltypesWorkflow(remappingPath = remapping_sheet, 
                                                     celltype_annotations = sc_celltype_annotations, 

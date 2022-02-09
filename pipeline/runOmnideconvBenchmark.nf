@@ -35,7 +35,7 @@ process createSignature {
 	#echo '$sc $sc_data $rnaseq_data $mode $rnaseq'
 	#computeSignaturesNF.R '$sc_data' '$sc' '$rnaseq_data' '$rnaseq' '$mode' '$mapping_sheet'
 	
-	TIME="$(computeSignaturesNF.R '!{sc_data}' '!{sc}' '!{rnaseq_data}' '!{rnaseq}' '!{mode}' '!{mapping_sheet}')"
+	TIME="$(computeSignaturesNF.R '!{sc_data}' '!{sc}' '!{rnaseq_data}' '!{rnaseq}' '!{mode}' '!{mapping_sheet}' '')"
 	FINAL="$(echo $TIME | sed -e 's/^.*user system elapsed //p' | tail -n 1)"
 	echo !{mode}'\t'!{sc}'\t'!{rnaseq}'\tbuild_model\t'$FINAL >> '!{runtime}'
 	''' 
@@ -73,18 +73,14 @@ process benchmarkingPlots {
 	input:
 	val deconvolution
 	path facs
-	val dataset_name
 	path mapping_sheet
 
 	
 	output:
-	//stdout emit: plot
 	path '*.jpeg', emit: plotjpeg
-	path '*.pdf', emit: plotpdf
 
 	"""
-	echo '$deconvolution'
-	plotGtruthHoekNF.R '$deconvolution' '$facs' '$dataset_name' '$mapping_sheet'
+	plotGtruthHoekNF.R '$deconvolution' '$facs' '$mapping_sheet'
 	""" 
 }
 
@@ -175,27 +171,25 @@ workflow{
   rnaseq_data = Channel.fromPath(params.data_dir_rnaseq).collect()
   sc_data = Channel.fromPath(params.data_dir_sc).collect()
   remapping = Channel.fromPath(params.mapping_sheet).collect()
-  //createSignature(single_cell, rna_seq, methods, rnaseq_data, sc_data, remapping, runtime)
-  //deconvolute(createSignature.out.signature, rnaseq_data, sc_data, remapping, runtime)
-  //deconv = deconvolute.out.deconvolution
-  //deconvolute.out.deconvolution.view()
-  //deconvolute.out.runtime.view()
+  createSignature(single_cell, rna_seq, methods, rnaseq_data, sc_data, remapping, runtime)
+  deconvolute(createSignature.out.signature, rnaseq_data, sc_data, remapping, runtime)
+  deconv = deconvolute.out.deconvolution
+  deconvolute.out.deconvolution.view()
+  deconvolute.out.runtime.view()
   //hoek_samples = deconv.filter{ ds -> ds =~/_hoek/ }                      das
   //hoek_samples_list = hoek_samples.toList()                               hier
   //benchmarkingPlots(hoek_samples_list, rnaseq_data, rna_seq, remapping)   nicht
-  //benchmarkingPlots(deconv.toList(), rnaseq_data, rna_seq, remapping)
-  //benchmarkingPlots.out.plot.view()
-  celltypes = Channel.value("B cell,T cell regulatory (Tregs),T cell CD8+,T cell CD4+,Monocyte non-conventional,Macrophage,Monocyte conventional,NK cell,Myeloid dendritic cell,Plasmacytoid dendritic cell")
-  simulateBulk(single_cell, scenarios, sc_data, remapping, celltypes)
-  //sim_tuple = simulateBulk.out.bulk_tuple
-  sims = simulateBulk.out.bulk.collect()
-  //sims.view()
-  deconvoluteSimulatedBulk(methods, sims, sc_data, remapping)
-  deconvSim = deconvoluteSimulatedBulk.out.deconvolution
-  uniform = deconvSim.filter{ str -> str =~/_uniform/ }.collect()view()
-  plotSimulation(uniform, sims, remapping)
-  plotSimulation.out.entry.view()
-  spillover = deconvSim.filter{ str -> str =~/_spillover/ }.collect()
-  plotSimulationSpillover(spillover)
+  benchmarkingPlots(deconv.toList(), rnaseq_data, remapping)
+  benchmarkingPlots.out.plotjpeg.view()
+  //celltypes = Channel.value("B cell,T cell regulatory (Tregs),T cell CD8+,T cell CD4+,Monocyte non-conventional,Macrophage,Monocyte conventional,NK cell,Myeloid dendritic cell,Plasmacytoid dendritic cell")
+  //simulateBulk(single_cell, scenarios, sc_data, remapping, celltypes)
+  //sims = simulateBulk.out.bulk.collect()
+  //deconvoluteSimulatedBulk(methods, sims, sc_data, remapping)
+  //deconvSim = deconvoluteSimulatedBulk.out.deconvolution
+  //uniform = deconvSim.filter{ str -> str =~/_uniform/ }.collect()view()
+  //plotSimulation(uniform, sims, remapping)
+  //plotSimulation.out.entry.view()
+  //spillover = deconvSim.filter{ str -> str =~/_spillover/ }.collect()
+  //plotSimulationSpillover(spillover)
 }
 

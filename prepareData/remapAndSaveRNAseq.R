@@ -27,3 +27,21 @@ saveRDS(finotello_pbmc_tpm, file.path(saveDir, dataName, "finotello_pbmc_tpm.rds
 saveRDS(finotello_pbmc_counts, file.path(saveDir, dataName, "finotello_pbmc_counts.rds"))
 #saveRDS(finotello_pbmc_facs, finotello_pbmc_counts, finotello_pbmc_tpm, file.path(saveDir, dataName, "finotello_pbmc_allData.rds"))
 
+#Vanderbilt is in one rdata object - counts, gtruth, tpm
+load("/nfs/data/omnideconv_benchmarking/vanderbilt/Vanderbilt_Lungcancer.rdata")
+vanderbiltLungcancer_pbmc_tpm <- tpm #vanderbilt lungcancer rnaseq tpm
+vanderbiltLungcancer_pbmc_counts <- counts #vanderbilt lungcancer rnaseq tpm
+vanderbiltLungcancer_pbmc_facs <- gtruth #vanderbilt lungcancer rnaseq facs
+dataName <- "vanderbiltLungcancer"
+saveRDS(vanderbiltLungcancer_pbmc_facs, file.path(saveDir, dataName, "vanderbiltLungcancer_pbmc_facs.rds"))
+saveRDS(vanderbiltLungcancer_pbmc_tpm, file.path(saveDir, dataName, "vanderbiltLungcancer_pbmc_tpm.rds"))
+saveRDS(vanderbiltLungcancer_pbmc_counts, file.path(saveDir, dataName, "vanderbiltLungcancer_pbmc_counts.rds"))
+
+load("/nfs/data/omnideconv_benchmarking/vanderbilt/Vanderbilt_Melanoma.rdata")
+vanderbiltMelanoma_pbmc_tpm <- tpm #vanderbilt melanoma rnaseq tpm
+vanderbiltMelanoma_pbmc_counts <- counts #vanderbilt melanoma rnaseq tpm
+vanderbiltMelanoma_pbmc_facs <- gtruth #vanderbilt melanoma rnaseq facs
+dataName <- "vanderbiltMelanoma"
+saveRDS(vanderbiltMelanoma_pbmc_facs, file.path(saveDir, dataName, "vanderbiltMelanoma_pbmc_facs.rds"))
+saveRDS(vanderbiltMelanoma_pbmc_tpm, file.path(saveDir, dataName, "vanderbiltMelanoma_pbmc_tpm.rds"))
+saveRDS(vanderbiltMelanoma_pbmc_counts, file.path(saveDir, dataName, "vanderbiltMelanoma_pbmc_counts.rds"))

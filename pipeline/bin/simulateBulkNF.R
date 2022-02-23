@@ -27,6 +27,7 @@ remapping_sheet <- args$remapping_sheet
 tissue <- args$tissue
 organism <- args$organism
 celltypes <- unlist(strsplit(args$celltypes, ","))
+celltypes <- unique(sc_celltype_annotations) #remove this if you only want certain celltypes for spillover!
 
 source("/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/bin/remapCelltypesNF.R")
 sc_celltype_annotations <- remapCelltypesWorkflow(remappingPath = remapping_sheet, 
@@ -41,6 +42,12 @@ if(scenario=="uniform"){
     annotation = data.frame(ID = colnames(sc_matrix), cell_type = sc_celltype_annotations), 
     count_matrix = sc_matrix,
     name = sc_ds))
+} else if(scenario=="true_fractions"){
+  ###mirror_db###
+  simulated_bulk <- simulate_bulk(dataset(
+    data.frame(ID = colnames(sc_matrix), cell_type = sc_celltype_annotations), 
+    count_matrix = sc_matrix,
+    name = sc_ds), scenario = "mirror_db")
 } else if(scenario == "spillover"){
   ###spillover###
   for (celltype in celltypes) {

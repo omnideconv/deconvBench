@@ -10,7 +10,15 @@ args <- docopt::docopt(doc)
 library(tidyr)
 library(dplyr)
 library(circlize)
+escapeCelltypes <- function(celltype){
+  return(gsub(" ", "x.x", celltype))
+}
+reEscapeCelltypes <- function(celltype){
+  return(gsub("x.x", " ", celltype))
+}
 deconv_results <- unlist(strsplit(gsub("\\[", "", gsub("\\]", "", args$deconv_results)), ", "))
+
+deconv_results <- list.files("/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results", pattern = "deconvolution_spillover", full.names = TRUE)
 #load deconv results
 # deconv_results <- list("/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_T cell CD4+_lambrechts_bisque.rds", 
 #                        "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_T cell CD8+_lambrechts_bisque.rds", 
@@ -27,58 +35,65 @@ deconv_results <- unlist(strsplit(gsub("\\[", "", gsub("\\]", "", args$deconv_re
 #"/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_maynard_autogenes.rds")
 resTable <- tibble(path = deconv_results) %>% 
   mutate(results = gsub(".rds", "", gsub("deconvolution_", "", lapply(path, basename)))) %>% 
-  separate(results, c("scenario", "dataset", "celltype", "method"), sep="_") 
+  separate(results, c("scenario", "dataset", "celltype", "rnaseq_type", "method"), sep="_") %>% 
+  mutate(celltype=reEscapeCelltypes(celltype))
 data <- NULL
 for(res in deconv_results){
   result <- as.data.frame(readRDS(res))
   info <- unlist(strsplit(gsub(".rds", "", gsub("deconvolution_", "", lapply(res, basename))), "_"))
   result <- result %>% tibble::rownames_to_column(var="sample") %>% 
     pivot_longer(!"sample", names_to="celltype", values_to = "predicted_value") %>% 
-    mutate(dataset = info[2], method = info[4]) %>% mutate(true_value = ifelse(celltype == info[3], 1, 0), true_celltype = info[3]) #merge with gold standard
+    mutate(dataset = info[2], rnaseq_type = info[4], method = info[5]) %>% 
+    mutate(true_value = ifelse(celltype == reEscapeCelltypes(info[3]), 1, 0), true_celltype = reEscapeCelltypes(info[3])) #merge with gold standard
   data <- rbind(data, result)
 } 
 ### code adopted from immunedeconv benchmarking / spillover analysis
-makeChordDiagrams <- function(resultDf, overviewTable, pdfName){
-  layout(matrix(seq(1, length(unique(overviewTable$dataset)) * length(unique(overviewTable$method))), length(unique(overviewTable$method)), length(unique(overviewTable$dataset))))
+makeChordDiagrams <- function(resultDfIn, overviewTable, pdfName){
+  layout(matrix(seq(1, length(unique(overviewTable$dataset)) * length(unique(overviewTable$method)) * length(unique(overviewTable$rnaseq_type))), 
+                length(unique(overviewTable$method)), 
+                length(unique(overviewTable$dataset)) * length(unique(overviewTable$rnaseq_type))))
   par(mar=rep(0.5, 4))
   circos.par(cell.padding = rep(0, 4))
   pdf(pdfName)
-  lapply(unique(overviewTable$dataset), function(dataset) {
-    lapply(unique(overviewTable$method), function(method) {
-      migration = resultDf %>%
-        filter(method == !!method, dataset == !!dataset) %>%
-        group_by(method, true_celltype, celltype) %>%
-        summarise(estimate = mean(predicted_value)) %>%
-        ungroup()
-      migration_mat = migration %>%
-        select(-method) %>%
-        spread(celltype, estimate) %>%
-        as.data.frame() %>%
-        tibble::column_to_rownames("true_celltype") %>%
-        as.matrix()
-      noise_ratio = migration %>%
-        group_by(method, celltype, true_celltype) %>%
-        summarise(estimate = mean(estimate)) %>%
-        group_by(method) %>%
-        mutate(type = ifelse(celltype == true_celltype, "signal", "noise")) %>%
-        group_by(method, type) %>%
-        summarise(estimate = sum(estimate)) %>%
-        spread(type, estimate) %>%
-        mutate(noise_ratio = noise/(signal+noise)) %>%
-        ungroup()
-      chordDiagram(migration_mat, directional = TRUE, transparency = .5
-                   #grid.col = color_scales$spillover
-                   # annotationTrack = c("track", "grid")
-      )
-      text(0, 0, method, cex = 2.3)
-      text(0, -0.2, as.character(round(filter(noise_ratio, method == !!method) %>% pull(noise_ratio), 2)), cex=2)
-      # first method, add title.
-      if(method == "bisque") {
-        title(dataset)
-      }
+  lapply(unique(overviewTable$rnaseq_type), function(type){
+    lapply(unique(overviewTable$dataset), function(dataset) {
+      lapply(unique(overviewTable$method), function(method) {
+        resultDf <- resultDfIn[resultDfIn$rnaseq_type==type,]
+        migration = resultDf %>%
+          filter(method == !!method, dataset == !!dataset) %>%
+          group_by(method, true_celltype, celltype) %>%
+          summarise(estimate = mean(predicted_value)) %>%
+          ungroup()
+        migration_mat = migration %>%
+          select(-method) %>%
+          spread(celltype, estimate) %>%
+          as.data.frame() %>%
+          tibble::column_to_rownames("true_celltype") %>%
+          as.matrix()
+        noise_ratio = migration %>%
+          group_by(method, celltype, true_celltype) %>%
+          summarise(estimate = mean(estimate)) %>%
+          group_by(method) %>%
+          mutate(type = ifelse(celltype == true_celltype, "signal", "noise")) %>%
+          group_by(method, type) %>%
+          summarise(estimate = sum(estimate)) %>%
+          spread(type, estimate) %>%
+          mutate(noise_ratio = noise/(signal+noise)) %>%
+          ungroup()
+        chordDiagram(migration_mat, directional = TRUE, transparency = .5
+                     #grid.col = color_scales$spillover
+                     # annotationTrack = c("track", "grid")
+        )
+        text(0, 0, method, cex = 2.3)
+        text(0, -0.2, as.character(round(filter(noise_ratio, method == !!method) %>% pull(noise_ratio), 2)), cex=2)
+        # first method, add title.
+        if(method == "bisque") {
+          title(paste(dataset, type, sep=" - "))
+        }
+      })
     })
   })
   dev.off()
 }
 
-makeChordDiagrams(data, resTable, "spilloverChordDiagram.pdf")
+makeChordDiagrams(resultDfIn = data, overviewTable = resTable, pdfName = "spilloverChordDiagram.pdf")

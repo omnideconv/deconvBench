@@ -7,3 +7,6 @@ pipeline/.nextflow.log*
 pipeline/.nextflow/
 pipeline/nextflow.config2
 pipeline/images
+pipeline/comparisonGtruth*
+pipeline/sc*
+pipeline/runtimesTest.tsv

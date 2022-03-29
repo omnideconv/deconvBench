@@ -13,16 +13,21 @@ resultVec <- strsplit(gsub("\\[", "", gsub("\\]", "", results)), ", ")[[1]]
 print(resultVec)
 remapping_sheet <- args$remapping_sheet
 
+#for testing
+resultVec <- list.files("/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/", 
+                        pattern = "^deconvolution_autogenes|^deconvolution_bisque|^deconvolution_cdseq|^deconvolution_cibersortx|^deconvolution_cpm|^deconvolution_dwls|^deconvolution_momf|^deconvolution_music_|^deconvolution_scaden_", 
+                        full.names=TRUE)
+
 ##remap celltype annotations of facs##
 source("/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/bin/remapCelltypesNF.R")
+source("/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/bin/plottingHelperNF.R")
 
 combinations <- lapply(resultVec, function(x){gsub(".rds", "", gsub("deconvolution_", "", basename(x)))})
-rnaseqDatasets <- unique(lapply(combinations, function(x){unlist(strsplit(x, split="_"))[3]}))
+rnaseqDatasets <- unique(lapply(combinations, function(x){unlist(strsplit(x, split="_"))[4]}))
 facsList <- rnaseqDatasets
 names(facsList) <- rnaseqDatasets
 facsList <- lapply(facsList, function(x){
-  load(file.path(args$facs, x, paste(x, "_pbmc_facs.RData", sep="")))
-  facs <- get(paste(x, "_pbmc_facs", sep=""))
+  facs <- readRDS(file.path(args$facs, x, paste(x, "_facs.rds", sep="")))
   celltype_annotations <- remapCelltypesWorkflow(remappingPath = remapping_sheet, 
                                                  celltype_annotations = rownames(facs), 
                                                  method_ds = x)
@@ -30,18 +35,27 @@ facsList <- lapply(facsList, function(x){
   facs
 })
 
+#set threshold of R value!
+r_threshold = 0.6
+lower_label <- paste("R lower than/equal to", r_threshold)
+higher_label <- "high"
+
 library(tidyr)
 library(dplyr)
 library(ggplot2)
 
 transformDataForPlotting <- function(deconv_df, reference, remap=FALSE, addAll=FALSE){
   mapping <- remapCelltypesTree(facs_celltypes = rownames(reference), deconv_celltypes = colnames(deconv_df))
-  deconv <- as.data.frame(deconv_df) %>% tibble::rownames_to_column(var="sample") %>% pivot_longer(!"sample", names_to="celltype", values_to = "predicted_value")
+  deconv <- as.data.frame(deconv_df) %>% tibble::rownames_to_column(var="sample") %>% 
+    pivot_longer(!"sample", names_to="celltype", values_to = "predicted_value")
   deconv <- merge(deconv, mapping, by.x = "celltype", by.y = "child_type")
   deconv <- deconv %>% dplyr::group_by(sample, parent_type) %>%
-      dplyr::summarise(predicted_value= sum(predicted_value)) %>% dplyr::rename(celltype=parent_type)
-  ref <- reference %>% tibble::rownames_to_column(var="celltype") %>% pivot_longer(!"celltype", names_to = "sample", values_to = "true_value")
-  df <- dplyr::inner_join(deconv, ref, by=c("celltype", "sample")) %>% dplyr::mutate(facet = celltype)
+      dplyr::summarise(predicted_value= sum(predicted_value)) %>% 
+    dplyr::rename(celltype=parent_type)
+  ref <- as.data.frame(reference) %>% tibble::rownames_to_column(var="celltype") %>% 
+    pivot_longer(!"celltype", names_to = "sample", values_to = "true_value")
+  df <- dplyr::inner_join(deconv, ref, by=c("celltype", "sample")) %>% 
+    dplyr::mutate(facet = celltype)
   if(addAll){
     return(rbind(df, dplyr::mutate(df, facet = "all")))
   } else {
@@ -52,86 +66,80 @@ transformDataForPlotting <- function(deconv_df, reference, remap=FALSE, addAll=F
 loadData <- function(resultVector, facsListInput, addAll=FALSE){
   data <- NULL
   for(i in 1:length(resultVector)){
-    decMatrix <- as.data.frame(readRDS(resultVec[i]))
+    print(resultVector[i])
+    decMatrix <- as.data.frame(readRDS(resultVector[i]))
     combination <- gsub(".rds", "", gsub("deconvolution_", "", basename(resultVector[i])))
     info <- unlist(strsplit(combination, split = "_"))
     method <- info[1]
     scset <- info[2]
-    rnaset <- info[3]
+    sctype <- info[3]
+    rnaset <- info[4]
     facsDf <- facsListInput[[rnaset]]
-    data <- transformDataForPlotting(deconv_df=decMatrix, reference=facsDf, remap = TRUE, addAll = addAll) %>% 
-      dplyr::mutate(combination = combination, method=method, scset=scset, bulk=rnaset) %>% 
-      rbind(data)
+    if(length(decMatrix)==0){
+      #data <- rbind(data, data.frame(sample=NA, celltype=NA, predicted_value=NA, true_value=NA, facet=NA, combination = combination, method=method, scset=scset, 
+      #                               sctype=sctype, bulk=rnaset))
+    } else {
+      data <- transformDataForPlotting(deconv_df=decMatrix, reference=facsDf, 
+                                       remap = TRUE, addAll = addAll) %>% 
+        dplyr::mutate(combination = combination, method=method, scset=scset, 
+                      sctype=sctype, bulk=rnaset) %>% 
+        rbind(data)
+    }
   }
   return(data)
 }
 
-##TODO function within sample (for each sample one cor value - all celltypes all sc each method)
-
-betweenSample <- function(filepath, data){
-  for(scset in unique(data$scset)){
-    p <- ggplot(data[data$scset==scset,], aes(x=true_value, y=predicted_value, color=celltype, shape = bulk))+
-      geom_point()+geom_abline()+
-      ggpubr::stat_cor(aes(label = ..r.label..), label.sep = "\n", size=2.5, color="black", label.x.npc = 0.005)+
-      facet_grid("facet~method")+
-      theme(axis.text.x = element_text(angle=90), legend.position = "bottom")+
-      labs(title = scset)
-    p
-    ggsave(filename = file.path(filepath, paste("comparisonGtruth_regularDeconv_betweenSampleComparison_", scset, ".jpeg", sep="")),p)
-  }
-}
-
-compareGroundTruthOneRna <- function(filepath, data, addAll=FALSE){
-  for(rnaSeqName in unique(data$bulk)){
-    p <- ggplot(data[data$bulk == rnaSeqName,], aes(x=true_value, y=predicted_value))+
-      geom_point(aes(color=celltype, shape=scset))+geom_abline()+
-      ggpubr::stat_cor(aes(label = ..r.label..), label.sep = "\n", size=2.5, color="black", label.x.npc = 0.005)+
-      facet_grid("facet~method")+
-      theme(axis.text.x = element_text(angle=90), legend.position = "bottom")+
-      labs(title = rnaSeqName)
-    p
-    ggsave(filename = file.path(filepath, 
-                                paste("comparisonGtruth_regularDeconv_betweenScsets_", rnaSeqName, ".jpeg", sep="")),p)
-  }
-  p <- ggplot(data, aes(x=true_value, y=predicted_value))+
-    geom_point(aes(color=celltype, shape=bulk))+geom_abline()+
-    ggpubr::stat_cor(aes(label = ..r.label..), label.sep = "\n", size=2.5, color="black", label.x.npc = 0.005)+
-    facet_grid("scset~method")+
-    theme(axis.text.x = element_text(angle=90), legend.position = "bottom")
-  p
-  ggsave(filename = file.path(filepath, "comparisonGtruth_regularDeconv_betweenScsets_scatter.jpeg"),p)
-  
-  subset <- data %>% select(-sample) %>% group_by(scset, method) %>% 
-    mutate(cor = cor(true_value, predicted_value)) %>% 
-    distinct(celltype, cor, scset, method)
-  #boxplot of pearson distribution
-  g <- ggplot(subset, aes(cor, method))+
-    geom_boxplot()+
-    labs(x="pearson")+
-    facet_wrap(~ celltype)
-  g
-  ggsave(filename = file.path(filepath, "comparisonGtruth_regularDeconv_betweenScsets_box.jpeg"),g)
-  
-  g <- ggplot(subset, aes(method, scset))+
-    geom_tile(aes(fill=cor))+
-    geom_text(aes(label=round(cor, 2)))+
-    scale_fill_gradient(low = "white", high = "#1b98e0")+
-    theme(axis.text.x = element_text(angle=90))
-  g
-  ggsave(file.path(filepath, "comparisonGtruth_regularDeconv_betweenScsets_correlation.jpeg"), g)
-}
-
-compareGroundTruthAllRna <- function(filepath, data, addAll=FALSE){
-  p <- ggplot(data, aes(x=true_value, y=predicted_value, color=celltype))+
-    geom_point()+geom_abline()+
-    ggpubr::stat_cor(aes(label = ..r.label..), label.sep = "\n", size=2.5, color="black", label.x.npc = 0.005)+
-    facet_grid("facet~combination")+
-    theme(axis.text.x = element_text(angle=90), legend.position = "bottom")
-  p
-  ggsave(filename = file.path(filepath, "comparisonGtruth_regularDeconv_all.jpeg"),p)
-}
 
 inputData <- loadData(resultVector = resultVec, facsListInput = facsList)
-betweenSample(".", data = inputData)
-compareGroundTruthOneRna(".", data=inputData)
-compareGroundTruthAllRna(filepath = ".", data=inputData, addAll = TRUE)
+inputDataAll <- loadData(resultVector = resultVec, facsListInput = facsList, addAll = TRUE)
+
+#between samples
+separateByCondition(filepath = ".", data = inputData, 
+                    subsetVectorFull = inputData$scset, 
+                    basename = "comparisonGtruth_regularDeconv_betweenSampleComparison_colorType", 
+                    shape = "bulk", color = "sctype")
+separateByCondition(filepath = ".", data = inputData, 
+                    subsetVectorFull = inputData$scset, 
+                    basename = "comparisonGtruth_regularDeconv_betweenSampleComparison_colorType_lm_freeScales", 
+                    shape = "bulk", color = "sctype", addLM = TRUE, scales = "free")
+separateByCondition(filepath = ".", data = inputData, 
+                    subsetVectorFull = inputData$scset, 
+                    basename = "comparisonGtruth_regularDeconv_betweenSampleComparison_colorCelltype", 
+                    shape = "bulk")
+separateByCondition(filepath = ".", data = inputDataAll, 
+                    subsetVectorFull = inputDataAll$scset, 
+                    basename = "comparisonGtruth_regularDeconv_betweenSampleComparison_plusAllCelltypes_colorCelltype", 
+                    shape = "bulk")
+
+#between samples 
+
+#between scsets
+separateByCondition(filepath = ".", data = inputData, 
+                    subsetVectorFull = inputData$bulk, 
+                    basename = "comparisonGtruth_regularDeconv_betweenScsets_lm", 
+                    shape = "scset", color = "sctype", scales = "free")
+
+#healthy vs tumor
+allTogether(filepath = ".", 
+            data = subset(mutate(inputData, tumor = ifelse(grepl("vanderbilt", bulk), "tumor", "healthy")), grepl("T cell C", celltype)), 
+            groupingVar1 = "celltype", groupingVar2 = "tumor",
+            basename = "comparisonGtruth_regularDeconv_betweenHealthyTumor", 
+            shape = "bulk", color = "bulk")
+allTogether(filepath = ".", 
+            data = subset(mutate(inputData, tumor = ifelse(grepl("vanderbilt", bulk), "tumor", "healthy")), grepl("T cell C", celltype)), 
+            groupingVar1 = "method", groupingVar2 = "tumor",
+            basename = "comparisonGtruth_regularDeconv_betweenHealthyTumor", 
+            shape = "bulk", color = "celltype")
+
+compareGroundTruthAllCombinations(filepath = ".", data = inputData, 
+                                  basename = "comparisonGtruth_regularDeconv", shape = "sctype")
+
+allTogether(filepath = ".", data = inputData, groupingVar1 = "celltype", 
+            groupingVar2 = "combination", 
+            basename = "comparisonGtruth_regularDeconv_all", shape = "scset")
+
+allTogetherOneFacetNoShape(filepath = ".", data = inputData, 
+                           groupingVar1 = "method", 
+                           basename = "comparisonGtruth_regularDeconv_OnlyMethod")
+
+

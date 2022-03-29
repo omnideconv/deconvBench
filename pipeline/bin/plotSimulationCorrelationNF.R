@@ -1,77 +1,42 @@
 #!/usr/bin/Rscript
 "Usage: 
-  plotSimulationCorrelationNF.R <results> <bulk> <remapping_sheet>
+  plotSimulationCorrelationNF.R <results> <bulk> <remapping_sheet> [<type>]
 Options:
 <results> list of deconvolution result rds files
 <bulk> simulated bulk
-<remapping_sheet> excel mapping sheet with remapping" -> doc
+<remapping_sheet> excel mapping sheet with remapping
+<type> simulation scenario" -> doc
 
 args <- docopt::docopt(doc)
 deconvolution_results <- unlist(strsplit(gsub("\\[", "", gsub("\\]", "", args$results)), ", "))
 bulk <- unlist(strsplit(gsub("\\[", "", gsub("\\]", "", args$bulk)), ", "))
 remapping_sheet <- args$remapping_sheet
-#load deconv results
-# deconv_results <- list("/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_T cell CD4+_lambrechts_bisque.rds", 
-#                        "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_T cell CD8+_lambrechts_bisque.rds", 
-#                        "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_B cell_lambrechts_bisque.rds", 
-#                        "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_T cell CD4+_lambrechts_cibersortx.rds", 
-#                        "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_T cell CD8+_lambrechts_cibersortx.rds", 
-#                        "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_B cell_lambrechts_cibersortx.rds", 
-#                        "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_T cell CD4+_maynard_bisque.rds", 
-#                        "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_T cell CD8+_maynard_bisque.rds", 
-#                        "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_B cell_maynard_bisque.rds", 
-#                        "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_T cell CD4+_maynard_cibersortx.rds", 
-#                        "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_T cell CD8+_maynard_cibersortx.rds", 
-#                        "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_B cell_maynard_cibersortx.rds")
-# transformDataForPlotting <- function(deconv_df, reference, remap=FALSE, addAll=FALSE){
-#   mapping <- remapCelltypesTree(facs_celltypes = rownames(reference), deconv_celltypes = colnames(deconv_df))
-#   deconv <- as.data.frame(deconv_df) %>% tibble::rownames_to_column(var="sample") %>% pivot_longer(!"sample", names_to="celltype", values_to = "predicted_value")
-#   deconv <- merge(deconv, mapping, by.x = "celltype", by.y = "child_type")
-#   deconv <- deconv %>% dplyr::group_by(sample, parent_type) %>%
-#     dplyr::summarise(predicted_value= sum(predicted_value)) %>% dplyr::rename(celltype=parent_type)
-#   ref <- reference %>% tibble::rownames_to_column(var="celltype") %>% pivot_longer(!"celltype", names_to = "sample", values_to = "true_value")
-#   df <- dplyr::inner_join(deconv, ref, by=c("celltype", "sample")) %>% dplyr::mutate(facet = celltype)
-#   if(addAll){
-#     return(rbind(df, dplyr::mutate(df, facet = "all")))
-#   } else {
-#     return(df)
-#   }
-# }
-# 
-# 
+
+#for testing
+deconvolution_results <- list.files("/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results", pattern = "deconvolution_truefraction", full.names = TRUE)
+bulk <- list.files("/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results", pattern = "simulatedBulk_true", full.names=TRUE)
+r_threshold = 0.8
+lower_label <- paste("R lower than/equal to", r_threshold)
+higher_label <- "high"
+
 library(tidyr)
 library(dplyr)
 library(ggplot2)
+source("/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/bin/plottingHelperNF.R")
+
 
 loadData <- function(deconv_results, bulk, tuples, allData=FALSE){
   data <- NULL
   for(res in deconv_results){
     result <- as.data.frame(readRDS(res))
-    info <- unlist(strsplit(gsub(".rds", "", gsub("deconvolution_", "", lapply(res, basename))), "_"))
-    facs <- as.data.frame(readRDS(tuples[tuples$scenario==info[1]&tuples$dataset==info[2], "path_bulk"][[1]])$cell_fractions) 
-    if(info[2]=="maynard"){
-      colnames(facs) <- c("Monocyte conventional", "Macrophage", "Endothelial cell", 
-                          "Mast cell", "B cell", "T cell CD8+", "T cell CD4+", 
-                          "Epithelial cell", "other cell", "NK cell",
-                          "Monocyte non-conventional", "Myeloid dendritic cell", 
-                          "Cancer associated fibroblast", "Club cell", "B cell plasma", 
-                          "T cell regulatory (Tregs)", "Plasmacytoid dendritic cell", 
-                          "Langerhans cell", "Goblet cell")
-      
-    } else {
-      colnames(facs) <- c("B cell", "T cell regulatory (Tregs)", "other cell", 
-                          "T cell CD8+", "Monocyte non-conventional", 
-                          "Mast cell", "T cell CD4+", "Myeloid dendritic cell", 
-                          "Cancer associated fibroblast", "Macrophage", "Club cell", 
-                          "B cell plasma", "Goblet cell", "NK cell", "Langerhans cell", 
-                          "Endothelial cell", "Monocyte conventional", 
-                          "Plasmacytoid dendritic cell", "Epithelial cell")
-    }
+    info <- unlist(strsplit(gsub(".rds", "", gsub("deconvolution_", "", basename(res))), "_"))
+    facs <- as.data.frame(readRDS(tuples[tuples$scenario==info[1]&tuples$scset==info[2], "path_bulk"][[1]])$cell_fractions) 
     facs <- facs %>% tibble::rownames_to_column(var="sample") %>%
       pivot_longer(!"sample", names_to="celltype", values_to = "true_value")
     result <- result %>% tibble::rownames_to_column(var="sample") %>%
       pivot_longer(!"sample", names_to="celltype", values_to = "predicted_value") %>%
-      mutate(dataset = info[2], method = info[3], combination = paste(info[2], info[3], sep="_"))
+      mutate(scset = info[2], sctype = info[3], method = info[4], combination = paste(info[2], info[3], info[4], sep="_"), 
+             combinationForMatrix = paste(info[2], info[3], sep="_"))
     full <- merge(result, facs, by=c("sample", "celltype")) %>% mutate(facet = celltype)
     data <- rbind(data, full)
     if(allData){
@@ -81,60 +46,31 @@ loadData <- function(deconv_results, bulk, tuples, allData=FALSE){
   return(data)
 }
 
-
-# ##remap celltype annotations of facs##
-# source("/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/bin/remapCelltypesNF.R")
-# celltype_annotations <- remapCelltypesWorkflow(remappingPath = remapping_sheet, 
-#                                                celltype_annotations = rownames(facs), 
-#                                                method_ds = dataset_name)
-# rownames(facs) <- celltype_annotations
-# 
-# #decMatrix <- data.frame(readRDS(resultVec[1]))
-# #colnames(decMatrix) <- gsub("\\.", " ", colnames(decMatrix))
-# ###code von fig bei 4.4.1 is gut, ausserdem heatmap in 3.4
-# 
-# 
-# library(tidyr)
-# library(ggplot2)
-# 
-# 
-compareGroundTruth <- function(filepath, data, all=FALSE){ #TODO which facetting do we want?
-  p <- ggplot(data, aes(x=true_value, y=predicted_value, color=celltype))+geom_point()+geom_abline()+
-    ggpubr::stat_cor(aes(label = ..r.label..), label.sep = "\n", size=2.5, color="black", label.x.npc = 0.005)+facet_grid("facet~combination")+
-    theme(axis.text.x = element_text(angle=90))#, legend.position = "bottom")
-  p
-  if(all){
-    ggsave(filename = file.path(filepath, "comparisonGtruth_all.jpeg"), p, height = 16, width = 16)
-  } else {
-    ggsave(filename = file.path(filepath, "comparisonGtruth.jpeg"), p, height = 16, width = 16)
-  }
-}
-
 correlationPlots <- function(tuples, data, filepath){
-  par(mfrow=c(length(unique(tuples$dataset)), length(unique(tuples$method))), mar=c(2,2,2,0))
-  pdf(paste("singleCorrelationMatrices.pdf", sep=""))
+  #par(mfrow=c(length(unique(tuples$scset)), length(unique(tuples$method))), mar=c(2,2,2,0))
+  pdf(paste("comparisonGtruth_truefractions_singleCorrelationMatrices.pdf", sep=""))
   lapply(tuples$path_deconvolution, function(combination_path) {
     result <- as.data.frame(readRDS(combination_path))
-    info <- unlist(strsplit(gsub(".rds", "", gsub("deconvolution_", "", lapply(combination_path, basename))), "_"))
-    facs <- as.data.frame(readRDS(tuples[tuples$scenario==info[1]&tuples$dataset==info[2], "path_bulk"][[1]])$cell_fractions)
-    if(info[2]=="maynard"){
-      colnames(facs) <- c("Monocyte conventional", "Macrophage", "Endothelial cell", 
-                          "Mast cell", "B cell", "T cell CD8+", "T cell CD4+", 
-                          "Epithelial cell", "other cell", "NK cell",
-                          "Monocyte non-conventional", "Myeloid dendritic cell", 
-                          "Cancer associated fibroblast", "Club cell", "B cell plasma", 
-                          "T cell regulatory (Tregs)", "Plasmacytoid dendritic cell", 
-                          "Langerhans cell", "Goblet cell")
-      
-    } else {
-      colnames(facs) <- c("B cell", "T cell regulatory (Tregs)", "other cell", 
-                          "T cell CD8+", "Monocyte non-conventional", 
-                          "Mast cell", "T cell CD4+", "Myeloid dendritic cell", 
-                          "Cancer associated fibroblast", "Macrophage", "Club cell", 
-                          "B cell plasma", "Goblet cell", "NK cell", "Langerhans cell", 
-                          "Endothelial cell", "Monocyte conventional", 
-                          "Plasmacytoid dendritic cell", "Epithelial cell")
-    }
+    info <- unlist(strsplit(gsub(".rds", "", gsub("deconvolution_", "", basename(combination_path))), "_"))
+    facs <- as.data.frame(readRDS(tuples[tuples$scenario==info[1]&tuples$scset==info[2], "path_bulk"][[1]])$cell_fractions)
+    # if(info[2]=="maynard"){
+    #   colnames(facs) <- c("Monocyte conventional", "Macrophage", "Endothelial cell", 
+    #                       "Mast cell", "B cell", "T cell CD8+", "T cell CD4+", 
+    #                       "Epithelial cell", "other cell", "NK cell",
+    #                       "Monocyte non-conventional", "Myeloid dendritic cell", 
+    #                       "Cancer associated fibroblast", "Club cell", "B cell plasma", 
+    #                       "T cell regulatory (Tregs)", "Plasmacytoid dendritic cell", 
+    #                       "Langerhans cell", "Goblet cell")
+    #   
+    # } else {
+    #   colnames(facs) <- c("B cell", "T cell regulatory (Tregs)", "other cell", 
+    #                       "T cell CD8+", "Monocyte non-conventional", 
+    #                       "Mast cell", "T cell CD4+", "Myeloid dendritic cell", 
+    #                       "Cancer associated fibroblast", "Macrophage", "Club cell", 
+    #                       "B cell plasma", "Goblet cell", "NK cell", "Langerhans cell", 
+    #                       "Endothelial cell", "Monocyte conventional", 
+    #                       "Plasmacytoid dendritic cell", "Epithelial cell")
+    # }
     
     corMatrix <- cor(result, facs)
     if(info[2]=="lambrechts"&info[3]=="bisque"){
@@ -151,30 +87,70 @@ correlationPlots <- function(tuples, data, filepath){
   
   subset <- data %>% select(-sample) %>% group_by(celltype, combination) %>% 
     mutate(cor = cor(true_value, predicted_value)) %>% 
-    distinct(celltype, cor, combination)
+    distinct(celltype, cor, combinationForMatrix, method, combination)
   #matr <- subset %>% pivot_wider(names_from = combination, values_from = cor) %>% tibble::column_to_rownames("celltype")
   g <- ggplot(subset, aes(combination, celltype))+
     geom_tile(aes(fill=cor))+
     geom_text(aes(label=round(cor, 2)))+
     scale_fill_gradient(low = "white", high = "#1b98e0")+
-    theme(axis.text.x = element_text(angle=90))
-  ggsave(file.path(filepath, "celltypesCorrelationMatrix.jpeg"), g)
+    theme(axis.text.x = element_text(angle=90)) + 
+    labs(x="combination", y="cell type")
+  g
+  ggsave(file.path(filepath, "comparisonGtruth_truefractions_celltypesCorrelationMatrix.jpeg"), g, width = 18, height=13)
+  g <- ggplot(subset, aes(combinationForMatrix, celltype))+
+    geom_tile(aes(fill=cor))+
+    geom_text(aes(label=round(cor, 2)))+
+    scale_fill_gradient(low = "white", high = "#1b98e0")+
+    theme(axis.text.x = element_text(angle=90)) + 
+    labs(x="combination", y="cell type") + 
+    facet_wrap(~method, ncol = length(unique(data$method)))
+  g
+  ggsave(file.path(filepath, "comparisonGtruth_truefractions_celltypesCorrelationMatrix_facetMethods.jpeg"), g, width = 18, height=13)
 }
 
 resTable <- tibble(path_deconvolution = deconvolution_results) %>%
-  mutate(results = gsub(".rds", "", gsub("deconvolution_", "", lapply(path_deconvolution, basename)))) %>%
-  separate(results, c("scenario", "dataset", "method"), sep="_")
+  mutate(results = gsub(".rds", "", gsub("deconvolution_", "", basename(path_deconvolution)))) %>%
+  separate(results, c("scenario", "scset", "sctype", "method"), sep="_")
 bulkTable <- tibble(path_bulk = bulk) %>%
-  mutate(results = gsub(".rds", "", gsub("simulatedBulk_", "", lapply(path_bulk, basename)))) %>%
-  separate(results, c("scenario", "dataset"), sep="_") 
-tuples <- merge(resTable, bulkTable, by=c("scenario", "dataset"))
+  mutate(results = gsub(".rds", "", gsub("simulatedBulk_", "", basename(path_bulk)))) %>%
+  separate(results, c("scenario", "scset"), sep="_") 
+tuples <- merge(resTable, bulkTable, by=c("scenario", "scset"))
 
-data_all <- loadData(deconvolution_results, bulk, tuples, TRUE)
-data <- loadData(deconvolution_results, bulk, tuples)
-compareGroundTruth(filepath = ".", data = data_all, TRUE)
+data_all <- loadData(deconv_results = deconvolution_results, bulk = bulk, tuples = tuples, TRUE)
+data <- loadData(deconv_results = deconvolution_results, bulk = bulk, tuples = tuples)
+
+#between samples
+separateByCondition(filepath = ".", data = data, 
+                    subsetVectorFull = data$scset, 
+                    basename = "comparisonGtruth_truefractions_betweenSampleComparison_colorCelltype", 
+                    shape = "sctype", color = "celltype")
+separateByCondition(filepath = ".", data = data, 
+                    subsetVectorFull = data$scset, 
+                    basename = "comparisonGtruth_truefractions_betweenSampleComparison_colorCelltype_lm_freeScales", 
+                    shape = "sctype", color = "celltype", addLM = TRUE, scales = "free")
+separateByCondition(filepath = ".", data = data_all, 
+                    subsetVectorFull = data_all$scset, 
+                    basename = "comparisonGtruth_truefractions_betweenSampleComparison_colorCelltype_lm_freeScales_plusAllCondition", 
+                    shape = "sctype", color = "celltype", addLM = TRUE, scales = "free")
+
+#between scsets
+separateByCondition(filepath = ".", data = data, 
+                    subsetVectorFull = data$sctype, 
+                    basename = "comparisonGtruth_truefractions_betweenScsets_lm", 
+                    shape = "scset", addLM = TRUE, scales = "free")
+
+compareGroundTruthAllCombinations(filepath = ".", data = data, 
+                                  basename = "comparisonGtruth_truefractions_allCombinations", 
+                                  shape = "sctype",
+                                  scenario = "simulation")
+
+allTogether(filepath = ".", data = data, groupingVar1 = "method", 
+            groupingVar2 = "sctype", basename = "comparisonGtruth_truefractions_all", 
+            shape = "scset")
+
+allTogether(filepath = ".", data = mutate(data, noFacet="all"), groupingVar1 = "noFacet", 
+            groupingVar2 = "method", basename = "comparisonGtruth_truefractions_all_noFacet", 
+            shape = "scset")
+allTogetherOneFacetNoShape(filepath = ".", data = data, groupingVar1 = "method", 
+                           basename = "comparisonGtruth_truefractions_OnlyMethod")
 correlationPlots(tuples, data, ".")
-
-# deconvolution_results <- c("/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/work/c5/e4b043d91d81a55d941480746964dc/deconvolution_uniform_maynard_bisque.rds", 
-#                            "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/work/d0/481cc89a02184a7cf8c5b7233a08d9/deconvolution_uniform_lambrechts_bisque.rds",
-#                            "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/work/4c/e297275676c1c4d28af4d497f947b5/deconvolution_uniform_maynard_cibersortx.rds",
-#                            "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/work/fb/bffe52785b09346ef689f7ef4d999f/deconvolution_uniform_lambrechts_cibersortx.rds")

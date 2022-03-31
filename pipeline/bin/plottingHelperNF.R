@@ -53,7 +53,7 @@ separateByCondition <- function(filepath, data, subsetVectorFull, basename, shap
 }
 
 
-allTogether <- function(filepath, data, groupingVar1, groupingVar2, basename, shape, color="celltype", alpha = 0.2, addLM = FALSE){
+allTogether <- function(filepath, data, groupingVar1, groupingVar2, basename, shape, color="celltype", alpha = 0.2, addLM = FALSE, width = 13, height=9){
   corData <- drop_na(data) %>% select(-sample) %>% group_by(get(groupingVar1), get(groupingVar2)) %>%  
     mutate(cor = round(cor(true_value, predicted_value), digits=2)) %>%
     mutate(rfill = ifelse(cor > r_threshold, higher_label, lower_label))
@@ -69,17 +69,17 @@ allTogether <- function(filepath, data, groupingVar1, groupingVar2, basename, sh
               alpha = alpha, fill="yellow") +
     geom_point(aes(color=get(color), shape=get(shape)))+geom_abline()+
     ggpubr::stat_cor(aes(label = ..r.label..), label.sep = "\n", size=2.5, color="black", label.x.npc = 0.005)+
-    facet_grid(paste(groupingVar1, groupingVar2, sep="~"))+
+    facet_grid(paste(groupingVar1, groupingVar2, sep="~"), labeller = label_wrap_gen(width=10))+
     scale_color_discrete(na.translate=F)+
     theme(axis.text.x = element_text(angle=90), legend.position = "bottom")+
     labs(shape=shape, color=color, X="true value", y="predicted value")
   if(addLM){
     p <- p + stat_smooth(method = "lm")
     p
-    ggsave(filename = file.path(filepath, paste(basename, "_scatter_lm_group", groupingVar1, groupingVar2, ".jpeg", sep="")),p, width = 13, height=9)
+    ggsave(filename = file.path(filepath, paste(basename, "_scatter_lm_group", groupingVar1, groupingVar2, ".jpeg", sep="")),p, width = width, height=height)
   } else {
     p
-    ggsave(filename = file.path(filepath, paste(basename, "_scatter_group", groupingVar1, groupingVar2, ".jpeg", sep="")),p, width = 13, height=9)
+    ggsave(filename = file.path(filepath, paste(basename, "_scatter_group", groupingVar1, groupingVar2, ".jpeg", sep="")),p, width = width, height=height)
   }
   
   g <- ggplot(corDataLabels, aes(y=fct_rev(get(groupingVar1)), x=get(groupingVar2)))+
@@ -101,7 +101,7 @@ allTogether <- function(filepath, data, groupingVar1, groupingVar2, basename, sh
     labs(x="RMSE", y = groupingVar1)+
     facet_wrap(~ get(groupingVar2))
   g
-  ggsave(filename = file.path(filepath, paste(basename, "_boxplot_group", groupingVar1, groupingVar2, ".jpeg", sep="")),g, width = 13, height=9)
+  ggsave(filename = file.path(filepath, paste(basename, "_boxplot_group", groupingVar1, groupingVar2, ".jpeg", sep="")),g, width = 10, height=7)
   
 }
 
@@ -152,7 +152,7 @@ allTogetherOneFacetNoShape <- function(filepath, data, groupingVar1, basename, c
     geom_boxplot()+
     labs(y="RMSE", x = groupingVar1)
   g
-  ggsave(filename = file.path(filepath, paste(basename, "_boxplot_group", groupingVar1, ".jpeg", sep="")),g, width = 16, height=7)
+  ggsave(filename = file.path(filepath, paste(basename, "_boxplot_group", groupingVar1, ".jpeg", sep="")),g, width = 10, height=7)
   
 }
 

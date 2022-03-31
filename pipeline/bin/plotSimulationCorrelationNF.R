@@ -29,18 +29,20 @@ loadData <- function(deconv_results, bulk, tuples, allData=FALSE){
   data <- NULL
   for(res in deconv_results){
     result <- as.data.frame(readRDS(res))
-    info <- unlist(strsplit(gsub(".rds", "", gsub("deconvolution_", "", basename(res))), "_"))
-    facs <- as.data.frame(readRDS(tuples[tuples$scenario==info[1]&tuples$scset==info[2], "path_bulk"][[1]])$cell_fractions) 
-    facs <- facs %>% tibble::rownames_to_column(var="sample") %>%
-      pivot_longer(!"sample", names_to="celltype", values_to = "true_value")
-    result <- result %>% tibble::rownames_to_column(var="sample") %>%
-      pivot_longer(!"sample", names_to="celltype", values_to = "predicted_value") %>%
-      mutate(scset = info[2], sctype = info[3], method = info[4], combination = paste(info[2], info[3], info[4], sep="_"), 
-             combinationForMatrix = paste(info[2], info[3], sep="_"))
-    full <- merge(result, facs, by=c("sample", "celltype")) %>% mutate(facet = celltype)
-    data <- rbind(data, full)
-    if(allData){
-      data <- rbind(data, (full%>% mutate(facet="all")))
+    if(length(result)>0){ ##results empty for eg scaden counts
+      info <- unlist(strsplit(gsub(".rds", "", gsub("deconvolution_", "", basename(res))), "_"))
+      facs <- as.data.frame(readRDS(tuples[tuples$scenario==info[1]&tuples$scset==info[2], "path_bulk"][[1]])$cell_fractions) 
+      facs <- facs %>% tibble::rownames_to_column(var="sample") %>%
+        pivot_longer(!"sample", names_to="celltype", values_to = "true_value")
+      result <- result %>% tibble::rownames_to_column(var="sample") %>%
+        pivot_longer(!"sample", names_to="celltype", values_to = "predicted_value") %>%
+        mutate(scset = info[2], sctype = info[3], method = info[4], combination = paste(info[2], info[3], info[4], sep="_"), 
+               combinationForMatrix = paste(info[2], info[3], sep="_"))
+      full <- merge(result, facs, by=c("sample", "celltype")) %>% mutate(facet = celltype)
+      data <- rbind(data, full)
+      if(allData){
+        data <- rbind(data, (full%>% mutate(facet="all")))
+      }
     }
   }
   return(data)
@@ -51,36 +53,38 @@ correlationPlots <- function(tuples, data, filepath){
   pdf(paste("comparisonGtruth_truefractions_singleCorrelationMatrices.pdf", sep=""))
   lapply(tuples$path_deconvolution, function(combination_path) {
     result <- as.data.frame(readRDS(combination_path))
-    info <- unlist(strsplit(gsub(".rds", "", gsub("deconvolution_", "", basename(combination_path))), "_"))
-    facs <- as.data.frame(readRDS(tuples[tuples$scenario==info[1]&tuples$scset==info[2], "path_bulk"][[1]])$cell_fractions)
-    # if(info[2]=="maynard"){
-    #   colnames(facs) <- c("Monocyte conventional", "Macrophage", "Endothelial cell", 
-    #                       "Mast cell", "B cell", "T cell CD8+", "T cell CD4+", 
-    #                       "Epithelial cell", "other cell", "NK cell",
-    #                       "Monocyte non-conventional", "Myeloid dendritic cell", 
-    #                       "Cancer associated fibroblast", "Club cell", "B cell plasma", 
-    #                       "T cell regulatory (Tregs)", "Plasmacytoid dendritic cell", 
-    #                       "Langerhans cell", "Goblet cell")
-    #   
-    # } else {
-    #   colnames(facs) <- c("B cell", "T cell regulatory (Tregs)", "other cell", 
-    #                       "T cell CD8+", "Monocyte non-conventional", 
-    #                       "Mast cell", "T cell CD4+", "Myeloid dendritic cell", 
-    #                       "Cancer associated fibroblast", "Macrophage", "Club cell", 
-    #                       "B cell plasma", "Goblet cell", "NK cell", "Langerhans cell", 
-    #                       "Endothelial cell", "Monocyte conventional", 
-    #                       "Plasmacytoid dendritic cell", "Epithelial cell")
-    # }
-    
-    corMatrix <- cor(result, facs)
-    if(info[2]=="lambrechts"&info[3]=="bisque"){
-      corrplot::corrplot(corMatrix,
-                         is.corr = TRUE, tl.col = "black", #tl.pos = 'n', #order = 'hclust',
+    if(length(result)!=0){
+      info <- unlist(strsplit(gsub(".rds", "", gsub("deconvolution_", "", basename(combination_path))), "_"))
+      facs <- as.data.frame(readRDS(tuples[tuples$scenario==info[1]&tuples$scset==info[2], "path_bulk"][[1]])$cell_fractions)
+      # if(info[2]=="maynard"){
+      #   colnames(facs) <- c("Monocyte conventional", "Macrophage", "Endothelial cell", 
+      #                       "Mast cell", "B cell", "T cell CD8+", "T cell CD4+", 
+      #                       "Epithelial cell", "other cell", "NK cell",
+      #                       "Monocyte non-conventional", "Myeloid dendritic cell", 
+      #                       "Cancer associated fibroblast", "Club cell", "B cell plasma", 
+      #                       "T cell regulatory (Tregs)", "Plasmacytoid dendritic cell", 
+      #                       "Langerhans cell", "Goblet cell")
+      #   
+      # } else {
+      #   colnames(facs) <- c("B cell", "T cell regulatory (Tregs)", "other cell", 
+      #                       "T cell CD8+", "Monocyte non-conventional", 
+      #                       "Mast cell", "T cell CD4+", "Myeloid dendritic cell", 
+      #                       "Cancer associated fibroblast", "Macrophage", "Club cell", 
+      #                       "B cell plasma", "Goblet cell", "NK cell", "Langerhans cell", 
+      #                       "Endothelial cell", "Monocyte conventional", 
+      #                       "Plasmacytoid dendritic cell", "Epithelial cell")
+      # }
+      
+      corMatrix <- cor(result, facs)
+      if(info[2]=="lambrechts"&info[3]=="bisque"){
+        corrplot::corrplot(corMatrix,
+                           is.corr = TRUE, tl.col = "black", #tl.pos = 'n', #order = 'hclust',
+                           title = paste(info[2], " - ", info[3]), mar=c(0,0,2,0))
+      } else {
+        corrplot::corrplot(corMatrix,
+                         is.corr = TRUE, tl.col = "black", #tl.pos = 'n', #order = 'alphabet',
                          title = paste(info[2], " - ", info[3]), mar=c(0,0,2,0))
-    } else {
-      corrplot::corrplot(corMatrix,
-                       is.corr = TRUE, tl.col = "black", #tl.pos = 'n', #order = 'alphabet',
-                       title = paste(info[2], " - ", info[3]), mar=c(0,0,2,0))
+      }
     }
   })
   dev.off()
@@ -147,6 +151,10 @@ compareGroundTruthAllCombinations(filepath = ".", data = data,
 allTogether(filepath = ".", data = data, groupingVar1 = "method", 
             groupingVar2 = "sctype", basename = "comparisonGtruth_truefractions_all", 
             shape = "scset")
+
+allTogether(filepath = ".", data = data_all, groupingVar1 = "method", 
+            groupingVar2 = "facet", basename = "comparisonGtruth_truefractions_all", 
+            shape = "scset", width = 18, height=8, addLM = TRUE)
 
 allTogether(filepath = ".", data = mutate(data, noFacet="all"), groupingVar1 = "noFacet", 
             groupingVar2 = "method", basename = "comparisonGtruth_truefractions_all_noFacet", 

@@ -10,3 +10,7 @@ pipeline/images
 pipeline/comparisonGtruth*
 pipeline/sc*
 pipeline/runtimesTest.tsv
+pipeline/CopyOfrunOmnideconvBenchmark.nf
+slurm-192928.out
+submitToSlurm.sh
+submitToSlurmMaynard.sh

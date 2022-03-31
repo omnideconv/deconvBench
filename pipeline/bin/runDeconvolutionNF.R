@@ -80,8 +80,8 @@ if(method=="cpm"){
                                            single_cell_object = sc_matrix, 
                                            batch_ids = sc_batch, 
                                            cell_type_annotations = sc_celltype_annotations, 
-                                           method = method,
-                                           no_cores = 120)
+                                           method = method)
+                                           #no_cores = 120)
 } else {
   deconvolution <- omnideconv::deconvolute(bulk_gene_expression = rnaseq_data, 
                         signature = signature, 

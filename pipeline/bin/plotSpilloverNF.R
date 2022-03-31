@@ -34,27 +34,34 @@ deconv_results <- list.files("/nfs/proj/omnideconv_benchmarking/benchmark/pipeli
 #                        "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_B cell_maynard_cibersortx.rds")#, 
 #"/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_maynard_autogenes.rds")
 resTable <- tibble(path = deconv_results) %>% 
-  mutate(results = gsub(".rds", "", gsub("deconvolution_", "", lapply(path, basename)))) %>% 
+  mutate(results = gsub(".rds", "", gsub("deconvolution_", "", basename(path)))) %>% 
   separate(results, c("scenario", "dataset", "celltype", "rnaseq_type", "method"), sep="_") %>% 
   mutate(celltype=reEscapeCelltypes(celltype))
 data <- NULL
 for(res in deconv_results){
   result <- as.data.frame(readRDS(res))
-  info <- unlist(strsplit(gsub(".rds", "", gsub("deconvolution_", "", lapply(res, basename))), "_"))
+  info <- unlist(strsplit(gsub(".rds", "", gsub("deconvolution_", "", basename(res))), "_"))
   result <- result %>% tibble::rownames_to_column(var="sample") %>% 
     pivot_longer(!"sample", names_to="celltype", values_to = "predicted_value") %>% 
     mutate(dataset = info[2], rnaseq_type = info[4], method = info[5]) %>% 
     mutate(true_value = ifelse(celltype == reEscapeCelltypes(info[3]), 1, 0), true_celltype = reEscapeCelltypes(info[3])) #merge with gold standard
   data <- rbind(data, result)
 } 
+
+getPalette = colorRampPalette(brewer.pal(11, "Paired"))
+colors = getPalette(length(unique(data$true_celltype)))
+names(colors) = unique(data$true_celltype)
 ### code adopted from immunedeconv benchmarking / spillover analysis
 makeChordDiagrams <- function(resultDfIn, overviewTable, pdfName){
+  # layout(matrix(seq(1, length(unique(overviewTable$dataset)) * length(unique(overviewTable$method)) * length(unique(overviewTable$rnaseq_type))), 
+  #               length(unique(overviewTable$method)), 
+  #               length(unique(overviewTable$dataset)) * length(unique(overviewTable$rnaseq_type))))
+  par(mar=rep(0.5, 4))
+  circos.par(cell.padding = rep(0, 4))
+  pdf(pdfName, width = 20, height = 20)
   layout(matrix(seq(1, length(unique(overviewTable$dataset)) * length(unique(overviewTable$method)) * length(unique(overviewTable$rnaseq_type))), 
                 length(unique(overviewTable$method)), 
                 length(unique(overviewTable$dataset)) * length(unique(overviewTable$rnaseq_type))))
-  par(mar=rep(0.5, 4))
-  circos.par(cell.padding = rep(0, 4))
-  pdf(pdfName)
   lapply(unique(overviewTable$rnaseq_type), function(type){
     lapply(unique(overviewTable$dataset), function(dataset) {
       lapply(unique(overviewTable$method), function(method) {
@@ -80,14 +87,14 @@ makeChordDiagrams <- function(resultDfIn, overviewTable, pdfName){
           spread(type, estimate) %>%
           mutate(noise_ratio = noise/(signal+noise)) %>%
           ungroup()
-        chordDiagram(migration_mat, directional = TRUE, transparency = .5
-                     #grid.col = color_scales$spillover
-                     # annotationTrack = c("track", "grid")
+        chordDiagram(migration_mat, directional = TRUE, transparency = .5,
+                     grid.col = colors
+                     #annotationTrack = c("track", "grid")
         )
         text(0, 0, method, cex = 2.3)
         text(0, -0.2, as.character(round(filter(noise_ratio, method == !!method) %>% pull(noise_ratio), 2)), cex=2)
         # first method, add title.
-        if(method == "bisque") {
+        if(method == unique(overviewTable$method)[1]) {
           title(paste(dataset, type, sep=" - "))
         }
       })

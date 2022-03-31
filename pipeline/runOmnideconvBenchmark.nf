@@ -203,14 +203,14 @@ workflow{
   rnaseq_dir = Channel.fromPath(params.data_dir_bulk).collect()
   sc_dir = Channel.fromPath(params.data_dir_sc).collect()
   remapping = Channel.fromPath(params.mapping_sheet).collect()
-  ch_input_files = check_samplesheet("/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/sc_files_table_tpm.csv", params.data_dir_sc)
+  ch_input_files = check_samplesheet("/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/sc_files_table_tpmMaynard.csv", params.data_dir_sc)
   Channel.from(ch_input_files).view()
   createSignature(rnaseq_sets, methods, rnaseq_dir, Channel.from(ch_input_files), sc_dir, remapping)
   signatureRuntimes = createSignature.out.runtime
   deconvolute(createSignature.out.signature, rnaseq_dir, sc_dir, remapping)
   deconv = deconvolute.out.deconvolution
   deconvolute.out.deconvolution.view()
-  signatureRuntimes.join(deconvolute.out.runtime).collectFile(name: "./runtimesTest.tsv", newLine: true)
+  signatureRuntimes.join(deconvolute.out.runtime).collectFile(name: "runtimesCPM.tsv", newLine: true)
   //hoek_samples = deconv.filter{ ds -> ds =~/_hoek/ }                      das
   //hoek_samples_list = hoek_samples.toList()                               hier
   //benchmarkingPlots(hoek_samples_list, rnaseq_dir, rnaseq_sets, remapping)   nicht

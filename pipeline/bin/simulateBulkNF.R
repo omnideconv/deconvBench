@@ -44,7 +44,7 @@ sc_celltype_annotations <- remapCelltypesWorkflow(remappingPath = remapping_shee
                                                   method_ds = sc_ds)
 celltypes <- unlist(strsplit(args$celltypes, ","))
 celltypes <- unique(sc_celltype_annotations)#[1:3] #remove this if you only want certain celltypes for spillover!
-celltypes <- c("B cell")
+#celltypes <- c("B cell")
 
 escapeCelltypes <- function(celltype){
   return(gsub(" ", "x.x", celltype))

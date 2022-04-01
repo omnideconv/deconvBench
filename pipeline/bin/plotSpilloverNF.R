@@ -48,7 +48,7 @@ for(res in deconv_results){
   data <- rbind(data, result)
 } 
 
-getPalette = colorRampPalette(brewer.pal(11, "Paired"))
+getPalette = colorRampPalette(RColorBrewer::brewer.pal(11, "Paired"))
 colors = getPalette(length(unique(data$true_celltype)))
 names(colors) = unique(data$true_celltype)
 ### code adopted from immunedeconv benchmarking / spillover analysis

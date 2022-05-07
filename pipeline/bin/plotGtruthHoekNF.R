@@ -94,6 +94,10 @@ inputData <- loadData(resultVector = resultVec, facsListInput = facsList)
 inputDataAll <- loadData(resultVector = resultVec, facsListInput = facsList, addAll = TRUE)
 
 #between samples
+separateByCondition(filepath = ".", data = inputDataAll, 
+                    subsetVectorFull = inputDataAll$scset, 
+                    basename = "comparisonGtruth_regularDeconv_betweenSampleComparison_plusAllCelltypes_colorType", 
+                    shape = "bulk", color = "sctype")
 separateByCondition(filepath = ".", data = inputData, 
                     subsetVectorFull = inputData$scset, 
                     basename = "comparisonGtruth_regularDeconv_betweenSampleComparison_colorType", 
@@ -129,7 +133,12 @@ allTogether(filepath = ".",
             data = subset(mutate(inputData, tumor = ifelse(grepl("vanderbilt", bulk), "tumor", "healthy")), grepl("T cell C", celltype)), 
             groupingVar1 = "method", groupingVar2 = "tumor",
             basename = "comparisonGtruth_regularDeconv_betweenHealthyTumor", 
-            shape = "bulk", color = "celltype")
+            shape = "bulk", color = "celltype", addLM = TRUE)
+allTogetherOneFacetNoShape(filepath = ".", 
+                           data = subset(mutate(inputData, tumor = ifelse(grepl("vanderbilt", bulk), "tumor", "healthy")), grepl("T cell C", celltype)), 
+                           groupingVar1 = "tumor", 
+                           basename = "comparisonGtruth_regularDeconv_betweenHealthyTumor")
+
 
 compareGroundTruthAllCombinations(filepath = ".", data = inputData, 
                                   basename = "comparisonGtruth_regularDeconv", shape = "sctype")

@@ -196,14 +196,13 @@ process plotSimulationSpillover {
 
 
 workflow{
-  //single_cell = Channel.fromList(params.single_cell_list)
   rnaseq_sets = Channel.fromList(params.bulk_list)
   methods = params.method_list
   scenarios = params.simulation_scenarios
   rnaseq_dir = Channel.fromPath(params.data_dir_bulk).collect()
   sc_dir = Channel.fromPath(params.data_dir_sc).collect()
   remapping = Channel.fromPath(params.mapping_sheet).collect()
-  ch_input_files = check_samplesheet("/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/sc_files_table_tpmMaynard.csv", params.data_dir_sc)
+  ch_input_files = check_samplesheet("/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/sc_files_table.csv", params.data_dir_sc)
   Channel.from(ch_input_files).view()
   createSignature(rnaseq_sets, methods, rnaseq_dir, Channel.from(ch_input_files), sc_dir, remapping)
   signatureRuntimes = createSignature.out.runtime
@@ -211,26 +210,23 @@ workflow{
   deconv = deconvolute.out.deconvolution
   deconvolute.out.deconvolution.view()
   signatureRuntimes.join(deconvolute.out.runtime).collectFile(name: "runtimesCPM.tsv", newLine: true)
-  //hoek_samples = deconv.filter{ ds -> ds =~/_hoek/ }                      das
-  //hoek_samples_list = hoek_samples.toList()                               hier
-  //benchmarkingPlots(hoek_samples_list, rnaseq_dir, rnaseq_sets, remapping)   nicht
-  //benchmarkingPlots(deconv.toList(), rnaseq_dir, remapping)
-  //benchmarkingPlots.out.plotjpeg.view()
+  benchmarkingPlots(deconv.toList(), rnaseq_dir, remapping)
+  benchmarkingPlots.out.plotjpeg.view()
   celltypes = Channel.value("B cell,T cell regulatory (Tregs),T cell CD8+,T cell CD4+,Monocyte non-conventional,Macrophage,Monocyte conventional,NK cell,Myeloid dendritic cell,Plasmacytoid dendritic cell")
   ch_input_files_summarized = check_samplesheet_summarized("/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/sc_files_table.csv", params.data_dir_sc)
-  //simulateBulk(Channel.from(ch_input_files_summarized), scenarios, sc_dir, remapping, celltypes)
-  //sims = simulateBulk.out.bulk.collect()
-  //deconvoluteSimulatedBulk(methods, sims, sc_dir, Channel.from(ch_input_files_summarized).collect(), remapping)
-  //deconvSim = deconvoluteSimulatedBulk.out.deconvolution
-  //true_fractions = deconvSim.filter{ str -> str =~/_truefractions/ }.collect()
-  //true_fractions.view()
-  //sims.view()
-  //plotSimulation(true_fractions, sims, remapping, "truefractions")
-  //plotSimulation.out.entry.view()
-  //uniform = deconvSim.filter{ str -> str =~/_uniform/ }.collect()view()
-  //plotSimulation(uniform, sims, remapping)
-  //plotSimulation.out.entry.view()
-  //spillover = deconvSim.filter{ str -> str =~/_spillover/ }.collect()
-  //plotSimulationSpillover(spillover)
+  simulateBulk(Channel.from(ch_input_files_summarized), scenarios, sc_dir, remapping, celltypes)
+  sims = simulateBulk.out.bulk.collect()
+  deconvoluteSimulatedBulk(methods, sims, sc_dir, Channel.from(ch_input_files_summarized).collect(), remapping)
+  deconvSim = deconvoluteSimulatedBulk.out.deconvolution
+  true_fractions = deconvSim.filter{ str -> str =~/_truefractions/ }.collect()
+  true_fractions.view()
+  sims.view()
+  plotSimulation(true_fractions, sims, remapping, "truefractions")
+  plotSimulation.out.entry.view()
+  uniform = deconvSim.filter{ str -> str =~/_uniform/ }.collect()view()
+  plotSimulation(uniform, sims, remapping)
+  plotSimulation.out.entry.view()
+  spillover = deconvSim.filter{ str -> str =~/_spillover/ }.collect()
+  plotSimulationSpillover(spillover)
 }
 

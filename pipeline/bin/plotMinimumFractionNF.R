@@ -18,7 +18,7 @@ reEscapeCelltypes <- function(celltype){
 }
 
 #for testing
-deconvolution_results <- list.files("/nfs/proj/omnideconv_benchmarking/pipelines/results_spikein/", pattern = "deconvolution_spikein.*Bx.xcell_.*tpm", full.names = TRUE)
+deconvolution_results <- list.files("/nfs/proj/omnideconv_benchmarking/pipelines/results_spikein/", pattern = "deconvolution_spikein.*Bx.xcell_.*tpm|deconvolution_spikein.*Tx.xcell.*_.*tpm", full.names = TRUE)
 #bulk <- list.files("/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results", pattern = "simulatedBulk_true", full.names=TRUE)
 r_threshold = 0.8
 lower_label <- paste("R lower than/equal to", r_threshold)
@@ -62,10 +62,11 @@ loadData <- function(deconv_results){
 d = loadData(deconvolution_results)
 
 background_df = d$background_df
-g <- ggplot(background_df, aes(fraction, celltype))+
+g <- ggplot(background_df, aes(fraction, celltype, fill=method))+
   geom_boxplot()+
-  facet_wrap("~method")+
-  labs(x="background", y="cell type")
+  labs(x="background", y="cell type")+
+  coord_cartesian(xlim = c(0, 0.35))+theme(legend.position = "bottom")
+g
 ggsave("spikeIn_background_noisePredictions_boxplot.jpeg", g)
 
 all = d$predictions %>% 
@@ -82,10 +83,12 @@ detection_limit = all %>%
   filter(p_value < 0.05) %>% 
   summarise(minfrac = min(spikein))
 
-g <- ggplot(all, aes(x=spikein, y=mean, color=method))+
+g <- ggplot(all, aes(x=spikein, y=mean, color=celltype))+
   geom_errorbar(aes(ymin=mean-sd, ymax=mean+sd))+
-  geom_point()+ facet_wrap("~celltype")+
-  labs(x="fraction of spike-in cells", y="average estimate")
+  geom_point()+ facet_wrap("~method")+
+  labs(x="fraction of spike-in cells", y="average estimate")+
+  theme(legend.position = "bottom")
+g
 ggsave("spikeIn_avgEstimation.jpeg", g)
 
 background_mean <- background_df %>% group_by(celltype, type, method, spikein) %>% 
@@ -103,7 +106,8 @@ g <- ggplot(all, aes(x=spikein, y=mean))+
                      guide=guide_legend("performance measure", override.aes = list(alpha=1)))+
   ylab("average estimate") + 
   xlab("fraction of spike-in cells")+ 
-  theme(legend.position = "top")
+  theme(legend.position = "bottom")
+g
 ggsave("spikeIn_sensitivity_scatter.jpeg", g)
 
 # 

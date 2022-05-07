@@ -18,21 +18,8 @@ reEscapeCelltypes <- function(celltype){
 }
 deconv_results <- unlist(strsplit(gsub("\\[", "", gsub("\\]", "", args$deconv_results)), ", "))
 
-deconv_results <- list.files("/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results", pattern = "deconvolution_spillover", full.names = TRUE)
-#load deconv results
-# deconv_results <- list("/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_T cell CD4+_lambrechts_bisque.rds", 
-#                        "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_T cell CD8+_lambrechts_bisque.rds", 
-#                        "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_B cell_lambrechts_bisque.rds", 
-#                        "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_T cell CD4+_lambrechts_cibersortx.rds", 
-#                        "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_T cell CD8+_lambrechts_cibersortx.rds", 
-#                        "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_B cell_lambrechts_cibersortx.rds", 
-#                        "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_T cell CD4+_maynard_bisque.rds", 
-#                        "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_T cell CD8+_maynard_bisque.rds", 
-#                        "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_B cell_maynard_bisque.rds", 
-#                        "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_T cell CD4+_maynard_cibersortx.rds", 
-#                        "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_T cell CD8+_maynard_cibersortx.rds", 
-#                        "/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_B cell_maynard_cibersortx.rds")#, 
-#"/nfs/proj/omnideconv_benchmarking/benchmark/pipeline/results/deconvolution_spillover_maynard_autogenes.rds")
+deconv_results <- list.files("/nfs/proj/omnideconv_benchmarking/pipelines/results_spillover", pattern = "deconvolution_spillover", full.names = TRUE)
+
 resTable <- tibble(path = deconv_results) %>% 
   mutate(results = gsub(".rds", "", gsub("deconvolution_", "", basename(path)))) %>% 
   separate(results, c("scenario", "dataset", "celltype", "rnaseq_type", "method"), sep="_") %>% 
@@ -51,24 +38,42 @@ for(res in deconv_results){
 getPalette = colorRampPalette(RColorBrewer::brewer.pal(11, "Paired"))
 colors = getPalette(length(unique(data$true_celltype)))
 names(colors) = unique(data$true_celltype)
+
+signalRatiosBox <- function(resultDfIn, filename){
+  signals = resultDfIn %>%
+    mutate(signal_noise=if_else(celltype == true_celltype, "signal", "noise")) %>%
+    group_by(dataset, rnaseq_type, sample, method, true_celltype, signal_noise) %>%
+    summarise(estimate=sum(predicted_value)) %>%
+    spread(signal_noise, estimate) %>%
+    mutate(noise_ratio = noise/(noise+signal)) %>%
+    mutate(signal_ratio = signal/(noise+signal)) %>%
+    ungroup() %>%
+    na.omit()
+  
+  ggplot(signals, aes(x=method, y=signal_ratio, fill=method)) +
+    geom_boxplot(position = position_dodge()) +
+    facet_grid(dataset+rnaseq_type~true_celltype, labeller = label_wrap_gen(width=10)) +
+    theme(axis.text.x=element_text(angle = 90, vjust = 0.5, hjust=1), legend.position = "bottom") +
+    labs(y="signal ratio")
+  ggsave(filename, width = 19, height = 9)
+}
+
 ### code adopted from immunedeconv benchmarking / spillover analysis
 makeChordDiagrams <- function(resultDfIn, overviewTable, pdfName){
-  # layout(matrix(seq(1, length(unique(overviewTable$dataset)) * length(unique(overviewTable$method)) * length(unique(overviewTable$rnaseq_type))), 
-  #               length(unique(overviewTable$method)), 
-  #               length(unique(overviewTable$dataset)) * length(unique(overviewTable$rnaseq_type))))
   par(mar=rep(0.5, 4))
   circos.par(cell.padding = rep(0, 4))
-  pdf(pdfName, width = 20, height = 20)
+  pdf(pdfName, width = 20, height = 9)
   layout(matrix(seq(1, length(unique(overviewTable$dataset)) * length(unique(overviewTable$method)) * length(unique(overviewTable$rnaseq_type))), 
-                length(unique(overviewTable$method)), 
-                length(unique(overviewTable$dataset)) * length(unique(overviewTable$rnaseq_type))))
-  lapply(unique(overviewTable$rnaseq_type), function(type){
+                length(unique(overviewTable$dataset)) * length(unique(overviewTable$rnaseq_type)),
+                length(unique(overviewTable$method)) 
+                ))
+  lapply(unique(overviewTable$method), function(method){
     lapply(unique(overviewTable$dataset), function(dataset) {
-      lapply(unique(overviewTable$method), function(method) {
+      lapply(unique(overviewTable$rnaseq_type), function(type) {
         resultDf <- resultDfIn[resultDfIn$rnaseq_type==type,]
         migration = resultDf %>%
           filter(method == !!method, dataset == !!dataset) %>%
-          group_by(method, true_celltype, celltype) %>%
+          group_by(method, true_celltype, celltype) %>% 
           summarise(estimate = mean(predicted_value)) %>%
           ungroup()
         migration_mat = migration %>%
@@ -78,14 +83,14 @@ makeChordDiagrams <- function(resultDfIn, overviewTable, pdfName){
           tibble::column_to_rownames("true_celltype") %>%
           as.matrix()
         noise_ratio = migration %>%
-          group_by(method, celltype, true_celltype) %>%
-          summarise(estimate = mean(estimate)) %>%
-          group_by(method) %>%
+          #group_by(method, celltype, true_celltype) %>%
+          #summarise(estimate = mean(estimate)) %>%
+          #group_by(method) %>%
           mutate(type = ifelse(celltype == true_celltype, "signal", "noise")) %>%
           group_by(method, type) %>%
           summarise(estimate = sum(estimate)) %>%
           spread(type, estimate) %>%
-          mutate(noise_ratio = noise/(signal+noise)) %>%
+          mutate(noise_ratio = noise/(signal+noise), signal_ratio = signal/(signal+noise)) %>%
           ungroup()
         chordDiagram(migration_mat, directional = TRUE, transparency = .5,
                      grid.col = colors
@@ -100,7 +105,21 @@ makeChordDiagrams <- function(resultDfIn, overviewTable, pdfName){
       })
     })
   })
+  # lgd_links = ComplexHeatmap::Legend(at = c(-2, -1, 0, 1, 2), 
+  #                    title_position = "topcenter", title = "cell type")
+  # ComplexHeatmap::draw(lgd_links, x = unit(0.5, "npc"), y = unit(0.5, "npc"), just = "centre")
   dev.off()
 }
 
+signalRatiosBox(resultDfIn = data, filename = "spillover_signalRatio.jpeg")
 makeChordDiagrams(resultDfIn = data, overviewTable = resTable, pdfName = "spilloverChordDiagram.pdf")
+
+x = data %>%
+  #filter(method == "dwls" & rnaseq_type == "counts") %>%
+  group_by(method, true_celltype, celltype) %>%
+  summarise(frac = sum(predicted_value)/n())
+ggplot(x, aes(x=true_celltype, y=frac)) +
+  geom_bar(aes(fill=celltype), stat="identity") +
+  theme(axis.text.x=element_text(angle = 90, vjust = 0.5, hjust=1))+
+  facet_wrap(~method)+labs(x="true celltype", y="prediction", fill="predicted celltype")
+ggsave("spillover_fractionsPerMethodBar.jpeg", width=13, height = 8)

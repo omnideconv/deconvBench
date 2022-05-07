@@ -93,7 +93,8 @@ if(scenario=="uniform"){
   quit()
 } else if(scenario == "spikein"){
   ###spikein###
-  for (celltype in celltypes) {
+  celltype="T cell CD8+"
+  #for (celltype in celltypes) {
     print(celltype)
     #first create the background
     simulated_bulk <- SimBu::simulate_bulk(
@@ -132,7 +133,7 @@ if(scenario=="uniform"){
                 compress = FALSE)
       }
     #}
-  }
+  #}
   quit()
 } else if(scenario=="sfaira"){
   setup_list <- SimBu::setup_sfaira(

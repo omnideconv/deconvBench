@@ -2,6 +2,7 @@
 library(forcats)
 library(ggplot2)
 library(dplyr)
+library(tidyr)
 
 #split up by one condition (eg sc set), shape by another (eg bulk), facet by method and celltype, color by celltype
 separateByCondition <- function(filepath, data, subsetVectorFull, basename, shape, color="celltype", scales = "fixed", alpha = 0.2, addLM = FALSE){
@@ -21,7 +22,7 @@ separateByCondition <- function(filepath, data, subsetVectorFull, basename, shap
                 ymin = -Inf,ymax = Inf,
                 alpha = alpha, fill="yellow") +
       geom_point(aes(color=get(color), shape = get(shape)))+geom_abline()+
-      facet_grid("method~facet", scales = scales)+
+      facet_grid("method~facet", scales = scales, labeller = label_wrap_gen(width=10))+
       scale_color_discrete(na.translate=F)+
       theme(axis.text.x = element_text(angle=90), legend.position = "bottom")+
       ggpubr::stat_cor(aes(label = ..r.label..), label.sep = "\n", size=2.5, color="black", label.x.npc = 0.005)+
@@ -62,12 +63,19 @@ allTogether <- function(filepath, data, groupingVar1, groupingVar2, basename, sh
   corDataLabels <- corData %>% 
     distinct(get(groupingVar1), cor, get(groupingVar2), .keep_all = TRUE) %>%
     mutate(x = 0.03, y = 0.6)
+  # lines <- crossing(unique(data[[groupingVar1]]), unique(data[[groupingVar2]]))
+  # colnames(lines) <- c(groupingVar1, groupingVar2)
+  # lines <- lines %>% mutate(intercept=0, 
+  #                           slope=ifelse(nrow(subset(data, get(groupingVar1) == groupingVar1  & get(groupingVar2) == groupingVar2))>0, 1, 0))
+  #   
   p <- ggplot(corData, aes(x=true_value, y=predicted_value))+
     geom_rect(data = corDataFill, aes(fill = rfill),
               xmin = -Inf,xmax = Inf,
               ymin = -Inf,ymax = Inf,
               alpha = alpha, fill="yellow") +
-    geom_point(aes(color=get(color), shape=get(shape)))+geom_abline()+
+    geom_point(aes(color=get(color), shape=get(shape)))+
+    #geom_abline(data = lines, aes(slope=slope, intercept=intercept))+
+    geom_abline()+
     ggpubr::stat_cor(aes(label = ..r.label..), label.sep = "\n", size=2.5, color="black", label.x.npc = 0.005)+
     facet_grid(paste(groupingVar1, groupingVar2, sep="~"), labeller = label_wrap_gen(width=10))+
     scale_color_discrete(na.translate=F)+
@@ -93,8 +101,9 @@ allTogether <- function(filepath, data, groupingVar1, groupingVar2, basename, sh
   g
   ggsave(file.path(filepath, paste(basename, "_correlation_group", groupingVar1, groupingVar2, ".jpeg", sep="")), g, width = 13, height=9)
   
-  subset <- data %>% group_by(combination, celltype) %>% 
-    mutate(rmse = sqrt(mean((true_value - predicted_value)^2))) 
+  subset <- drop_na(data) %>% group_by(get(groupingVar1), get(groupingVar2), get(shape), combination, celltype) %>% 
+    summarize(rmse = sqrt(mean((true_value - predicted_value)^2)))
+  colnames(subset) <- c(groupingVar1, groupingVar2, shape, "combination", "celltype", "rmse")
   #boxplot of RMSE with facets
   g <- ggplot(subset, aes(rmse, fct_rev(get(groupingVar1))))+
     geom_boxplot()+
@@ -102,6 +111,12 @@ allTogether <- function(filepath, data, groupingVar1, groupingVar2, basename, sh
     facet_wrap(~ get(groupingVar2))
   g
   ggsave(filename = file.path(filepath, paste(basename, "_boxplot_group", groupingVar1, groupingVar2, ".jpeg", sep="")),g, width = 10, height=7)
+  g <- ggplot(subset, aes(rmse, fct_rev(get(groupingVar1))))+
+    geom_boxplot(aes(fill=get(shape)))+
+    labs(x="RMSE", y = groupingVar1, fill=shape)+
+    facet_wrap(~ get(groupingVar2))+ theme(legend.position = "bottom")
+  g
+  ggsave(filename = file.path(filepath, paste(basename, "_boxplot_group", groupingVar1, groupingVar2, "_fill", shape, ".jpeg", sep="")),g, width = 10, height=7)
   
 }
 
@@ -121,7 +136,7 @@ allTogetherOneFacetNoShape <- function(filepath, data, groupingVar1, basename, c
               alpha = alpha, fill="yellow") +
     geom_point(aes(color=get(color)))+geom_abline()+
     ggpubr::stat_cor(aes(label = ..r.label..), label.sep = "\n", size=3, color="black", label.x.npc = 0.005)+
-    facet_grid(~ get(groupingVar1))+
+    facet_grid(~ get(groupingVar1), labeller = label_wrap_gen(width=10))+
     scale_color_discrete(na.translate=F)+
     theme(axis.text.x = element_text(angle=90), legend.position = "bottom")+
     labs(color=color, X="true value", y="predicted value")
@@ -145,14 +160,21 @@ allTogetherOneFacetNoShape <- function(filepath, data, groupingVar1, basename, c
   g
   ggsave(file.path(filepath, paste(basename, "_correlation_group", groupingVar1, ".jpeg", sep="")), g, width = 16, height=7)
   
-  subset <- data %>% group_by(combination, celltype) %>% 
-    mutate(rmse = sqrt(mean((true_value - predicted_value)^2))) 
+  subset <- data %>% group_by(method, get(groupingVar1), scset, combination, celltype) %>% 
+    summarize(rmse = sqrt(mean((true_value - predicted_value)^2)))
+  colnames(subset) <- c("method", groupingVar1, "scset", "combination", "celltype", "rmse")
   #boxplot of RMSE with facets
   g <- ggplot(subset, aes(y=rmse, x=get(groupingVar1)))+
     geom_boxplot()+
     labs(y="RMSE", x = groupingVar1)
   g
-  ggsave(filename = file.path(filepath, paste(basename, "_boxplot_group", groupingVar1, ".jpeg", sep="")),g, width = 10, height=7)
+  ggsave(filename = file.path(filepath, paste(basename, "_boxplot_group", groupingVar1, ".jpeg", sep="")),g, width = 10, height=5)
+  p <- g + geom_jitter(color="cornflowerblue", alpha=.5, size=.5)
+  ggsave(filename = file.path(filepath, paste(basename, "_boxplot_group", groupingVar1, "_jitter.jpeg", sep="")),p, width = 10, height=5)
+  g <- ggplot(subset, aes(y=rmse, x=get(groupingVar1), fill=scset))+
+    geom_boxplot()+
+    labs(y="RMSE", x = groupingVar1)
+  ggsave(filename = file.path(filepath, paste(basename, "_boxplot_group", groupingVar1, "_filled.jpeg", sep="")),g, width = 10, height=5)
   
 }
 

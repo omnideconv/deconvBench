@@ -1,0 +1,8 @@
+bisque	[dataset:hao-sampled-1, type:counts]	hoek	tpm	deconvolute	28.831 13.287 32.607
+
+bisque	[dataset:hao-sampled-1, type:counts]	hoek	counts	build_model	4.452 2.113 6.599
+
+bisque	[dataset:hao-sampled-1, type:counts]	hoek	tpm	build_model	4.499 2.727 7.261
+
+bisque	[dataset:hao-sampled-1, type:counts]	hoek	counts	deconvolute	20.480 11.957 21.883
+

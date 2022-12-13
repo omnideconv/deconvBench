@@ -1,0 +1,8 @@
+.nextflow*
+docker/.nextflow/
+docker/.nextflow.log*
+docker/work/
+pipeline/.nextflow/
+pipeline/.nextlow.log*
+pipeline/*.Rproj
+*.Rproj

@@ -1,0 +1,6 @@
+name: omnideconv_benchmark_basilisk_lorenzo
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+prefix: /nfs/home/extern/l.merotto/.conda/envs/omnideconv_benchmark_basilisk_lorenzo

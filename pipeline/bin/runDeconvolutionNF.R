@@ -1,5 +1,6 @@
 #!/usr/bin/Rscript
 
+print("Started deconvolution  ...")
 "Usage: 
   runDeconvolutionNF.R <sc_matrix> <sc_meta>  <sc_path> <rna_path> <rna_datasetname> <rna_norm> <deconv_method> <results_dir> [<coarse>]
 Options:
@@ -41,6 +42,9 @@ res_path <- paste0(res_base_path, '/', method, "_", sc_ds, "_", sc_type, "_", rn
 
 
 signature <- readRDS(paste0(res_path, "/signature.rds"))
+if(method == 'scaden'){
+  signature <- file.path(paste0(res_path, "/model"))
+}
 
 ##remap celltype_annotations##
 #source("/vol/spool/bin/remapCelltypesNF.R")
@@ -77,100 +81,106 @@ if(method=="autogenes"){
   sc_celltype_annotations <- escapeCelltypesAutogenes(sc_celltype_annotations)
 }
 
-
-
 runtime <- system.time({
-if(method=="cpm"){
-  deconvolution <- omnideconv::deconvolute(bulk_gene_expression = rnaseq_data, 
-                                           signature = signature, 
-                                           single_cell_object = sc_matrix, 
-                                           batch_ids = sc_batch, 
-                                           cell_type_annotations = sc_celltype_annotations, 
-                                           method = method,
-                                           no_cores = n_cores)
+  if(method=="cpm"){
+    deconvolution <- omnideconv::deconvolute(
+      bulk_gene_expression = rnaseq_data, 
+      signature = signature, 
+      single_cell_object = sc_matrix, 
+      batch_ids = sc_batch, 
+      cell_type_annotations = sc_celltype_annotations, 
+      method = method,
+      no_cores = n_cores
+    )
 
-} else if(method=="cibersortx") {
-  omnideconv::set_cibersortx_credentials("lorenzo.merotto@studenti.unipd.it",
-                                         " 721a387e91c495174066462484674cb8")  
-  # CibersortX does not work with tmp directories in a Docker in Docker setup
-  # --> created fixed input and output directories!
-  cx_input <- '/vol/spool/tmp/cibersortx_input'
-  if(!dir.exists(paste0(cx_input))){
-    dir.create(cx_input)
+  } else if(method=="cibersortx") {
+    omnideconv::set_cibersortx_credentials("lorenzo.merotto@studenti.unipd.it",
+                                          " 721a387e91c495174066462484674cb8")  
+    # CibersortX does not work with tmp directories in a Docker in Docker setup
+    # --> created fixed input and output directories!
+    cx_input <- '/vol/omnideconv/tmp/cibersortx_input'
+    if(!dir.exists(paste0(cx_input))){
+      dir.create(cx_input)
+    }
+    cx_output <- '/vol/omnideconv/tmp/cibersortx_output'
+        if(!dir.exists(paste0(cx_output))){
+      dir.create(cx_output)
+    }
+
+    deconvolution <- omnideconv::deconvolute_cibersortx(
+      bulk_gene_expression = rnaseq_data, 
+      signature = signature, 
+      container = 'docker',
+      verbose = TRUE,
+      input_dir = cx_input,
+      output_dir = cx_output
+    )
+    unlink(cx_input, recursive=TRUE)
+    unlink(cx_output, recursive=TRUE)
+
+  } else if (method == "cdseq"){
+    source('/vol/omnideconv/benchmark/pipeline/bin/bin/CDseq.R')
+    num_cell_type = c(5, 10, 15, 20, 30)
+
+    deconvolution <- deconvolute_cdseq(
+      bulk_gene_expression = rnaseq_data, 
+      single_cell_object = sc_matrix, 
+      cell_type_annotations = sc_celltype_annotations, 
+      batch_ids = sc_batch, 
+      cell_type_number =  num_cell_type, 
+      cpu_number = n_cores,
+      block_number = 5, 
+      gene_subset_size = 1000
+    )
+
+    deconvolution <- t(deconvolution$cdseq_prop_merged)
+    #deconvolution <- omnideconv::normalize_deconv_results(deconvolution)
+      
+
+  } else if (method == "bayesprism") {
+    deconvolution <- omnideconv::deconvolute(
+      bulk_gene_expression = rnaseq_data, 
+      signature = signature, 
+      single_cell_object = sc_matrix, 
+      batch_ids = sc_batch, 
+      cell_type_annotations = sc_celltype_annotations, 
+      method = method,
+      n_cores = n_cores
+    )
+                
+  } else if (method == "scaden") {
+    scaden_tmp <- '/vol/omnideconv/tmp/scaden_tmp'
+      if(!dir.exists(paste0(scaden_tmp))){
+        dir.create(scaden_tmp)
+      }
+    deconvolution <- omnideconv::deconvolute_scaden(
+      bulk_gene_expression = rnaseq_data, 
+      signature = signature 
+      #,temp_dir = scaden_tmp
+    )
+    unlink(scaden_tmp)
+  }else {
+    deconvolution <- omnideconv::deconvolute(
+      bulk_gene_expression = rnaseq_data, 
+      signature = signature, 
+      single_cell_object = sc_matrix, 
+      batch_ids = sc_batch, 
+      cell_type_annotations = sc_celltype_annotations, 
+      method = method
+    )
   }
-  cx_output <- '/vol/spool/tmp/cibersortx_output'
-      if(!dir.exists(paste0(cx_output))){
-    dir.create(cx_output)
-  }
-
-  deconvolution <- deconvolute_cibersortx(bulk_gene_expression = rnaseq_data, 
-                                          signature = signature, 
-                                          container = 'docker',
-                                          verbose = TRUE,
-                                          input_dir = cx_input,
-                                          output_dir = cx_output)
-
-  unlink(cx_input)
-  unlink(cx_output)
-
-} else if (method == "cdseq"){
-  source('/vol/omnideconv/benchmark/pipeline/bin/bin/CDseq.R')
-  num_cell_type = c(5, 10, 15, 20, 30)
-
-  deconvolution <- deconvolute_cdseq(bulk_gene_expression = rnaseq_data, 
-                      single_cell_object = sc_matrix, 
-                      cell_type_annotations = sc_celltype_annotations, 
-                      batch_ids = sc_batch, 
-                      cell_type_number =  num_cell_type, 
-                      cpu_number = n_cores,
-                      block_number = 5, 
-                      gene_subset_size = 1000)
-
-  deconvolution <- t(deconvolution$cdseq_prop_merged)
-  #deconvolution <- omnideconv::normalize_deconv_results(deconvolution)
-    
-
-} else if (method == "bayesprism") {
-  deconvolution <- omnideconv::deconvolute(bulk_gene_expression = rnaseq_data, 
-              signature = signature, 
-              single_cell_object = sc_matrix, 
-              batch_ids = sc_batch, 
-              cell_type_annotations = sc_celltype_annotations, 
-              method = method,
-              n_cores = n_cores)
-              
-} else {
-  deconvolution <- omnideconv::deconvolute(bulk_gene_expression = rnaseq_data, 
-              signature = signature, 
-              single_cell_object = sc_matrix, 
-              batch_ids = sc_batch, 
-              cell_type_annotations = sc_celltype_annotations, 
-              method = method)
-}
-
-
-
-
-
-
 })
 
 res_base_path <- args$results_dir
 res_path <- paste0(res_base_path, '/', method, "_", sc_ds, "_", sc_type, "_", rnaseq_ds, "_", rnaseq_type)
 
-
-
 saveRDS(deconvolution, file=paste0(res_path, "/deconvolution.rds"))
-
-
-#saveRDS(deconvolution, 
-#        paste("deconvolution_", method, "_", sc_ds, "_", sc_type, "_", rnaseq_ds, "_", rnaseq_type, ".rds", sep=""), 
-#        compress = FALSE)
-
 
 
 # Here we need to compute the correlation, RMSE and zRMSE
 # We need to compute it by cell type, sample, all together
+
+print("Started metric calculation ...")
 
 library(tidyverse)
 
@@ -243,22 +253,14 @@ compute_metrics <- function(ref_facs, deconvolution, metric = c('cor', 'rmse'),
 
 
 facs_folder <- file.path(strsplit(gsub("\\[", "", gsub("\\]", "", rnaseq_path)), ", ")[[1]])
-
-
-
 facs_path_new <- file.path(facs_folder, rnaseq_ds, paste(rnaseq_ds, "_facs.rds", sep=""))
 print(facs_path_new)
 facs_data <- readRDS(facs_path_new)
 
-
 if(rnaseq_ds=='hoek'){
   deconvolution <- as.data.frame(deconvolution)
   deconvolution$`T cell` <- deconvolution$`T cell CD4+` + deconvolution$`T cell CD8+` + deconvolution$`T cell regulatory (Tregs)`
-
 }
-
-
-
 
 results_metric <- list()
 
@@ -272,11 +274,5 @@ if(method !='cdseq'){
 results_metric$facs_groud_truth <- facs_data
 results_metric$deconv.results <- deconvolution
 
-
-
-
-saveRDS(results_metric,
-        paste0(res_path, '/results_metric.rds'))
-
-
+saveRDS(results_metric, paste0(res_path, '/results_metric.rds'))
 print(runtime)

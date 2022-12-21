@@ -1,6 +1,6 @@
 #!/usr/bin/Rscript
 
-print("start")
+print("Started signature building script ...")
 library(conflicted)
 conflicted::conflict_scout()
 library(docopt)
@@ -86,7 +86,43 @@ runtime <- system.time({
       dwls_method = "mast_optimized",
       ncores = n_cores
     )
-  } else if (method != "cibersortx") {
+  } else if (method == "cibersortx") {
+    omnideconv::set_cibersortx_credentials("lorenzo.merotto@studenti.unipd.it",
+                                           " 721a387e91c495174066462484674cb8") 
+    # CibersortX does not work with tmp directories in a Docker in Docker setup
+    # --> created fixed input and output directories!
+    cx_input <- '/vol/omnideconv/tmp/cibersortx_input'
+    if(!dir.exists(paste0(cx_input))){
+      dir.create(cx_input)
+    }
+    cx_output <- '/vol/omnideconv/tmp/cibersortx_output'
+        if(!dir.exists(paste0(cx_output))){
+      dir.create(cx_output)
+    }
+    signature <- omnideconv::build_model_cibersortx(
+      sc_matrix, 
+      sc_celltype_annotations, 
+      container = "docker", 
+      verbose = TRUE, 
+      input_dir = cx_input, 
+      output_dir = cx_output
+    )
+
+  } else if(method == "scaden"){
+    scaden_tmp <- '/vol/omnideconv/tmp/scaden_tmp'
+    unlink(scaden_tmp, recursive=TRUE)
+    if(!dir.exists(paste0(scaden_tmp))){
+      dir.create(scaden_tmp)
+    }
+    signature <- omnideconv::build_model_scaden(
+      sc_matrix,
+      sc_celltype_annotations,
+      rnaseq_data,
+      temp_dir = scaden_tmp,
+      verbose = TRUE
+    )
+
+  } else {
     signature <- omnideconv::build_model(
       single_cell_object = sc_matrix,
       cell_type_annotations = sc_celltype_annotations,
@@ -96,28 +132,11 @@ runtime <- system.time({
       verbose = TRUE,
       method = method
     )
-  } else {
-    omnideconv::set_cibersortx_credentials("lorenzo.merotto@studenti.unipd.it",
-                                           " 721a387e91c495174066462484674cb8") 
-    # CibersortX does not work with tmp directories in a Docker in Docker setup
-    # --> created fixed input and output directories!
-    cx_input <- '/vol/spool/tmp/cibersortx_input'
-    if(!dir.exists(paste0(cx_input))){
-      dir.create(cx_input)
-    }
-    cx_output <- '/vol/spool/tmp/cibersortx_output'
-        if(!dir.exists(paste0(cx_output))){
-      dir.create(cx_output)
-    }
-    signature <- build_model_cibersortx(sc_matrix, sc_celltype_annotations, container = "docker", verbose = TRUE, input_dir = cx_input, output_dir = cx_output)
   }
 })
 
-
 res_base_path <- args$results_dir
 res_path <- paste0(res_base_path, '/', method, "_", sc_ds, "_", sc_type, "_", rnaseq_ds, "_", rnaseq_type)
-
-
 dir.create(res_path, recursive = TRUE, showWarnings = FALSE)
 
 
@@ -129,15 +148,5 @@ if (method %in% c("autogenes", "scaden")) {
   #signature <- file.path(getwd(), basename(signature))
 }
 
-#res_base_path <- args$results_dir
-#res_path <- paste0(res_base_path, '/', method, "_", sc_ds, "_", sc_type, "_", rnaseq_ds, "_", rnaseq_type)
-
-
-
 saveRDS(signature, file=paste0(res_path, "/signature.rds"), compress = FALSE)
-
-#saveRDS(signature, 
-#       paste("signature_", method, "_", sc_ds, "_", sc_type, "_", rnaseq_ds, "_", rnaseq_type, ".rds", sep=""), 
-#       compress = FALSE)
-
 print(runtime)

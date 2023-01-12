@@ -9,3 +9,4 @@ hao-sampled-4,counts,hao-sampled-4/matrix_counts.rds
 hao-sampled-4,cpm,hao-sampled-4/matrix_norm_counts.rds
 hao-complete,counts,hao-complete/matrix_counts.rds
 hao-complete,cpm,hao-complete/matrix_norm_counts.rds
+hao-sampled-tinytest,counts,hao-sampled-tinytest/matrix_counts.rds

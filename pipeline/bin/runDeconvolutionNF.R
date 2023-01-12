@@ -45,6 +45,9 @@ signature <- readRDS(paste0(res_path, "/signature.rds"))
 if(method == 'scaden'){
   signature <- file.path(paste0(res_path, "/model"))
 }
+if(method == 'autogenes'){
+  signature <- list.files(res_path, ".pickle", full.names = TRUE)
+}
 
 ##remap celltype_annotations##
 #source("/vol/spool/bin/remapCelltypesNF.R")
@@ -98,12 +101,12 @@ runtime <- system.time({
                                           " 721a387e91c495174066462484674cb8")  
     # CibersortX does not work with tmp directories in a Docker in Docker setup
     # --> created fixed input and output directories!
-    cx_input <- '/vol/omnideconv/tmp/cibersortx_input'
+    cx_input <- paste0('/vol/omnideconv/tmp/cibersortx_input_',sc_ds, "_", sc_type, "_", rnaseq_ds, "_", rnaseq_type)
     if(!dir.exists(paste0(cx_input))){
       dir.create(cx_input)
     }
-    cx_output <- '/vol/omnideconv/tmp/cibersortx_output'
-        if(!dir.exists(paste0(cx_output))){
+    cx_output <- paste0('/vol/omnideconv/tmp/cibersortx_output_',sc_ds, "_", sc_type, "_", rnaseq_ds, "_", rnaseq_type)
+    if(!dir.exists(paste0(cx_output))){
       dir.create(cx_output)
     }
 
@@ -149,14 +152,14 @@ runtime <- system.time({
     )
                 
   } else if (method == "scaden") {
-    scaden_tmp <- '/vol/omnideconv/tmp/scaden_tmp'
-      if(!dir.exists(paste0(scaden_tmp))){
-        dir.create(scaden_tmp)
-      }
+    scaden_tmp <- paste0('/vol/omnideconv/tmp/scaden_tmp_',sc_ds, "_", sc_type, "_", rnaseq_ds, "_", rnaseq_type)
+    if(!dir.exists(paste0(scaden_tmp))){
+      dir.create(scaden_tmp)
+    }
     deconvolution <- omnideconv::deconvolute_scaden(
       bulk_gene_expression = rnaseq_data, 
-      signature = signature 
-      #,temp_dir = scaden_tmp
+      signature = signature,
+      temp_dir = scaden_tmp
     )
     unlink(scaden_tmp)
   }else {

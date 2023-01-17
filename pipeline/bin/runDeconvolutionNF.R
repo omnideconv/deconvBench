@@ -262,7 +262,7 @@ facs_data <- readRDS(facs_path_new)
 
 if(rnaseq_ds=='hoek'){
   deconvolution <- as.data.frame(deconvolution)
-  deconvolution$`T cell` <- deconvolution$`T cell CD4+` + deconvolution$`T cell CD8+` + deconvolution$`T cell regulatory (Tregs)`
+  deconvolution$`T cell` <- deconvolution$`T cells CD4 conv` + deconvolution$`T cells CD8` + deconvolution$`Tregs`
 }
 
 results_metric <- list()

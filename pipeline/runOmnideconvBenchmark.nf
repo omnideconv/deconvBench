@@ -61,10 +61,29 @@ process setup {
 	""" 
 }
 
+process preProcessSingleCell {
+
+	publishDir params.preProcess_dir, mode: params.publishDirMode
+
+	input: 
+	tuple val(sc_meta), path(sc_matrix)
+	path sc_dir
+	each ct_percentage
+	each replicates
+	val preProcess_dir
+
+	output:
+	tuple val(sc_meta), path(sc_matrix), val(rnaseq), val(mode), val(rnaseq_norm), val(results_dir_gen), emit: dataset
+
+	shell:
+	'''
+	/vol/omnideconv/benchmark/pipeline/bin/preProcessSingleCell.R '!{sc_matrix}' '!{sc_meta}' '!{sc_dir}' '!{ct_percentage}' '!{replicates}' '!{preProcess_dir}' '!{seed}'
+	''' 
+}
+
 
 process createSignature {
 	label "deconvolution_related"
-	//publishDir "${params.outdir}/${mode}_${sc_meta}_${sc_norm}_${rnaseq}_${rnaseq_norm}", mode: params.publishDirMode
 	publishDir params.results_dir, mode: params.publishDirMode
 
 	input:
@@ -83,7 +102,6 @@ process createSignature {
 
 	shell:
 	'''
-	#/vol/spool/bin/computeSignaturesNF.R '!{sc_matrix}' '!{sc_meta}' '!{sc_dir}' '!{rnaseq_dir}' '!{rnaseq}' '!{rnaseq_norm}' '!{mode}' '!{results_dir_gen}'
 	TIME="$(/vol/omnideconv/benchmark/pipeline/bin/computeSignaturesNF.R '!{sc_matrix}' '!{sc_meta}' '!{sc_dir}' '!{rnaseq_dir}' '!{rnaseq}' '!{rnaseq_norm}' '!{mode}' '!{results_dir_gen}')"
 	FINAL="$(echo $TIME | sed -e 's/^.*user system elapsed //p' | tail -n 1)"
 	echo !{mode}'\t'!{sc_meta}'\t'!{rnaseq}'\tbuild_model\t'$FINAL
@@ -106,8 +124,6 @@ process deconvolute {
 
 	shell:
 	'''
-	#echo '$sc $sc_norm $rnaseq $rnaseq_norm $signature $sc_dir $rnaseq_dir'
-	#runDeconvolutionNF.R '$sc_dir' '$sc' '$rnaseq_dir' '$rnaseq' '$rnaseq_norm' '$mode' '$results_dir' '$signature' 
 	TIME="$(/vol/omnideconv/benchmark/pipeline/bin/runDeconvolutionNF.R '!{sc_matrix}' '!{sc_meta}' '!{sc_dir}' '!{rnaseq_dir}' '!{rnaseq}' '!{rnaseq_norm}' '!{mode}' '!{results_dir_gen}')"
 	FINAL="$(echo $TIME | sed -e 's/^.*user system elapsed //p' | tail -n 1)"
 	echo !{mode}'\t'!{sc_meta}'\t'!{rnaseq}'\tdeconvolute\t'$FINAL

@@ -1,45 +1,52 @@
 #!/usr/bin/Rscript
 
 print("Started deconvolution  ...")
-"Usage: 
-  runDeconvolutionNF.R <sc_matrix> <sc_meta>  <sc_path> <rna_path> <rna_datasetname> <rna_norm> <deconv_method> <results_dir> [<coarse>]
+"Usage:
+  runDeconvolutionNF.R <sc_matrix> <sc_annotation> <sc_batch> <sc_name> <sc_norm> <bulk_dir> <bulk_name> <bulk_norm> <deconv_method> <results_dir> <run_preprocessing> <replicate> <ct_fractions> <ncores> [<coarse>]
 Options:
 <sc_matrix> path to sc matrix
-<sc_meta> meta information of sc dataset
-<sc_path> path to sc dataset
-<rna_path> path to rnaseq dataset
-<rna_datasetname> name of rnaseq dataset
-<rna_norm> normalization of RNAseq
+<sc_annotation> path to cell type annotation of sc matrix
+<sc_batch> path batch info for sc matrix
+<sc_name> name of sc datasets
+<sc_norm> count type of sc dataset
+<bulk_dir> path to bulk datasets
+<bulk_name> name of bulk RNAseq dataset
+<bulk_norm> normalization of RNAseq
 <deconv_method>  deconv method
 <results_dir> results (base) directory
+<run_preprocessing> if pre-processing has been done
+<ct_fractions> fraction of cells that are subsampled from each celltype
+<replicate> value of replicate number
+<ncores> number of cores to use for method (if available)
 <coarse> logical, if TRUE celltypes are mapped to higher level" -> doc
 
-n_cores <- 24 # in case a method can use multiple cores
-
 args <- docopt::docopt(doc)
-sc_path <- args$sc_path
-sc_meta <- strsplit(gsub("\\]", "", gsub("\\[", "", args$sc_meta)), split = ", ")[[1]]
-sc_ds <- strsplit(sc_meta[1], split = ":")[[1]][2]
-sc_type <- strsplit(sc_meta[2], split = ":")[[1]][2]
+print(args)
 
-
+ncores <- as.numeric(args$ncores) # in case a method can use multiple cores
 
 sc_matrix <- readRDS(file.path(args$sc_matrix))
-sc_celltype_annotations <- readRDS(file.path(sc_path, sc_ds, "celltype_annotations.rds"))
-sc_batch <- readRDS(file.path(sc_path, sc_ds, "batch.rds"))
-#sc_marker <- readRDS(file.path(sc_path, sc_ds, "marker.rds"))
+sc_celltype_annotations <- readRDS(file.path(args$sc_anno))
+sc_batch <- readRDS(file.path(args$sc_batch))
+sc_ds <- args$sc_name
+sc_norm <- args$sc_norm
 
-rnaseq_path <- args$rna_path
-rnaseq_ds <- args$rna_datasetname
-rnaseq_type <- args$rna_norm
-rnaseq_data <- readRDS(file.path(rnaseq_path, rnaseq_ds, paste(rnaseq_ds, "_", rnaseq_type, ".rds", sep=""))) 
-rnaseq_data <- as.matrix(rnaseq_data)
+bulk_name <- args$bulk_name
+bulk_norm <- args$bulk_norm
+bulk_matrix <- readRDS(file.path(args$bulk_dir, args$bulk_name, paste0(args$bulk_name, '_', args$bulk_norm, '.rds')))
 
 method <- args$deconv_method
-
 res_base_path <- args$results_dir
-res_path <- paste0(res_base_path, '/', method, "_", sc_ds, "_", sc_type, "_", rnaseq_ds, "_", rnaseq_type)
 
+if(args$run_preprocessing == 'true'){
+  ct_fractions <- as.numeric(args$ct_fractions)
+  replicate <- as.numeric(args$replicate)
+}else{
+  ct_fractions <- 0
+  replicate <- 0
+}
+
+res_path <- paste0(res_base_path, '/', method, "_", sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", ct_fractions, "_rep", replicate)
 
 signature <- readRDS(paste0(res_path, "/signature.rds"))
 if(method == 'scaden'){
@@ -49,15 +56,6 @@ if(method == 'autogenes'){
   signature <- list.files(res_path, ".pickle", full.names = TRUE)
 }
 
-##remap celltype_annotations##
-#source("/vol/spool/bin/remapCelltypesNF.R")
-
-#sc_dataset <- sc_ds
-#if(startsWith(sc_dataset, 'hao-sampled')){sc_dataset = 'hao'}
-
-#sc_celltype_annotations <- remapCelltypesWorkflow(remappingPath = remapping_sheet, 
-#                                                  celltype_annotations = sc_celltype_annotations, 
-#                                                  method_ds = sc_dataset)
 
 escapeCelltypesAutogenes <- function(celltype){
   return(gsub(" ", "xxxx", celltype))
@@ -87,13 +85,13 @@ if(method=="autogenes"){
 runtime <- system.time({
   if(method=="cpm"){
     deconvolution <- omnideconv::deconvolute(
-      bulk_gene_expression = rnaseq_data, 
+      bulk_gene_expression = bulk_matrix, 
       signature = signature, 
       single_cell_object = sc_matrix, 
       batch_ids = sc_batch, 
       cell_type_annotations = sc_celltype_annotations, 
       method = method,
-      no_cores = n_cores
+      no_cores = ncores
     )
 
   } else if(method=="cibersortx") {
@@ -101,17 +99,19 @@ runtime <- system.time({
                                           " 721a387e91c495174066462484674cb8")  
     # CibersortX does not work with tmp directories in a Docker in Docker setup
     # --> created fixed input and output directories!
-    cx_input <- paste0('/vol/omnideconv/tmp/cibersortx_input_',sc_ds, "_", sc_type, "_", rnaseq_ds, "_", rnaseq_type)
+    #cx_input <- paste0('/vol/omnideconv/tmp/cibersortx_input_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", ct_fractions, "_rep", replicate)
+    cx_input <- paste0('/nfs/home/students/adietrich/tmp/cibersortx_input_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", ct_fractions, "_rep", replicate)
     if(!dir.exists(paste0(cx_input))){
       dir.create(cx_input)
     }
-    cx_output <- paste0('/vol/omnideconv/tmp/cibersortx_output_',sc_ds, "_", sc_type, "_", rnaseq_ds, "_", rnaseq_type)
+    #cx_output <- paste0('/vol/omnideconv/tmp/cibersortx_output_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", ct_fractions, "_rep", replicate)
+    cx_output <- paste0('/nfs/home/students/adietrich/tmp/cibersortx_output_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", ct_fractions, "_rep", replicate)
     if(!dir.exists(paste0(cx_output))){
       dir.create(cx_output)
     }
 
     deconvolution <- omnideconv::deconvolute_cibersortx(
-      bulk_gene_expression = rnaseq_data, 
+      bulk_gene_expression = bulk_matrix, 
       signature = signature, 
       container = 'docker',
       verbose = TRUE,
@@ -126,45 +126,43 @@ runtime <- system.time({
     num_cell_type = c(5, 10, 15, 20, 30)
 
     deconvolution <- deconvolute_cdseq(
-      bulk_gene_expression = rnaseq_data, 
+      bulk_gene_expression = bulk_matrix, 
       single_cell_object = sc_matrix, 
       cell_type_annotations = sc_celltype_annotations, 
       batch_ids = sc_batch, 
       cell_type_number =  num_cell_type, 
-      cpu_number = n_cores,
+      cpu_number = ncores,
       block_number = 5, 
       gene_subset_size = 1000
     )
 
     deconvolution <- t(deconvolution$cdseq_prop_merged)
-    #deconvolution <- omnideconv::normalize_deconv_results(deconvolution)
-      
 
   } else if (method == "bayesprism") {
     deconvolution <- omnideconv::deconvolute(
-      bulk_gene_expression = rnaseq_data, 
+      bulk_gene_expression = bulk_matrix, 
       signature = signature, 
       single_cell_object = sc_matrix, 
       batch_ids = sc_batch, 
       cell_type_annotations = sc_celltype_annotations, 
       method = method,
-      n_cores = n_cores
+      n_cores = ncores
     )
                 
   } else if (method == "scaden") {
-    scaden_tmp <- paste0('/vol/omnideconv/tmp/scaden_tmp_',sc_ds, "_", sc_type, "_", rnaseq_ds, "_", rnaseq_type)
+    scaden_tmp <- paste0('/vol/omnideconv/tmp/scaden_tmp_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", ct_fractions, "_rep", replicate)
     if(!dir.exists(paste0(scaden_tmp))){
       dir.create(scaden_tmp)
     }
     deconvolution <- omnideconv::deconvolute_scaden(
-      bulk_gene_expression = rnaseq_data, 
+      bulk_gene_expression = bulk_matrix, 
       signature = signature,
       temp_dir = scaden_tmp
     )
     unlink(scaden_tmp)
   }else {
     deconvolution <- omnideconv::deconvolute(
-      bulk_gene_expression = rnaseq_data, 
+      bulk_gene_expression = bulk_matrix, 
       signature = signature, 
       single_cell_object = sc_matrix, 
       batch_ids = sc_batch, 
@@ -175,7 +173,7 @@ runtime <- system.time({
 })
 
 res_base_path <- args$results_dir
-res_path <- paste0(res_base_path, '/', method, "_", sc_ds, "_", sc_type, "_", rnaseq_ds, "_", rnaseq_type)
+res_path <- paste0(res_base_path, '/', method, "_", sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", ct_fractions, "_rep", replicate)
 
 saveRDS(deconvolution, file=paste0(res_path, "/deconvolution.rds"))
 

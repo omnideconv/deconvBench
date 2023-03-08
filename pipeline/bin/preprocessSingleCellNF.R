@@ -22,10 +22,6 @@ Options:
 args <- docopt::docopt(doc)
 print(args)
 
-# this ensures, that each time the script is executed, the same cells will be sampled
-# still, each replicate will have different cells, as its a new loop (I tested this)
-set.seed(123)
-
 
 sc_matrix <- readRDS(file.path(args$sc_matrix))
 sc_celltype_annotations <- readRDS(file.path(args$sc_anno))
@@ -47,6 +43,7 @@ print(cells_to_sample)
 cell_ids <- unlist(lapply(names(cells_to_sample), function(query_ct){
   sample(x = which(sc_celltype_annotations == query_ct), size = cells_to_sample[query_ct], replace = FALSE)
 }))
+print(cell_ids)[1:10]
 
 subset_matrix <- sc_matrix[,cell_ids]
 subset_annot <- sc_celltype_annotations[cell_ids]

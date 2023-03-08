@@ -28,7 +28,6 @@ Options:
 <coarse> logical, if TRUE celltypes are mapped to higher level" -> doc
 
 args <- docopt::docopt(doc)
-print(args)
 
 ncores <- as.numeric(args$ncores) # in case a method can use multiple cores
 
@@ -41,6 +40,7 @@ sc_norm <- args$sc_norm
 bulk_name <- args$bulk_name
 bulk_norm <- args$bulk_norm
 bulk_matrix <- readRDS(file.path(args$bulk_dir, args$bulk_name, paste0(args$bulk_name, '_', args$bulk_norm, '.rds')))
+bulk_matrix <- as.matrix(bulk_matrix)
 
 method <- args$deconv_method
 res_base_path <- args$results_dir
@@ -80,13 +80,13 @@ runtime <- system.time({
                                            " 721a387e91c495174066462484674cb8") 
     # CibersortX does not work with tmp directories in a Docker in Docker setup
     # --> created fixed input and output directories!
-    #cx_input <- paste0('/vol/omnideconv/tmp/cibersortx_input_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", ct_fractions, "_rep", replicate)
-    cx_input <- paste0('/nfs/home/students/adietrich/tmp/cibersortx_input_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", ct_fractions, "_rep", replicate)
+    cx_input <- paste0('/vol/omnideconv/tmp/cibersortx_input_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", ct_fractions, "_rep", replicate)
+    #cx_input <- paste0('/nfs/home/students/adietrich/tmp/cibersortx_input_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", ct_fractions, "_rep", replicate)
     if(!dir.exists(paste0(cx_input))){
       dir.create(cx_input)
     }
-    #cx_output <- paste0('/vol/omnideconv/tmp/cibersortx_output_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", ct_fractions, "_rep", replicate)
-    cx_output <- paste0('/nfs/home/students/adietrich/tmp/cibersortx_output_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", ct_fractions, "_rep", replicate)
+    cx_output <- paste0('/vol/omnideconv/tmp/cibersortx_output_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", ct_fractions, "_rep", replicate)
+    #cx_output <- paste0('/nfs/home/students/adietrich/tmp/cibersortx_output_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", ct_fractions, "_rep", replicate)
     if(!dir.exists(paste0(cx_output))){
       dir.create(cx_output)
     }
@@ -146,8 +146,20 @@ if (method %in% c("autogenes", "scaden")) {
   signature <- list.files(res_path, ".pickle", full.names = TRUE) 
 }
 
-saveRDS(signature, file=paste0(res_path, "/signature.rds"), compress = FALSE)
-#print(runtime)
-print(res_path)
+saveRDS(signature, file=paste0(res_path, "/signature.rds"))
+
+runtime_text <- data.frame(method, 
+                      sc_ds, 
+                      sc_norm, 
+                      bulk_name, 
+                      bulk_norm, 
+                      ct_fractions, 
+                      replicate, 
+                      'SIGNATURE', 
+                      runtime[['user.self']], 
+                      runtime[['sys.self']], 
+                      runtime[['elapsed']])
+
+saveRDS(runtime_text, file = paste0(res_path, "/runtime_signature.rds"))
 
 

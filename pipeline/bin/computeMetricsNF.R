@@ -1,84 +1,51 @@
 #!/usr/bin/Rscript
 
-library(conflicted)
-conflicted::conflict_scout()
+library(tidyverse)
 library(docopt)
 
-
+print("Started metric calculation ...")
 "Usage:
-  computeMetricsNF.R <sc_meta> <rnaseq> <rnaseq_norm> <mode> <results_dir> <facs> 
+  computeMetricsNF.R <sc_name> <sc_norm> <bulk_dir>  <bulk_name> <bulk_norm> <deconv_method> <replicate> <ct_fractions> <results_dir>
 Options:
-<sc_meta> meta information of sc dataset
-<rnaseq> name of rnaseq dataset
-<rnaseq_norm> normalization of RNAseq
-<mode> deconv method
-<results_dir> results (base) directory
-<facs> folder of matrix with facs fractions" -> doc
+<sc_name> name of sc datasets
+<sc_norm> count type of sc dataset
+<bulk_dir> path to bulk datasets
+<bulk_name> name of bulk RNAseq dataset
+<bulk_norm> normalization of RNAseq
+<deconv_method>  deconv method
+<ct_fractions> fraction of cells that are subsampled from each celltype
+<replicate> value of replicate number
+<results_dir> results (base) directory" -> doc
 
 print(doc)
 
-
-
 args <- docopt::docopt(doc)
-#results <- args$deconvolution
+print(args)
 
-#resultVec <- strsplit(gsub("\\[", "", gsub("\\]", "", results)), ", ")[[1]]
-#print(resultVec)
+sc_ds <- args$sc_name
+sc_norm <- args$sc_norm
+bulk_name <- args$bulk_name
+bulk_norm <- args$bulk_norm
+ct_fractions <- as.numeric(args$ct_fractions)
+replicate <- as.numeric(args$replicate)
 
-
-# We set up the results directory
-sc_dataset <- args$sc_meta
-bulk_dataset <- args$rnaseq
-bulk_norm <- args$rnaseq_norm
-cur_method <- args$mode
-facs_folder <- args$facs
-
-facs_folder <- file.path(strsplit(gsub("\\[", "", gsub("\\]", "", facs_folder)), ", ")[[1]])
-
-
-sc_meta <- strsplit(gsub("\\]", "", gsub("\\[", "", args$sc_meta)), split = ", ")[[1]]
-sc_ds <- strsplit(sc_meta[1], split = ":")[[1]][2]
-sc_norm <- strsplit(sc_meta[2], split = ":")[[1]][2]
-#print(sc_ds)
-
-##remap celltype annotations of facs##
-#source("/vol/spool/bin/remapCelltypesNF.R")
-
-
-
-facs_path_new <- file.path(facs_folder, bulk_dataset, paste(bulk_dataset, "_facs.rds", sep=""))
-print(facs_path_new)
-facs_data <- readRDS(facs_path_new)
-
-#if(endsWith(bulk_dataset, '-simulation')){
-#  bulk_dataset_correspondance <- 'hao'
-#}
-
-#celltype_annotations <- remapCelltypesWorkflow(remappingPath = remapping_sheet,
-#                                               celltype_annotations = rownames(facs_data),
-#                                               method_ds = bulk_dataset_correspondance)
-#rownames(facs_data) <- celltype_annotations
-
-#print(results)
-
-
+method <- args$deconv_method
 res_base_path <- args$results_dir
-res_path <- paste0(res_base_path, '/', cur_method, "_", sc_ds, "_", sc_norm, "_", bulk_dataset, "_", bulk_norm)
 
-deconvolution.results <- readRDS(paste0(res_path, '/deconvolution.rds'))
+facs_data <- readRDS(file.path(args$bulk_dir, args$bulk_name, paste0(args$bulk_name, '_facs.rds')))
 
-print('done')
+res_path <- paste0(res_base_path, '/', method, "_", sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", ct_fractions, "_rep", replicate)
 
-if(bulk_dataset=='hoek'){
-  deconvolution.results <- as.data.frame(deconvolution.results)
-  deconvolution.results$`T cell` <- deconvolution.results$`T cell CD4+` + deconvolution.results$`T cell CD8+` + deconvolution.results$`T cell regulatory (Tregs)`
+deconvolution <- readRDS(paste0(res_path, '/deconvolution.rds'))
 
+
+if(args$bulk_name=='hoek'){
+  deconvolution <- as.data.frame(deconvolution)
+  deconvolution$`T cell` <- deconvolution$`T cells CD4 conv` + deconvolution$`T cells CD8` + deconvolution$`Tregs`
 }
 
 # Here we need to compute the correlation, RMSE and zRMSE
 # We need to compute it by cell type, sample, all together
-
-library(tidyverse)
 
 compute_metrics <- function(ref_facs, deconvolution, metric = c('cor', 'rmse'),
                             comparison = c('sample', 'cell_type')){
@@ -147,26 +114,32 @@ compute_metrics <- function(ref_facs, deconvolution, metric = c('cor', 'rmse'),
   
 }
 
-
-
 results_metric <- list()
 
-if(cur_method !='cdseq'){
-  results_metric$cor_sample <- compute_metrics(facs_data, deconvolution.results, 'cor', 'sample')
-  results_metric$cor_cell_type <- compute_metrics(facs_data, deconvolution.results, 'cor', 'cell_type')
-  results_metric$rmse_sample <- compute_metrics(facs_data, deconvolution.results, 'rmse', 'sample')
-  results_metric$rmse_cell_type <- compute_metrics(facs_data, deconvolution.results, 'rmse', 'cell_type')
+if(method !='cdseq'){
+  results_metric$cor_sample <- compute_metrics(facs_data, deconvolution, 'cor', 'sample')
+  results_metric$cor_cell_type <- compute_metrics(facs_data, deconvolution, 'cor', 'cell_type')
+  results_metric$rmse_sample <- compute_metrics(facs_data, deconvolution, 'rmse', 'sample')
+  results_metric$rmse_cell_type <- compute_metrics(facs_data, deconvolution, 'rmse', 'cell_type')
 }
 
 results_metric$facs_groud_truth <- facs_data
-results_metric$deconv.results <- deconvolution.results
+results_metric$deconv.results <- deconvolution
+
+runtime_df_sig <- readRDS(paste0(res_path, '/runtime_signature.rds'))
+runtime_df_dec <- readRDS(paste0(res_path, '/runtime_deconvolution.rds'))
+
+unlink(paste0(res_path, '/runtime_signature.csv'))
+unlink(paste0(res_path, '/runtime_deconvolution.csv'))
+
+colnames(runtime_df_sig) <- c('method','sc_ds','cs_norm','bulk_ds','bulk_norm','ct_fraction','replicate','process','user.time','sys.time','elapsed')
+colnames(runtime_df_dec) <- c('method','sc_ds','cs_norm','bulk_ds','bulk_norm','ct_fraction','replicate','process','user.time','sys.time','elapsed')
+runtimes <- data.frame(rbind(runtime_df_sig, runtime_df_dec))
+
+results_metric$runtimes <- runtimes
+
+saveRDS(results_metric, paste0(res_path, '/results_metric.rds'))
 
 
 
-res_base_path <- args$results_dir
-res_path <- paste0(res_base_path, '/', cur_method, "_", sc_ds, "_", sc_norm, "_", bulk_dataset, "_", bulk_norm)
-
-
-
-saveRDS(results_metric,
-        paste0(res_path, '/results_metric.rds'))
+## 

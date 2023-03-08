@@ -34,6 +34,7 @@ sc_norm <- args$sc_norm
 bulk_name <- args$bulk_name
 bulk_norm <- args$bulk_norm
 bulk_matrix <- readRDS(file.path(args$bulk_dir, args$bulk_name, paste0(args$bulk_name, '_', args$bulk_norm, '.rds')))
+bulk_matrix <- as.matrix(bulk_matrix)
 
 method <- args$deconv_method
 res_base_path <- args$results_dir
@@ -99,13 +100,13 @@ runtime <- system.time({
                                           " 721a387e91c495174066462484674cb8")  
     # CibersortX does not work with tmp directories in a Docker in Docker setup
     # --> created fixed input and output directories!
-    #cx_input <- paste0('/vol/omnideconv/tmp/cibersortx_input_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", ct_fractions, "_rep", replicate)
-    cx_input <- paste0('/nfs/home/students/adietrich/tmp/cibersortx_input_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", ct_fractions, "_rep", replicate)
+    cx_input <- paste0('/vol/omnideconv/tmp/cibersortx_input_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", ct_fractions, "_rep", replicate)
+    #cx_input <- paste0('/nfs/home/students/adietrich/tmp/cibersortx_input_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", ct_fractions, "_rep", replicate)
     if(!dir.exists(paste0(cx_input))){
       dir.create(cx_input)
     }
-    #cx_output <- paste0('/vol/omnideconv/tmp/cibersortx_output_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", ct_fractions, "_rep", replicate)
-    cx_output <- paste0('/nfs/home/students/adietrich/tmp/cibersortx_output_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", ct_fractions, "_rep", replicate)
+    cx_output <- paste0('/vol/omnideconv/tmp/cibersortx_output_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", ct_fractions, "_rep", replicate)
+    #cx_output <- paste0('/nfs/home/students/adietrich/tmp/cibersortx_output_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", ct_fractions, "_rep", replicate)
     if(!dir.exists(paste0(cx_output))){
       dir.create(cx_output)
     }
@@ -177,103 +178,16 @@ res_path <- paste0(res_base_path, '/', method, "_", sc_ds, "_", sc_norm, "_", bu
 
 saveRDS(deconvolution, file=paste0(res_path, "/deconvolution.rds"))
 
+runtime_text <- data.frame(method, 
+                      sc_ds, 
+                      sc_norm, 
+                      bulk_name, 
+                      bulk_norm, 
+                      ct_fractions, 
+                      replicate, 
+                      'DECONVOLUTION', 
+                      runtime[['user.self']], 
+                      runtime[['sys.self']], 
+                      runtime[['elapsed']])
 
-# Here we need to compute the correlation, RMSE and zRMSE
-# We need to compute it by cell type, sample, all together
-
-print("Started metric calculation ...")
-
-library(tidyverse)
-
-compute_metrics <- function(ref_facs, deconvolution, metric = c('cor', 'rmse'),
-                            comparison = c('sample', 'cell_type')){
-  
-  compute_rmse <- function(x, y, zscored = FALSE, weighted = FALSE){
-    if(zscored == TRUE){
-      sd_x = sd(x)
-      sd_y = sd(y)
-      if(sd_x == 0){sd_x = 1}
-      if(sd_y == 0){sd_y = 1}
-      x <- (x - mean(x))/(sd_x)
-      y <- (y - mean(y))/(sd_y)
-    }
-    
-    rmse <- sqrt(mean((x - y)^2)) 
-    if(weighted == TRUE){rmse <- rmse/max(y)}
-    return(rmse)
-  }
-  
-  
-  
-  deconvolution <- as.data.frame(deconvolution) %>%
-    rownames_to_column(., 'sample') %>%
-    gather(., key = 'cell_type', value = 'estimated_frac', -sample)
-  
-  ref_facs <- as.data.frame(ref_facs) %>%
-    rownames_to_column(., 'cell_type') %>%
-    gather(., key = 'sample', value = 'true_frac', -cell_type)
-  
-  results_df <- deconvolution %>%
-    inner_join(., ref_facs) #, by = c('cell_type' ,'sample'))
-  
-  
-  if(metric == 'cor'){
-    res_metric <- results_df %>%
-      group_by(!!! syms(comparison)) %>%
-      dplyr::summarize(cor = cor.test(estimated_frac, true_frac)$estimate,
-                       pval = cor.test(estimated_frac, true_frac)$p.value)
-    
-    cor_all_elements <- data.frame(comp = 'all' ,
-                                   'cor' = cor.test(results_df$estimated_frac, results_df$true_frac)$estimate,
-                                   'pval' = cor.test(results_df$estimated_frac, results_df$true_frac)$p.value,
-                                   row.names = (nrow(res_metric) +1))
-    colnames(cor_all_elements)[1] <- comparison
-    res_metric <- rbind(res_metric, cor_all_elements)
-    
-  } else if(metric == 'rmse'){
-    res_metric <- results_df %>%
-      group_by(!!! syms(comparison)) %>%
-      dplyr::summarize(RMSE = compute_rmse(estimated_frac, true_frac),
-                       zRMSE = compute_rmse(estimated_frac, true_frac, zscored=TRUE), 
-                       wRMSE = compute_rmse(estimated_frac, true_frac, weighted=TRUE)
-                       )
-    
-    rmse_all_elements <- data.frame(comp = 'all' ,
-                                    'RMSE' = compute_rmse(results_df$estimated_frac, results_df$true_frac),
-                                    'zRMSE' = compute_rmse(results_df$estimated_frac, results_df$true_frac, zscored=TRUE),
-                                    'wRMSE' = compute_rmse(results_df$estimated_frac, results_df$true_frac, weighted=TRUE),
-                                    row.names = (nrow(res_metric) +1))
-    
-    colnames(rmse_all_elements)[1] <- comparison
-    res_metric <- rbind(res_metric, rmse_all_elements)
-  }
-  
-  return(res_metric)
-  
-}
-
-
-facs_folder <- file.path(strsplit(gsub("\\[", "", gsub("\\]", "", rnaseq_path)), ", ")[[1]])
-facs_path_new <- file.path(facs_folder, rnaseq_ds, paste(rnaseq_ds, "_facs.rds", sep=""))
-print(facs_path_new)
-facs_data <- readRDS(facs_path_new)
-
-if(rnaseq_ds=='hoek'){
-  deconvolution <- as.data.frame(deconvolution)
-  deconvolution$`T cell` <- deconvolution$`T cells CD4 conv` + deconvolution$`T cells CD8` + deconvolution$`Tregs`
-}
-
-results_metric <- list()
-
-if(method !='cdseq'){
-  results_metric$cor_sample <- compute_metrics(facs_data, deconvolution, 'cor', 'sample')
-  results_metric$cor_cell_type <- compute_metrics(facs_data, deconvolution, 'cor', 'cell_type')
-  results_metric$rmse_sample <- compute_metrics(facs_data, deconvolution, 'rmse', 'sample')
-  results_metric$rmse_cell_type <- compute_metrics(facs_data, deconvolution, 'rmse', 'cell_type')
-}
-
-results_metric$facs_groud_truth <- facs_data
-results_metric$deconv.results <- deconvolution
-
-saveRDS(results_metric, paste0(res_path, '/results_metric.rds'))
-print(runtime)
+saveRDS(runtime_text, file = paste0(res_path, "/runtime_deconvolution.rds"))

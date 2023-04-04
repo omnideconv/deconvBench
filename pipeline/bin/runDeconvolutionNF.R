@@ -2,7 +2,7 @@
 
 print("Started deconvolution  ...")
 "Usage:
-  runDeconvolutionNF.R <sc_matrix> <sc_annotation> <sc_batch> <sc_name> <sc_norm> <bulk_dir> <bulk_name> <bulk_norm> <deconv_method> <results_dir> <run_preprocessing> <replicate> <ct_fractions> <ncores> [<coarse>]
+  runDeconvolutionNF.R <sc_matrix> <sc_annotation> <sc_batch> <sc_name> <sc_norm> <bulk_dir> <bulk_name> <bulk_norm> <deconv_method> <results_dir> <run_preprocessing> <replicate> <subset_value> <ncores> [<coarse>]
 Options:
 <sc_matrix> path to sc matrix
 <sc_annotation> path to cell type annotation of sc matrix
@@ -15,7 +15,7 @@ Options:
 <deconv_method>  deconv method
 <results_dir> results (base) directory
 <run_preprocessing> if pre-processing has been done
-<ct_fractions> fraction of cells that are subsampled from each celltype
+<subset_value> if < 1: fraction of cell type; if > 1: number of cells per cell type
 <replicate> value of replicate number
 <ncores> number of cores to use for method (if available)
 <coarse> logical, if TRUE celltypes are mapped to higher level" -> doc
@@ -40,14 +40,14 @@ method <- args$deconv_method
 res_base_path <- args$results_dir
 
 if(args$run_preprocessing == 'true'){
-  ct_fractions <- as.numeric(args$ct_fractions)
+  subset_value <- as.numeric(args$subset_value)
   replicate <- as.numeric(args$replicate)
 }else{
-  ct_fractions <- 0
+  subset_value <- 0
   replicate <- 0
 }
 
-res_path <- paste0(res_base_path, '/', method, "_", sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", ct_fractions, "_rep", replicate)
+res_path <- paste0(res_base_path, '/', method, "_", sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
 
 signature <- readRDS(paste0(res_path, "/signature.rds"))
 if(method == 'scaden'){
@@ -100,13 +100,13 @@ runtime <- system.time({
                                           " 721a387e91c495174066462484674cb8")  
     # CibersortX does not work with tmp directories in a Docker in Docker setup
     # --> created fixed input and output directories!
-    cx_input <- paste0('/vol/omnideconv/tmp/cibersortx_input_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", ct_fractions, "_rep", replicate)
-    #cx_input <- paste0('/nfs/home/students/adietrich/tmp/cibersortx_input_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", ct_fractions, "_rep", replicate)
+    cx_input <- paste0('/vol/omnideconv/tmp/cibersortx_input_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
+    #cx_input <- paste0('/nfs/home/students/adietrich/tmp/cibersortx_input_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
     if(!dir.exists(paste0(cx_input))){
       dir.create(cx_input)
     }
-    cx_output <- paste0('/vol/omnideconv/tmp/cibersortx_output_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", ct_fractions, "_rep", replicate)
-    #cx_output <- paste0('/nfs/home/students/adietrich/tmp/cibersortx_output_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", ct_fractions, "_rep", replicate)
+    cx_output <- paste0('/vol/omnideconv/tmp/cibersortx_output_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
+    #cx_output <- paste0('/nfs/home/students/adietrich/tmp/cibersortx_output_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
     if(!dir.exists(paste0(cx_output))){
       dir.create(cx_output)
     }
@@ -151,7 +151,7 @@ runtime <- system.time({
     )
                 
   } else if (method == "scaden") {
-    scaden_tmp <- paste0('/vol/omnideconv/tmp/scaden_tmp_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", ct_fractions, "_rep", replicate)
+    scaden_tmp <- paste0('/vol/omnideconv/tmp/scaden_tmp_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
     if(!dir.exists(paste0(scaden_tmp))){
       dir.create(scaden_tmp)
     }
@@ -160,7 +160,18 @@ runtime <- system.time({
       signature = signature,
       temp_dir = scaden_tmp
     )
-    unlink(scaden_tmp)
+    unlink(scaden_tmp, recursive=TRUE)
+
+  }else if (method == 'autogenes') {
+    deconvolution <- omnideconv::deconvolute_autogenes(
+      bulk_gene_expression = bulk_matrix, 
+      signature = signature,
+      max_iter = 1000000
+    )$proportions
+    colnames(deconvolution) <- reEscapeCelltypesAutogenes(colnames(deconvolution))
+    signature_dir <- paste0('/vol/omnideconv/tmp/autogenes_tmp_',sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate,"/")
+    unlink(signature_dir, recursive = TRUE)
+    file.remove(signature)
   }else {
     deconvolution <- omnideconv::deconvolute(
       bulk_gene_expression = bulk_matrix, 
@@ -174,8 +185,10 @@ runtime <- system.time({
 })
 
 res_base_path <- args$results_dir
-res_path <- paste0(res_base_path, '/', method, "_", sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", ct_fractions, "_rep", replicate)
+res_path <- paste0(res_base_path, '/', method, "_", sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
 
+
+colnames(deconvolution) <- gsub('\\.',' ',colnames(deconvolution))
 saveRDS(deconvolution, file=paste0(res_path, "/deconvolution.rds"))
 
 runtime_text <- data.frame(method, 
@@ -183,7 +196,7 @@ runtime_text <- data.frame(method,
                       sc_norm, 
                       bulk_name, 
                       bulk_norm, 
-                      ct_fractions, 
+                      subset_value, 
                       replicate, 
                       'DECONVOLUTION', 
                       runtime[['user.self']], 

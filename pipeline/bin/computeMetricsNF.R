@@ -5,7 +5,7 @@ library(docopt)
 
 print("Started metric calculation ...")
 "Usage:
-  computeMetricsNF.R <sc_name> <sc_norm> <bulk_dir>  <bulk_name> <bulk_norm> <deconv_method> <replicate> <ct_fractions> <results_dir>
+  computeMetricsNF.R <sc_name> <sc_norm> <bulk_dir>  <bulk_name> <bulk_norm> <deconv_method> <replicate> <subset_value> <results_dir>
 Options:
 <sc_name> name of sc datasets
 <sc_norm> count type of sc dataset
@@ -13,7 +13,7 @@ Options:
 <bulk_name> name of bulk RNAseq dataset
 <bulk_norm> normalization of RNAseq
 <deconv_method>  deconv method
-<ct_fractions> fraction of cells that are subsampled from each celltype
+<subset_value> if < 1: fraction of cell type; if > 1: number of cells per cell type
 <replicate> value of replicate number
 <results_dir> results (base) directory" -> doc
 
@@ -26,7 +26,7 @@ sc_ds <- args$sc_name
 sc_norm <- args$sc_norm
 bulk_name <- args$bulk_name
 bulk_norm <- args$bulk_norm
-ct_fractions <- as.numeric(args$ct_fractions)
+subset_value <- as.numeric(args$subset_value)
 replicate <- as.numeric(args$replicate)
 
 method <- args$deconv_method
@@ -34,7 +34,7 @@ res_base_path <- args$results_dir
 
 facs_data <- readRDS(file.path(args$bulk_dir, args$bulk_name, paste0(args$bulk_name, '_facs.rds')))
 
-res_path <- paste0(res_base_path, '/', method, "_", sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", ct_fractions, "_rep", replicate)
+res_path <- paste0(res_base_path, '/', method, "_", sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
 
 deconvolution <- readRDS(paste0(res_path, '/deconvolution.rds'))
 

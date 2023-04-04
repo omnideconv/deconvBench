@@ -41,9 +41,9 @@ process PREPROCESS_SINGLE_CELL {
     path preProcess_dir
     
     output: 
-    tuple path("${preProcess_dir}/${sc_ds}_${sc_norm}_perc${ct_fractions}_rep${replicate}_matrix_subsampled.rds"), 
-          path("${preProcess_dir}/${sc_ds}_${sc_norm}_perc${ct_fractions}_rep${replicate}_celltype_annotations.rds"), 
-          path("${preProcess_dir}/${sc_ds}_${sc_norm}_perc${ct_fractions}_rep${replicate}_batch.rds"), 
+    tuple path("${preProcess_dir}/${sc_ds}_${sc_norm}_perc${ct_fractions}_rep${replicate}/matrix_subsampled.rds"), 
+          path("${preProcess_dir}/${sc_ds}_${sc_norm}_perc${ct_fractions}_rep${replicate}/celltype_annotations.rds"), 
+          path("${preProcess_dir}/${sc_ds}_${sc_norm}_perc${ct_fractions}_rep${replicate}/batch.rds"), 
           val(sc_ds), 
           val(sc_norm), 
           val(replicate),
@@ -88,6 +88,8 @@ process CREATE_SIGNATURE {
 	      val(replicate), 
 	      val(ct_fractions),
 	      val(method)
+
+	beforeScript 'chmod o+rw .'
 
 	shell:
 	'''

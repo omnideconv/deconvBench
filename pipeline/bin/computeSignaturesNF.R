@@ -22,8 +22,8 @@ Options:
 <deconv_method>  deconv method
 <results_dir> results (base) directory
 <run_preprocessing> if pre-processing has been done
-<subset_value> if < 1: fraction of cell type; if > 1: number of cells per cell type
 <replicate> value of replicate number
+<subset_value> if < 1: fraction of cell type; if > 1: number of cells per cell type
 <ncores> number of cores to use for method (if available)
 <coarse> logical, if TRUE celltypes are mapped to higher level" -> doc
 
@@ -77,7 +77,7 @@ runtime <- system.time({
     )
   } else if (method == "cibersortx") {
     omnideconv::set_cibersortx_credentials("lorenzo.merotto@studenti.unipd.it",
-                                           " 721a387e91c495174066462484674cb8") 
+                                          " 721a387e91c495174066462484674cb8") 
     # CibersortX does not work with tmp directories in a Docker in Docker setup
     # --> created fixed input and output directories!
     cx_input <- paste0('/vol/omnideconv/tmp/cibersortx_input_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
@@ -140,8 +140,16 @@ runtime <- system.time({
 })
 
 
+
 if (method %in% c("autogenes", "scaden")) { 
-  #We copy the signature to the results directory
+  # remove all pickle files in output directory with different name than current signature
+  old_signatures <- list.files(res_path, ".pickle", full.names = TRUE) 
+  if(length(old_signatures > 0)){
+    print('Found old signatures in output directory; they will be removed.')
+    sapply(old_signatures, file.remove)
+  }
+
+  #We copy the new signature to the results directory
   file.copy(signature, res_path, recursive = TRUE)
   signature <- list.files(res_path, ".pickle", full.names = TRUE) 
 }
@@ -161,5 +169,6 @@ runtime_text <- data.frame(method,
                       runtime[['elapsed']])
 
 saveRDS(runtime_text, file = paste0(res_path, "/runtime_signature.rds"))
+#saveRDS(profiling, file = paste0(res_path, "/memory_signature.rds"))
 
 

@@ -100,12 +100,12 @@ runtime <- system.time({
                                           " 721a387e91c495174066462484674cb8")  
     # CibersortX does not work with tmp directories in a Docker in Docker setup
     # --> created fixed input and output directories!
-    cx_input <- paste0('/vol/omnideconv/tmp/cibersortx_input_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
+    cx_input <- paste0('/vol/omnideconv_input/tmp/cibersortx_input_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
     #cx_input <- paste0('/nfs/home/students/adietrich/tmp/cibersortx_input_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
     if(!dir.exists(paste0(cx_input))){
       dir.create(cx_input)
     }
-    cx_output <- paste0('/vol/omnideconv/tmp/cibersortx_output_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
+    cx_output <- paste0('/vol/omnideconv_input/tmp/cibersortx_output_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
     #cx_output <- paste0('/nfs/home/students/adietrich/tmp/cibersortx_output_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
     if(!dir.exists(paste0(cx_output))){
       dir.create(cx_output)
@@ -123,7 +123,7 @@ runtime <- system.time({
     unlink(cx_output, recursive=TRUE)
 
   } else if (method == "cdseq"){
-    source('/vol/omnideconv/benchmark/pipeline/bin/bin/CDseq.R')
+    source('/vol/omnideconv_input/benchmark/pipeline/bin/bin/CDseq.R')
     num_cell_type = c(5, 10, 15, 20, 30)
 
     deconvolution <- deconvolute_cdseq(
@@ -151,7 +151,7 @@ runtime <- system.time({
     )
                 
   } else if (method == "scaden") {
-    scaden_tmp <- paste0('/vol/omnideconv/tmp/scaden_tmp_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
+    scaden_tmp <- paste0('/vol/omnideconv_input/tmp/scaden_tmp_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
     if(!dir.exists(paste0(scaden_tmp))){
       dir.create(scaden_tmp)
     }
@@ -169,7 +169,7 @@ runtime <- system.time({
       max_iter = 1000000
     )$proportions
     colnames(deconvolution) <- reEscapeCelltypesAutogenes(colnames(deconvolution))
-    signature_dir <- paste0('/vol/omnideconv/tmp/autogenes_tmp_',sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate,"/")
+    signature_dir <- paste0('/vol/omnideconv_input/tmp/autogenes_tmp_',sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate,"/")
     unlink(signature_dir, recursive = TRUE)
     file.remove(signature)
   }else {
@@ -183,10 +183,6 @@ runtime <- system.time({
     )
   }
 })
-
-res_base_path <- args$results_dir
-res_path <- paste0(res_base_path, '/', method, "_", sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
-
 
 colnames(deconvolution) <- gsub('\\.',' ',colnames(deconvolution))
 saveRDS(deconvolution, file=paste0(res_path, "/deconvolution.rds"))

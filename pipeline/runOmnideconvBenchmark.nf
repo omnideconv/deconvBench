@@ -51,15 +51,7 @@ process PREPROCESS_SINGLE_CELL {
 
     shell:
     '''
-    /vol/omnideconv/benchmark/pipeline/bin/preprocessSingleCellNF.R \\
-        '!{sc_matrix}' \\
-        '!{sc_anno}' \\
-        '!{sc_batch}' \\
-        '!{sc_ds}' \\
-        '!{sc_norm}' \\
-        '!{ct_fractions}' \\
-        '!{replicate}' \\
-        '!{preProcess_dir}'
+    /vol/omnideconv_input/benchmark/pipeline/bin/preprocessSingleCellNF.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{ct_fractions}' '!{replicate}' '!{preProcess_dir}'
     '''
 }
 
@@ -93,21 +85,7 @@ process CREATE_SIGNATURE {
 
 	shell:
 	'''
-	/vol/omnideconv/benchmark/pipeline/bin/computeSignaturesNF.R \\
-		'!{sc_matrix}' \\
-		'!{sc_anno}' \\
-		'!{sc_batch}' \\
-		'!{sc_ds}' \\
-		'!{sc_norm}' \\
-		'!{params.data_dir_bulk}' \\
-		'!{bulk_ds}' \\
-		'!{bulk_norm}' \\
-		'!{method}' \\
-		'!{params.results_dir_general}' \\
-		'!{params.run_preprocessing}' \\
-		'!{replicate}' \\
-		'!{ct_fractions}' \\
-		'!{params.ncores}'
+	/vol/omnideconv_input/benchmark/pipeline/bin/computeSignaturesNF.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{params.data_dir_bulk}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{params.results_dir_general}' '!{params.run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.ncores}'
 	''' 
 }
 
@@ -136,21 +114,7 @@ process DECONVOLUTE {
   
 	shell:
 	'''
-	/vol/omnideconv/benchmark/pipeline/bin/runDeconvolutionNF.R \\
-		'!{sc_matrix}' \\
-		'!{sc_anno}' \\
-		'!{sc_batch}' \\
-		'!{sc_ds}' \\
-		'!{sc_norm}' \\
-		'!{params.data_dir_bulk}' \\
-		'!{bulk_ds}' \\
-		'!{bulk_norm}' \\
-		'!{method}' \\
-		'!{params.results_dir_general}' \\
-		'!{params.run_preprocessing}' \\
-		'!{replicate}' \\
-		'!{ct_fractions}' \\
-		'!{params.ncores}' 
+	/vol/omnideconv_input/benchmark/pipeline/bin/runDeconvolutionNF.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{params.data_dir_bulk}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{params.results_dir_general}'	'!{params.run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.ncores}' 
 	''' 
 }
 
@@ -176,16 +140,7 @@ process COMPUTE_METRICS {
   
 	shell:
 	'''
-	/vol/omnideconv/benchmark/pipeline/bin/computeMetricsNF.R \\
-		'!{sc_ds}' \\
-		'!{sc_norm}' \\
-		'!{params.data_dir_bulk}' \\
-		'!{bulk_ds}' \\
-		'!{bulk_norm}' \\
-		'!{method}' \\
-		'!{replicate}' \\
-		'!{ct_fractions}' \\
-		'!{params.results_dir_general}'
+	/vol/omnideconv_input/benchmark/pipeline/bin/computeMetricsNF.R '!{sc_ds}' '!{sc_norm}' '!{params.data_dir_bulk}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{replicate}' '!{ct_fractions}' '!{params.results_dir_general}'
 	''' 
 }
 

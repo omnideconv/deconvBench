@@ -54,7 +54,7 @@ if(args$run_preprocessing == 'true'){
 }
 
 res_path <- paste0(res_base_path, '/', method, "_", sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
-dir.create(res_path, recursive = TRUE, showWarnings = FALSE)
+dir.create(res_path, recursive = TRUE, showWarnings = TRUE)
 
 escapeCelltypesAutogenes <- function(celltype){
   celltype <- gsub("\\+", "21b2c6e87f8711ec9bf265fb9bf6ab9c", celltype)
@@ -80,12 +80,12 @@ runtime <- system.time({
                                           " 721a387e91c495174066462484674cb8") 
     # CibersortX does not work with tmp directories in a Docker in Docker setup
     # --> created fixed input and output directories!
-    cx_input <- paste0('/vol/omnideconv/tmp/cibersortx_input_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
+    cx_input <- paste0('/vol/omnideconv_input/tmp/cibersortx_input_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
     #cx_input <- paste0('/nfs/home/students/adietrich/tmp/cibersortx_input_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
     if(!dir.exists(paste0(cx_input))){
       dir.create(cx_input)
     }
-    cx_output <- paste0('/vol/omnideconv/tmp/cibersortx_output_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
+    cx_output <- paste0('/vol/omnideconv_input/tmp/cibersortx_output_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
     #cx_output <- paste0('/nfs/home/students/adietrich/tmp/cibersortx_output_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
     if(!dir.exists(paste0(cx_output))){
       dir.create(cx_output)
@@ -100,7 +100,7 @@ runtime <- system.time({
     )
     
   } else if(method == "scaden"){
-    scaden_tmp <- paste0('/vol/omnideconv/tmp/scaden_tmp_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
+    scaden_tmp <- paste0('/vol/omnideconv_input/tmp/scaden_tmp_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
     unlink(scaden_tmp, recursive=TRUE)
     if(!dir.exists(paste0(scaden_tmp))){
       dir.create(scaden_tmp)
@@ -115,7 +115,7 @@ runtime <- system.time({
   } else if(method == "autogenes"){
     sc_celltype_annotations <- escapeCelltypesAutogenes(sc_celltype_annotations)
     
-    signature_dir <- paste0('/vol/omnideconv/tmp/autogenes_tmp_',sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate,"/")
+    signature_dir <- paste0('/vol/omnideconv_input/tmp/autogenes_tmp_',sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate,"/")
     unlink(signature_dir, recursive=TRUE)
     if(!dir.exists(paste0(signature_dir))){
       dir.create(signature_dir)

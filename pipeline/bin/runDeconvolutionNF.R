@@ -95,6 +95,28 @@ runtime <- system.time({
       no_cores = ncores
     )
 
+  } else if (method=="dwls"){
+    # DWLS can crash if there are not enough cells in the dataset or the cells are not differential enough between celltypes
+    deconvolution <- NULL
+    tryCatch(    
+      deconvolution <<- omnideconv::deconvolute_dwls(
+        bulk_gene_expression = bulk_matrix, 
+        signature = signature, 
+        dwls_submethod = 'DampenedWLS',
+        verbose = TRUE
+      ), error = function(e){
+        print(e[['message']])
+        d <- matrix(
+          rep(1, ncol(bulk_matrix) * ncol(signature)),
+          nrow = ncol(bulk_matrix),
+          ncol = ncol(signature)
+        )
+        deconvolution <<- data.frame(d)
+        colnames(deconvolution) <<- as.character(colnames(signature))
+        rownames(deconvolution) <<- as.character(colnames(bulk_matrix))
+      }
+    )
+    
   } else if(method=="cibersortx") {
     omnideconv::set_cibersortx_credentials("lorenzo.merotto@studenti.unipd.it",
                                           " 721a387e91c495174066462484674cb8")  

@@ -78,6 +78,8 @@ compute_metrics <- function(ref_facs, deconvolution, metric = c('cor', 'rmse'),
   results_df <- deconvolution %>%
     inner_join(., ref_facs) #, by = c('cell_type' ,'sample'))
   
+  results_df$estimated_frac[which(is.na(results_df$estimated_frac))] <- 0
+  results_df$true_frac[which(is.na(results_df$true_frac))] <- 0
   
   if(metric == 'cor'){
     res_metric <- results_df %>%

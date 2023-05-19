@@ -97,7 +97,7 @@ process DECONVOLUTE {
 	      path(sc_batch), 
 	      val(sc_ds), 
 	      val(sc_norm),
-		  val(bulk_ds),
+		    val(bulk_ds),
 	      val(bulk_norm),
 	      val(replicate), 
 	      val(ct_fractions),
@@ -144,33 +144,44 @@ process COMPUTE_METRICS {
 	''' 
 }
 
-workflow {
+
+workflow simulation {
+  sc_files = Channel.fromList(create_file_list_sc(params.data_dir_sc, params.single_cell_list, params.single_cell_norm, params.run_preprocessing))
+  
+  
+}
+
+workflow subsampling {
   sc_files = Channel.fromList(create_file_list_sc(params.data_dir_sc, params.single_cell_list, params.single_cell_norm, params.run_preprocessing))
 
-  if(params.run_preprocessing){
-    replicates = Channel.of(1..params.replicates).collect()
+  replicates = Channel.of(1..params.replicates).collect()
     
-    preprocess = PREPROCESS_SINGLE_CELL(sc_files,
-                                        params.ct_fractions, 
-                                        replicates, 
-                                        params.preProcess_dir
-    )
-    
-    signature = CREATE_SIGNATURE(preprocess,
-                                 params.bulk_list,
-                                 params.bulk_norm,
-                                 params.method_list
-    )
-                                          
-  }else{
-    preprocessed = Channel.empty()
-    
-    signature = CREATE_SIGNATURE(sc_files,
-                                 params.bulk_list,
-                                 params.bulk_norm,
-                                 params.method_list
-    )
-  }
+  preprocess = PREPROCESS_SINGLE_CELL(sc_files,
+                                      params.ct_fractions, 
+                                      replicates, 
+                                      params.preProcess_dir
+  )
+  
+  signature = CREATE_SIGNATURE(preprocess,
+                               params.bulk_list,
+                               params.bulk_norm,
+                               params.method_list
+  )  
+  
+  deconvolution = DECONVOLUTE(signature)
+
+  metrics = COMPUTE_METRICS(deconvolution)
+  
+}
+
+workflow main {
+  sc_files = Channel.fromList(create_file_list_sc(params.data_dir_sc, params.single_cell_list, params.single_cell_norm, params.run_preprocessing))
+
+  signature = CREATE_SIGNATURE(sc_files,
+                               params.bulk_list,
+                               params.bulk_norm,
+                               params.method_list
+  )
   
   deconvolution = DECONVOLUTE(signature)
 

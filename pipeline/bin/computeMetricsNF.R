@@ -44,6 +44,7 @@ if(args$bulk_name=='hoek'){
   deconvolution$`T cell` <- deconvolution$`T cells CD4 conv` + deconvolution$`T cells CD8` + deconvolution$`Tregs`
 }
 
+
 # Here we need to compute the correlation, RMSE and zRMSE
 # We need to compute it by cell type, sample, all together
 

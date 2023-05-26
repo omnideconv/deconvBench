@@ -11,14 +11,22 @@ RUN apt-get update -y && apt-get --no-install-recommends --fix-broken install -y
     wget \
     vim \
     software-properties-common \
-    dirmngr
+    dirmngr \
+    gdebi \
+    curl
 
-# install R 4.2 https://www.r-bloggers.com/2022/08/installation-of-r-4-2-on-ubuntu-22-04-1-lts-and-tips-for-spatial-packages/ 
-RUN apt-get purge r-base* r-recommended r-cran-*
-RUN apt autoremove
-RUN wget -qO- https://cloud.r-project.org/bin/linux/ubuntu/marutter_pubkey.asc | tee -a /etc/apt/trusted.gpg.d/cran_ubuntu_key.asc
-RUN add-apt-repository "deb https://cloud.r-project.org/bin/linux/ubuntu $(lsb_release -cs)-cran40/"
-RUN apt install -y r-base r-base-core r-recommended r-base-dev
+# install R 4.2.3 https://docs.posit.co/resources/install-r/
+RUN curl -O https://cdn.rstudio.com/r/ubuntu-2004/pkgs/r-4.2.3_1_amd64.deb
+RUN gdebi r-4.2.3_1_amd64.deb -n
+RUN ln -s /opt/R/4.2.3/bin/R /usr/local/bin/R
+RUN ln -s /opt/R/4.2.3/bin/Rscript /usr/local/bin/Rscript
+
+
+#RUN apt-get purge r-base* r-recommended r-cran-*
+#RUN apt autoremove
+#RUN wget -qO- https://cloud.r-project.org/bin/linux/ubuntu/marutter_pubkey.asc | tee -a /etc/apt/trusted.gpg.d/cran_ubuntu_key.asc
+#RUN add-apt-repository "deb https://cloud.r-project.org/bin/linux/ubuntu $(lsb_release -cs)-cran40/"
+#RUN apt install -y r-base r-base-core r-recommended r-base-dev
 
 # install miniconda into /root/miniconda3
 RUN wget \
@@ -45,9 +53,9 @@ RUN pip install autogenes
 # install omnideconv with all dependencies
 RUN apt-get update -y && apt-get --no-install-recommends --fix-broken install -y curl \
     libcurl4-openssl-dev \
-    libxml2-dev \ 
+    libxml2-dev \
     libfontconfig1-dev \
-    libssl-dev \ 
+    libssl-dev \
     libharfbuzz-dev \
     libfribidi-dev \
     libfreetype6-dev \
@@ -55,21 +63,19 @@ RUN apt-get update -y && apt-get --no-install-recommends --fix-broken install -y
     libtiff5-dev \
     libjpeg-dev \
     libgdal-dev \
-    cmake 
+    cmake
 
-RUN R -e "install.packages(c('pak','pkgdepends','devtools'))"
-RUN R -e "install.packages(c('harmony','remotes'))"
-RUN R -e "remotes::install_github('omnideconv/CDSeq')"
+RUN R -e "install.packages(c('pak','pkgdepends','devtools'), repos='https://cloud.r-project.org')"
+RUN R -e "pak::pkg_install(c('renozao/NMF','remotes','harmony','terra'))"
 RUN R -e "pak::pkg_install('omnideconv/omnideconv', dependencies = TRUE)"
-#RUN R -e "pak::pkg_install('omnideconv/omnideconv@scaden_additions')"
 
 
 # set systems variable RETICULATE_PYTHON to new conda env, so that omnideconv will use it
 RUN echo "RETICULATE_PYTHON = '/root/miniconda3/envs/omnideconv/bin/python'" > /root/.Rprofile
 
 # install benchmarking related dependencies
-RUN R -e "install.packages(c('conflicted','docopt','readxl','tidyverse'))"
-RUN R -e "install.packages(c('BiocManager'))"
+RUN R -e "install.packages(c('conflicted','docopt','readxl','tidyverse','profvis'), repos='https://cloud.r-project.org')"
+RUN R -e "install.packages(c('BiocManager'), repos='https://cloud.r-project.org')"
 RUN R -e "BiocManager::install('SimBu')"
 
 # install Docker, so that CibersortX can run

@@ -1,4 +1,4 @@
-#!/usr/bin/Rscript
+#!/usr/local/bin/Rscript
 
 #path("${preProcess_dir}/${sc_ds}_${sc_norm}_perc${ct_fractions}_rep*_matrix_subsampled.rds")
 

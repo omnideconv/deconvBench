@@ -1,8 +1,6 @@
-#!/usr/bin/Rscript
+#!/usr/local/bin/Rscript
 
 print("Started simulation script ...")
-
-BiocManager::install('SimBu', ask=F, update=F)
 
 library(docopt)
 library(SimBu)

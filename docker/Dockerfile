@@ -4,7 +4,7 @@ LABEL description="Image for Omnideconv benchmarking pipeline"
 LABEL maintainer="Alexander Dietrich"
 
 # needed so that R r-base installation does not get stuck
-ENV DEBIAN_FRONTEND noninteractive  
+ENV DEBIAN_FRONTEND noninteractive
 
 # install system dependencies
 RUN apt-get update -y && apt-get --no-install-recommends --fix-broken install -y git \
@@ -21,34 +21,27 @@ RUN gdebi r-4.2.3_1_amd64.deb -n
 RUN ln -s /opt/R/4.2.3/bin/R /usr/local/bin/R
 RUN ln -s /opt/R/4.2.3/bin/Rscript /usr/local/bin/Rscript
 
-
-#RUN apt-get purge r-base* r-recommended r-cran-*
-#RUN apt autoremove
-#RUN wget -qO- https://cloud.r-project.org/bin/linux/ubuntu/marutter_pubkey.asc | tee -a /etc/apt/trusted.gpg.d/cran_ubuntu_key.asc
-#RUN add-apt-repository "deb https://cloud.r-project.org/bin/linux/ubuntu $(lsb_release -cs)-cran40/"
-#RUN apt install -y r-base r-base-core r-recommended r-base-dev
-
 # install miniconda into /root/miniconda3
 RUN wget \
-    https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \ 
-    && bash Miniconda3-latest-Linux-x86_64.sh -b -p /root/miniconda3 \
-    && rm Miniconda3-latest-Linux-x86_64.sh 
+    https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
+    && bash Miniconda3-latest-Linux-x86_64.sh -b -p /root/.local/share/r-miniconda \
+    && rm Miniconda3-latest-Linux-x86_64.sh
 
-ENV PATH="/root/miniconda3/bin:${PATH}"
-ARG PATH="/root/miniconda3/bin:${PATH}"
+ENV PATH="/root/.local/share/r-miniconda/bin:${PATH}"
+ARG PATH="/root/.local/share/r-miniconda/bin:${PATH}"
 
 RUN conda --version
 
 
 # create new conda environment, in which scaden and autogenes is installed
-RUN conda create -n omnideconv python=3.9
-RUN echo "source activate omnideconv" > ~/.bashrc
+RUN conda create -n r-omnideconv python=3.9
+RUN echo "source activate r-omnideconv" > ~/.bashrc
 
-ENV PATH="/root/miniconda3/envs/omnideconv/bin:${PATH}"
-ARG PATH="/root/miniconda3/envs/omnideconv/bin:${PATH}"
+ENV PATH="/root/.local/share/r-miniconda/envs/omnideconv/bin:${PATH}"
+ARG PATH="/root/.local/share/r-miniconda/envs/omnideconv/bin:${PATH}"
 
-RUN pip install scaden
-RUN pip install autogenes
+RUN conda run --no-capture-output -n r-omnideconv pip install scaden
+RUN conda run --no-capture-output -n r-omnideconv pip install autogenes
 
 # install omnideconv with all dependencies
 RUN apt-get update -y && apt-get --no-install-recommends --fix-broken install -y curl \
@@ -67,11 +60,12 @@ RUN apt-get update -y && apt-get --no-install-recommends --fix-broken install -y
 
 RUN R -e "install.packages(c('pak','pkgdepends','devtools'), repos='https://cloud.r-project.org')"
 RUN R -e "pak::pkg_install(c('renozao/NMF','remotes','harmony','terra'))"
-RUN R -e "pak::pkg_install('omnideconv/omnideconv', dependencies = TRUE)"
+RUN R -e "pak::pkg_install('omnideconv/omnideconv@benchmark', dependencies = TRUE)"
 
 
 # set systems variable RETICULATE_PYTHON to new conda env, so that omnideconv will use it
-RUN echo "RETICULATE_PYTHON = '/root/miniconda3/envs/omnideconv/bin/python'" > /root/.Rprofile
+RUN echo "RETICULATE_PYTHON = '/root/.local/share/r-miniconda/envs/r-omnideconv/bin/python'" > /root/.Rprofile
+RUN R -e "reticulate::use_miniconda(condaenv = 'r-omnideconv', required = TRUE)"
 
 # install benchmarking related dependencies
 RUN R -e "install.packages(c('conflicted','docopt','readxl','tidyverse','profvis'), repos='https://cloud.r-project.org')"
@@ -89,4 +83,3 @@ RUN apt-get install -y --no-install-recommends \
     docker-ce \
     docker-ce-cli \
     containerd.io
-

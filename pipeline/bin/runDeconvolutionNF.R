@@ -1,8 +1,11 @@
-#!/usr/bin/Rscript
+#!/usr/local/bin/Rscript
+
+library(omnideconv)
+reticulate::use_miniconda(condaenv = "r-omnideconv", required = TRUE)
 
 print("Started deconvolution  ...")
 "Usage:
-  runDeconvolutionNF.R <sc_matrix> <sc_annotation> <sc_batch> <sc_name> <sc_norm> <bulk_dir> <bulk_name> <bulk_norm> <deconv_method> <results_dir> <run_preprocessing> <replicate> <subset_value> <ncores> [<coarse>]
+  runDeconvolutionNF.R <sc_matrix> <sc_annotation> <sc_batch> <sc_name> <sc_norm> <bulk_dir> <bulk_name> <bulk_norm> <deconv_method> <results_dir> <run_preprocessing> <replicate> <species> <subset_value> <ncores> [<coarse>]
 Options:
 <sc_matrix> path to sc matrix
 <sc_annotation> path to cell type annotation of sc matrix
@@ -17,6 +20,7 @@ Options:
 <run_preprocessing> if pre-processing has been done
 <subset_value> if < 1: fraction of cell type; if > 1: number of cells per cell type
 <replicate> value of replicate number
+<species> type of species
 <ncores> number of cores to use for method (if available)
 <coarse> logical, if TRUE celltypes are mapped to higher level" -> doc
 
@@ -162,14 +166,12 @@ runtime <- system.time({
     deconvolution <- t(deconvolution$cdseq_prop_merged)
 
   } else if (method == "bayesprism") {
-    deconvolution <- omnideconv::deconvolute(
+    deconvolution <- omnideconv::deconvolute_bayesprism(
       bulk_gene_expression = bulk_matrix, 
-      signature = signature, 
       single_cell_object = sc_matrix, 
-      batch_ids = sc_batch, 
       cell_type_annotations = sc_celltype_annotations, 
-      method = method,
-      n_cores = ncores
+      n_cores = ncores,
+      species = 'hs'
     )
                 
   } else if (method == "scaden") {

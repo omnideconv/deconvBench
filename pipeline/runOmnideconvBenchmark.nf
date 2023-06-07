@@ -155,7 +155,7 @@ process DECONVOLUTE {
 	      path(sc_batch), 
 	      val(sc_ds), 
 	      val(sc_norm),
-		    val(bulk_ds),
+		val(bulk_ds),
 	      val(bulk_norm),
 	      val(replicate), 
 	      val(ct_fractions),
@@ -173,7 +173,7 @@ process DECONVOLUTE {
   
 	shell:
 	'''
-	/vol/omnideconv_input/benchmark/pipeline/bin/runDeconvolutionNF.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{params.data_dir_bulk}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{params.results_dir_general}'	'!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.ncores}' 
+	/vol/omnideconv_input/benchmark/pipeline/bin/runDeconvolutionNF.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{params.data_dir_bulk}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{params.species_sc}' '!{ct_fractions}' '!{params.ncores}' 
 	''' 
 }
 

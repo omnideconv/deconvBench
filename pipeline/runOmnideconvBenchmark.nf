@@ -106,7 +106,7 @@ process CREATE_SIGNATURE {
 
       shell:
       '''
-      /vol/omnideconv_input/omnideconv/benchmark/pipeline/bin/computeSignaturesNF.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.ncores}'
+      /vol/omnideconv_input/benchmark/pipeline/bin/computeSignaturesNF.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.ncores}'
       ''' 
 }
 
@@ -137,7 +137,7 @@ process DECONVOLUTE {
   
 	shell:
 	'''
-	/vol/omnideconv_input/omnideconv/benchmark/pipeline/bin/runDeconvolutionNF.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.species_sc}' '!{params.ncores}' 
+	/vol/omnideconv_input/benchmark/pipeline/bin/runDeconvolutionNF.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.species_sc}' '!{params.ncores}' 
 	''' 
 }
 
@@ -164,7 +164,7 @@ process COMPUTE_METRICS {
   
 	shell:
 	'''
-	/vol/omnideconv_input/omnideconv/benchmark/pipeline/bin/computeMetricsNF.R '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{replicate}' '!{ct_fractions}' '!{params.results_dir_general}'
+	/vol/omnideconv_input/benchmark/pipeline/bin/computeMetricsNF.R '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{replicate}' '!{ct_fractions}' '!{params.results_dir_general}'
 	''' 
 }
 

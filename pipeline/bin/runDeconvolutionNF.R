@@ -172,7 +172,7 @@ runtime <- system.time({
       cell_type_annotations = sc_celltype_annotations, 
       n_cores = ncores,
       species = args$species
-    )
+    )$theta
                 
   } else if (method == "scaden") {
     scaden_tmp <- paste0('/vol/omnideconv_input/tmp/scaden_tmp_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)

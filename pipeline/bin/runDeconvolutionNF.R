@@ -171,7 +171,7 @@ runtime <- system.time({
       single_cell_object = sc_matrix, 
       cell_type_annotations = sc_celltype_annotations, 
       n_cores = ncores,
-      species = 'hs'
+      species = args$species
     )
                 
   } else if (method == "scaden") {

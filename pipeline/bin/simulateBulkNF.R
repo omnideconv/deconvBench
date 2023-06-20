@@ -7,10 +7,9 @@ library(SimBu)
 library(Matrix)
 
 "Usage:
-  simulateBulkNF.R <sc_ds> <sc_norm> <sc_dir> <simulation_n_cells> <simulation_n_samples> <simulation_scenario> <preprocess_dir> <ncores> 
+  simulateBulkNF.R <sc_ds> <sc_dir> <simulation_n_cells> <simulation_n_samples> <simulation_scenario> <preprocess_dir> <ncores> 
 Options:
 <sc_ds> name of sc dataset that is used for simulations
-<sc_norm> normalization of sc dataset that is used for simulations
 <sc_dir> path to single cell directory
 <simulation_n_cells> number of cells in each pseudo-bulk
 <simulation_n_samples> number of pseudo-bulk samples
@@ -24,13 +23,11 @@ args <- docopt::docopt(doc)
 print(args)
 
 sc_ds <- args$sc_ds
-sc_norm <- args$sc_norm
-
 scenario <- args$simulation_scenario
 ncells <- args$simulation_n_cells
 nsamples <- args$simulation_n_samples
 
-output_dir <- paste0(args$preprocess_dir, '/pseudo_bulk/', sc_ds, "_", sc_norm, "_ncells", ncells, "_nsamples", nsamples, "_", scenario)
+output_dir <- paste0(args$preprocess_dir, '/pseudo_bulk/', sc_ds, "_ncells", ncells, "_nsamples", nsamples, "_", scenario)
 
 if(dir.exists(output_dir)){
   # check if all files are present

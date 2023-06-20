@@ -66,11 +66,11 @@ process SIMULATE_BULK {
       each simulation_scenario
 
       output:
-      val("${params.simulation_sc_dataset}_${params.simulation_sc_norm}_ncells${simulation_n_cells}_nsamples${simulation_n_samples}_${simulation_scenario}")
+      val("${params.simulation_sc_dataset}_ncells${simulation_n_cells}_nsamples${simulation_n_samples}_${simulation_scenario}")
 
       shell:
       '''
-      /vol/omnideconv_input/benchmark/pipeline/bin/simulateBulkNF.R '!{params.simulation_sc_dataset}' '!{params.simulation_sc_norm}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{simulation_n_samples}' '!{simulation_scenario}' '!{params.preProcess_dir}' '!{params.ncores}'
+      /vol/omnideconv_input/benchmark/pipeline/bin/simulateBulkNF.R '!{params.simulation_sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{simulation_n_samples}' '!{simulation_scenario}' '!{params.preProcess_dir}' '!{params.ncores}'
       '''
 }
 

@@ -74,6 +74,45 @@ process SIMULATE_BULK {
       '''
 }
 
+process SIMULATE_BULK_SPILLOVER {
+  
+      publishDir "${params.preProcess_dir}/pseudo_bulk", mode: 'copy'
+
+      input:
+      each simulation_n_cells
+      val spillover_samples_per_cell
+      val cell_types
+
+      output:
+      val("${params.simulation_sc_dataset}-ncells${simulation_n_cells}-nsamples${spillover_samples_per_cell}-spillover")
+
+      shell:
+      '''
+      /vol/omnideconv_input/benchmark/pipeline/bin/simulateBulkNF.R '!{params.simulation_sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{spillover_samples_per_cell}' 'spillover' '!{params.preProcess_dir}' '!{params.ncores}' '!{params.cell_types}'
+      '''
+}
+
+process SIMULATE_BULK_SENSITIVITY {
+  
+      publishDir "${params.preProcess_dir}/pseudo_bulk", mode: 'copy'
+
+      input:
+      each simulation_n_cells
+      val simulation_n_samples                    // hopefully we would need just one value here
+      each fraction_unknown_cell
+      val cell_types
+      val unknown_cell_type
+
+      output:
+      val("${params.simulation_sc_dataset}-ncells${simulation_n_cells}-fraction_${unknown_cell_type}_${fraction_unknown_cell}-unknown")
+
+      shell:
+      '''
+      /vol/omnideconv_input/benchmark/pipeline/bin/simulateBulkNF.R '!{params.simulation_sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{simulation_n_samples}' 'weighted' '!{params.preProcess_dir}' '!{params.ncores}' '!{params.cell_types}' '!{params.unknown_cell_type}' '!{params.fraction_unknown_cell}'
+      '''
+}
+
+
 process CREATE_SIGNATURE {
 
       input:
@@ -170,7 +209,9 @@ process COMPUTE_METRICS {
 
 
 workflow simulation {
-
+  
+  // Normal simulation
+  
   simulations = SIMULATE_BULK(params.simulation_n_cells,
 							                params.simulation_n_samples,
 							                params.simulation_scenario
@@ -195,6 +236,59 @@ workflow simulation {
   
   metrics = COMPUTE_METRICS(deconvolution, "${params.preProcess_dir}/pseudo_bulk")
   
+  ///////////////////////////////////////////////////////////////////////////////
+  
+  // spillover
+  
+  simulations = SIMULATE_BULK_SPILLOVER(params.simulation_n_cells,
+							                          params.simulation_n_samples,
+							                          params.simulation_scenario
+  )
+  
+  sc_files = Channel.fromList(create_file_list_sc(params.data_dir_sc, 
+                                                  params.single_cell_list, 
+                                                  params.single_cell_norm, 
+                                                  'false'))
+  
+  
+  signature = CREATE_SIGNATURE(sc_files,
+                               "${params.preProcess_dir}/pseudo_bulk",
+                               simulations.collect(),
+                               params.simulation_pseudobulk_norm,
+                               params.method_list,
+                               'false')
+  
+  deconvolution = DECONVOLUTE(signature, 
+                             "${params.preProcess_dir}/pseudo_bulk",
+                             'false')
+  
+  metrics = COMPUTE_METRICS(deconvolution, "${params.preProcess_dir}/pseudo_bulk")
+  
+  // sensitivity to unknown content
+  
+  simulations = SIMULATE_BULK_SENSITIVITY(params.simulation_n_cells,
+							                          params.simulation_n_samples,
+							                          params.simulation_scenario
+  )
+  
+  sc_files = Channel.fromList(create_file_list_sc(params.data_dir_sc, 
+                                                  params.single_cell_list, 
+                                                  params.single_cell_norm, 
+                                                  'false'))
+  
+  
+  signature = CREATE_SIGNATURE(sc_files,
+                               "${params.preProcess_dir}/pseudo_bulk",
+                               simulations.collect(),
+                               params.simulation_pseudobulk_norm,
+                               params.method_list,
+                               'false')
+  
+  deconvolution = DECONVOLUTE(signature, 
+                             "${params.preProcess_dir}/pseudo_bulk",
+                             'false')
+  
+  metrics = COMPUTE_METRICS(deconvolution, "${params.preProcess_dir}/pseudo_bulk")
 }
 
 workflow subsampling {

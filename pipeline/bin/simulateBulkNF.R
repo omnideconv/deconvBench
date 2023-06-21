@@ -7,7 +7,7 @@ library(SimBu)
 library(Matrix)
 
 "Usage:
-  simulateBulkNF.R <sc_ds> <sc_dir> <simulation_n_cells> <simulation_n_samples> <simulation_scenario> <preprocess_dir> <ncores> 
+  simulateBulkNF.R <sc_ds> <sc_dir> <simulation_n_cells> <simulation_n_samples> <simulation_scenario> <preprocess_dir> <ncores> [<cell_types>] [<unknown_cell_type>]
 Options:
 <sc_ds> name of sc dataset that is used for simulations
 <sc_dir> path to single cell directory
@@ -15,7 +15,9 @@ Options:
 <simulation_n_samples> number of pseudo-bulk samples
 <simulation_scenario> simulation scenario
 <preprocess_dir> preprocessing output directory where pseudo-bulks will be stored
-<ncores> number of cores for parallel simulation" -> doc
+<ncores> number of cores for parallel simulation
+<cell_types> vector, subset of cell types to use for the simulation
+<unknown_cell_type> string, which cell type will be treated as unknown (i.e. not in the signature)" -> doc
 
 print(doc)
 
@@ -26,6 +28,15 @@ sc_ds <- args$sc_ds
 scenario <- args$simulation_scenario
 ncells <- as.numeric(args$simulation_n_cells)
 nsamples <- as.numeric(args$simulation_n_samples)
+
+if(!is.null(args$cell_types)){
+  cell_types_simulation <- args$cell_types
+}
+
+if(!is.null(args$unknown_cell_type)){
+  unknown_cell_type <- args$unknown_cell_type
+  cell_types_simulation <- c(cell_types_simulation, unknown_cell_type)
+}
 
 pseudobulk_name <- paste0(sc_ds, "-ncells", ncells, "-nsamples", nsamples, "-", scenario)
 output_dir <- paste0(args$preprocess_dir, '/pseudo_bulk/', pseudobulk_name)

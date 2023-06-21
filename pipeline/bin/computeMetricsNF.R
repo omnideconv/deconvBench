@@ -39,7 +39,7 @@ res_path <- paste0(res_base_path, '/', method, "_", sc_ds, "_", sc_norm, "_", bu
 deconvolution <- readRDS(paste0(res_path, '/deconvolution.rds'))
 
 
-if(args$bulk_name=='hoek'){
+if(args$bulk_name=='hoek' | args$bulk_name=='hoek-simulation'){
   deconvolution <- as.data.frame(deconvolution)
   deconvolution$`T cell` <- deconvolution$`T cells CD4 conv` + deconvolution$`T cells CD8` + deconvolution$`Tregs`
 }
@@ -119,12 +119,12 @@ compute_metrics <- function(ref_facs, deconvolution, metric = c('cor', 'rmse'),
 
 results_metric <- list()
 
-if(method !='cdseq'){
-  results_metric$cor_sample <- compute_metrics(facs_data, deconvolution, 'cor', 'sample')
-  results_metric$cor_cell_type <- compute_metrics(facs_data, deconvolution, 'cor', 'cell_type')
-  results_metric$rmse_sample <- compute_metrics(facs_data, deconvolution, 'rmse', 'sample')
-  results_metric$rmse_cell_type <- compute_metrics(facs_data, deconvolution, 'rmse', 'cell_type')
-}
+
+results_metric$cor_sample <- compute_metrics(facs_data, deconvolution, 'cor', 'sample')
+results_metric$cor_cell_type <- compute_metrics(facs_data, deconvolution, 'cor', 'cell_type')
+results_metric$rmse_sample <- compute_metrics(facs_data, deconvolution, 'rmse', 'sample')
+results_metric$rmse_cell_type <- compute_metrics(facs_data, deconvolution, 'rmse', 'cell_type')
+
 
 results_metric$facs_groud_truth <- facs_data
 results_metric$deconv.results <- deconvolution

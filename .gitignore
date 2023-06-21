@@ -6,3 +6,7 @@ pipeline/.nextflow/
 pipeline/.nextlow.log*
 pipeline/*.Rproj
 *.Rproj
+.Rproj.user
+.Rhistory
+reports_traces/
+work/

@@ -7,15 +7,15 @@ library(SimBu)
 library(Matrix)
 
 "Usage:
-  simulateBulkNF.R <sc_ds> <sc_dir> <simulation_n_cells> <simulation_n_samples> <simulation_scenario> <preprocess_dir> <ncores> [<cell_types>] [<unknown_cell_type>]
+  simulateBulkNF.R <sc_ds> <sc_dir> <simulation_n_cells> <simulation_n_samples> <cell_types> <preprocess_dir> <ncores> 
 Options:
 <sc_ds> name of sc dataset that is used for simulations
 <sc_dir> path to single cell directory
 <simulation_n_cells> number of cells in each pseudo-bulk
 <simulation_n_samples> number of pseudo-bulk samples
-<simulation_scenario> simulation scenario
+<cell_types> vector, subset of cell types to use for the simulation
 <preprocess_dir> preprocessing output directory where pseudo-bulks will be stored
-<ncores> number of cores for parallel simulation)" -> doc
+<ncores> number of cores for parallel simulation" -> doc
 
 print(doc)
 
@@ -23,12 +23,11 @@ args <- docopt::docopt(doc)
 print(args)
 
 sc_ds <- args$sc_ds
-scenario <- args$simulation_scenario
 ncells <- as.numeric(args$simulation_n_cells)
 nsamples <- as.numeric(args$simulation_n_samples)
+cell_types_simulation <- args$cell_types
 
-
-pseudobulk_name <- paste0(sc_ds, "-ncells", ncells, "-nsamples", nsamples, "-", scenario)
+pseudobulk_name <- paste0(sc_ds, "-ncells", ncells, "-nsamples", nsamples, "-", 'spillover')
 output_dir <- paste0(args$preprocess_dir, '/pseudo_bulk/', pseudobulk_name)
 
 if(dir.exists(output_dir)){
@@ -56,16 +55,22 @@ simbu_ds <- SimBu::dataset(
   name = sc_ds
 )
 
-simulated_bulk <- SimBu::simulate_bulk(
-  data =  simbu_ds,
-  scenario = scenario,
-  scaling_factor = 'expressed_genes',
-  nsamples = nsamples,
-  ncells = ncells,
-  BPPARAM = BiocParallel::MulticoreParam(workers = ncores),
-  run_parallel = TRUE
-)
+simulation_list = list()
+for (cur_cell_type in cell_types_simulation){
+  
+  simulation_list[[cur_cell_type]] <-  SimBu::simulate_bulk(
+    data =  simbu_ds,
+    scenario = 'pure',
+    pure_cell_type = cur_cell_type,
+    scaling_factor = 'expressed_genes',
+    nsamples = nsamples,
+    ncells = ncells,
+    BPPARAM = BiocParallel::MulticoreParam(workers = ncores),
+    run_parallel = TRUE
+  )
+}
 
+simulated_bulk <- merge_simulations(simulation_list)
 
 saveRDS(SummarizedExperiment::assays(simulated_bulk$bulk)[["bulk_counts"]], paste0(output_dir,'/', pseudobulk_name, '_counts.rds'))
 saveRDS(SummarizedExperiment::assays(simulated_bulk$bulk)[["bulk_tpm"]], paste0(output_dir,'/', pseudobulk_name, '_tpm.rds'))

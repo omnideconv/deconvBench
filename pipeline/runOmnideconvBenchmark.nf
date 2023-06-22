@@ -79,7 +79,7 @@ process SIMULATE_BULK_SPILLOVER {
       publishDir "${params.preProcess_dir}/pseudo_bulk", mode: 'copy'
 
       input:
-      each simulation_n_cells
+      val simulation_n_cells
       val spillover_samples_per_cell
       val cell_types
 
@@ -88,11 +88,11 @@ process SIMULATE_BULK_SPILLOVER {
 
       shell:
       '''
-      /vol/omnideconv_input/benchmark/pipeline/bin/simulateBulkNF.R '!{params.simulation_sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{spillover_samples_per_cell}' 'spillover' '!{params.preProcess_dir}' '!{params.ncores}' '!{params.cell_types}'
+      /vol/omnideconv_input/benchmark/pipeline/bin/simulateBulkNF_spillover_analysis.R '!{params.simulation_sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{spillover_samples_per_cell}' '!{params.cell_types}' '!{params.preProcess_dir}' '!{params.ncores}' 
       '''
 }
 
-process SIMULATE_BULK_SENSITIVITY {
+process SIMULATE_BULK_UNKNOWN_CELL_TYPE {
   
       publishDir "${params.preProcess_dir}/pseudo_bulk", mode: 'copy'
 
@@ -108,7 +108,7 @@ process SIMULATE_BULK_SENSITIVITY {
 
       shell:
       '''
-      /vol/omnideconv_input/benchmark/pipeline/bin/simulateBulkNF.R '!{params.simulation_sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{simulation_n_samples}' 'weighted' '!{params.preProcess_dir}' '!{params.ncores}' '!{params.cell_types}' '!{params.unknown_cell_type}' '!{params.fraction_unknown_cell}'
+      /vol/omnideconv_input/benchmark/pipeline/bin/simulateBulkNF_unknown_content_analysis.R '!{params.simulation_sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{simulation_n_samples}' '!{params.fraction_unknown_cell}' '!{params.preProcess_dir}' '!{params.ncores}' '!{params.cell_types}' '!{params.unknown_cell_type}' 
       '''
 }
 
@@ -242,7 +242,8 @@ workflow simulation {
   
   simulations = SIMULATE_BULK_SPILLOVER(params.simulation_n_cells,
 							                          params.simulation_n_samples,
-							                          params.simulation_scenario
+							                          params.spillover_samples_per_cell,
+							                          params.spillover_celltypes
   )
   
   sc_files = Channel.fromList(create_file_list_sc(params.data_dir_sc, 
@@ -268,7 +269,9 @@ workflow simulation {
   
   simulations = SIMULATE_BULK_SENSITIVITY(params.simulation_n_cells,
 							                          params.simulation_n_samples,
-							                          params.simulation_scenario
+							                          params.fractions_unknown_cells,
+							                          params.known_cell_types,
+							                          params.unknown_cell_type
   )
   
   sc_files = Channel.fromList(create_file_list_sc(params.data_dir_sc, 

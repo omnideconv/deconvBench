@@ -74,6 +74,44 @@ process SIMULATE_BULK {
       '''
 }
 
+process SIMULATE_BULK_SPILLOVER {
+  
+      publishDir "${params.preProcess_dir}/pseudo_bulk", mode: 'copy'
+
+      input:
+      val simulation_n_cells
+      val spillover_samples_per_cell
+      val cell_types
+
+      output:
+      val("${params.simulation_sc_dataset}-ncells${simulation_n_cells}-nsamples${spillover_samples_per_cell}-spillover")
+
+      shell:
+      '''
+      /nfs/home/students/adietrich/omnideconv/benchmark/pipeline/bin/simulateBulkNF_spillover_analysis.R '!{params.simulation_sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{spillover_samples_per_cell}' '!{params.cell_types}' '!{params.preProcess_dir}' '!{params.ncores}' 
+      '''
+}
+
+process SIMULATE_BULK_UNKNOWN_CELL_TYPE {
+  
+      publishDir "${params.preProcess_dir}/pseudo_bulk", mode: 'copy'
+
+      input:
+      each simulation_n_cells
+      val simulation_n_samples                    // hopefully we would need just one value here
+      each fraction_unknown_cell
+      val cell_types
+      val unknown_cell_type
+
+      output:
+      val("${params.simulation_sc_dataset}-ncells${simulation_n_cells}-fraction_${unknown_cell_type}_${fraction_unknown_cell}-unknown")
+
+      shell:
+      '''
+      /nfs/home/students/adietrich/omnideconv/benchmark/pipeline/bin/simulateBulkNF_unknown_content_analysis.R '!{params.simulation_sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{simulation_n_samples}' '!{params.fraction_unknown_cell}' '!{params.preProcess_dir}' '!{params.ncores}' '!{params.cell_types}' '!{params.unknown_cell_type}' 
+      '''
+}
+
 process CREATE_SIGNATURE {
 
       input:

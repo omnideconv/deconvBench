@@ -39,6 +39,14 @@ sc_batch <- readRDS(file.path(args$sc_batch))
 sc_ds <- args$sc_name
 sc_norm <- args$sc_norm
 
+
+# Here we need to filter for those cell types that are in the simulated dataset
+position_vector <- sc_celltype_annotations %in% args$cell_types
+sc_matrix <- sc_matrix[, position_vector]
+sc_batch <- sc_batch[position_vector]
+sc_celltype_annotations <- sc_celltype_annotations[position_vector]
+
+
 bulk_name <- args$bulk_name
 bulk_norm <- args$bulk_norm
 bulk_matrix <- readRDS(file.path(args$bulk_dir, args$bulk_name, paste0(args$bulk_name, '_', args$bulk_norm, '.rds')))

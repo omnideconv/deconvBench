@@ -149,6 +149,45 @@ process CREATE_SIGNATURE {
       ''' 
 }
 
+process CREATE_SIGNATURE_FOR_SIMULATION {
+
+      input:
+      tuple path(sc_matrix), 
+            path(sc_anno), 
+            path(sc_batch), 
+            val(sc_ds), 
+            val(sc_norm), 
+            val(replicate), 
+            val(ct_fractions)
+      val bulk_dir
+      each bulk_ds
+      each bulk_norm
+      val cell_types
+      each method 
+      val run_preprocessing
+
+
+      output:
+      tuple path(sc_matrix), 
+            path(sc_anno), 
+            path(sc_batch), 
+            val(sc_ds), 
+            val(sc_norm),
+            val(bulk_ds),
+            val(bulk_norm),
+            val(replicate), 
+            val(ct_fractions),
+            val(method)
+
+      beforeScript 'chmod o+rw .'
+
+      shell:
+      '''
+      /vol/omnideconv_input/benchmark/pipeline/bin/computeSignaturesNF_simulation.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{cell_types}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.ncores}'
+      ''' 
+}
+
+
 process DECONVOLUTE { 
 
 	input:
@@ -227,6 +266,7 @@ workflow simulation {
                                "${params.preProcess_dir}/pseudo_bulk",
                                simulations.collect(),
                                params.simulation_pseudobulk_norm,
+                               params.simulation_cell_types,
                                params.method_list,
                                'false')
   
@@ -252,12 +292,13 @@ workflow simulation {
                                                   'false'))
   
   
-  signature = CREATE_SIGNATURE(sc_files,
-                               "${params.preProcess_dir}/pseudo_bulk",
-                               simulations.collect(),
-                               params.simulation_pseudobulk_norm,
-                               params.method_list,
-                               'false')
+  signature = CREATE_SIGNATURE_FOR_SIMULATION(sc_files,
+                                              "${params.preProcess_dir}/pseudo_bulk",
+                                              simulations.collect(),
+                                              params.simulation_pseudobulk_norm,
+                                              params.spillover_celltypes,
+                                              params.method_list,
+                                              'false')
   
   deconvolution = DECONVOLUTE(signature, 
                              "${params.preProcess_dir}/pseudo_bulk",
@@ -268,10 +309,10 @@ workflow simulation {
   // sensitivity to unknown content
   
   simulations = SIMULATE_BULK_SENSITIVITY(params.simulation_n_cells,
-							                          params.simulation_n_samples,
-							                          params.fractions_unknown_cells,
-							                          params.known_cell_types,
-							                          params.unknown_cell_type
+							                            params.simulation_n_samples,
+							                            params.fractions_unknown_cells,
+							                            params.known_cell_types,
+							                            params.unknown_cell_type
   )
   
   sc_files = Channel.fromList(create_file_list_sc(params.data_dir_sc, 
@@ -280,12 +321,13 @@ workflow simulation {
                                                   'false'))
   
   
-  signature = CREATE_SIGNATURE(sc_files,
-                               "${params.preProcess_dir}/pseudo_bulk",
-                               simulations.collect(),
-                               params.simulation_pseudobulk_norm,
-                               params.method_list,
-                               'false')
+  signature = CREATE_SIGNATURE_FOR_SIUMULATION(sc_files,
+                                               "${params.preProcess_dir}/pseudo_bulk",
+                                               simulations.collect(),
+                                               params.simulation_pseudobulk_norm,
+                                               params.known_cell_types,
+                                               params.method_list,
+                                               'false')
   
   deconvolution = DECONVOLUTE(signature, 
                              "${params.preProcess_dir}/pseudo_bulk",

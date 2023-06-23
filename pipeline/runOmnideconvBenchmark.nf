@@ -112,6 +112,24 @@ process SIMULATE_BULK_UNKNOWN_CELL_TYPE {
       '''
 }
 
+process SIMULATE_BULK_RESOLUTION_ANALYSIS {
+  
+      publishDir "${params.preProcess_dir}/pseudo_bulk", mode: 'copy'
+
+      input:
+      each simulation_n_cells
+      val simulation_n_samples                    // hopefully we would need just one value here
+      each fraction_unknown_cell
+      val cell_types_fine
+      val major_cell_type
+      output:
+      val("${params.simulation_sc_dataset}-ncells${simulation_n_cells}-resolution_${major_cell_type}")
+
+      shell:
+      '''
+      /vol/omnideconv_input/benchmark/pipeline/bin/simulateBulkNF_unknown_content_analysis.R '!{params.simulation_sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{simulation_n_samples}' '!{params.fraction_unknown_cell}' '!{params.preProcess_dir}' '!{params.ncores}' '!{params.cell_types_fine}' '!{params.major_cell_type}' 
+      '''
+}
 
 process CREATE_SIGNATURE {
 

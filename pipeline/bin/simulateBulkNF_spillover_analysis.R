@@ -27,8 +27,8 @@ ncells <- as.numeric(args$simulation_n_cells)
 nsamples <- as.numeric(args$simulation_n_samples)
 cell_types_simulation <- args$cell_types
 
-pseudobulk_name <- paste0(sc_ds, "-ncells", ncells, "-nsamples", nsamples, "-", 'spillover')
-output_dir <- paste0(args$preprocess_dir, '/pseudo_bulk/', pseudobulk_name)
+pseudobulk_name <- paste0(sc_ds, "-ncells", ncells, "-nsamples", nsamples)
+output_dir <- paste0(args$preprocess_dir, '/pseudo_bulk_spillover/', pseudobulk_name)
 
 if(dir.exists(output_dir)){
   # check if all files are present

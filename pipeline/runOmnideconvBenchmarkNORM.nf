@@ -308,7 +308,7 @@ workflow simulation {
   
   
   signature = CREATE_SIGNATURE_FOR_SIMULATION(sc_files,
-                                              "${params.preProcess_dir}/pseudo_bulk",
+                                              "${params.preProcess_dir}/pseudo_bulk_spillover",
                                               simulations.collect(),
                                               params.simulation_pseudobulk_norm,
                                               params.spillover_celltypes,
@@ -316,10 +316,9 @@ workflow simulation {
                                               'false')
   
   deconvolution = DECONVOLUTE(signature, 
-                             "${params.preProcess_dir}/pseudo_bulk",
+                             "${params.preProcess_dir}/pseudo_bulk_spillover",
                              'false')
   
-  metrics = COMPUTE_METRICS(deconvolution, "${params.preProcess_dir}/pseudo_bulk")
   
   // sensitivity to unknown content
   
@@ -337,7 +336,7 @@ workflow simulation {
   
   
   signature = CREATE_SIGNATURE_FOR_SIUMULATION(sc_files,
-                                               "${params.preProcess_dir}/pseudo_bulk",
+                                               "${params.preProcess_dir}/pseudo_bulk_sensitivity",
                                                simulations.collect(),
                                                params.simulation_pseudobulk_norm,
                                                params.known_cell_types,
@@ -348,7 +347,7 @@ workflow simulation {
                              "${params.preProcess_dir}/pseudo_bulk",
                              'false')
   
-  metrics = COMPUTE_METRICS(deconvolution, "${params.preProcess_dir}/pseudo_bulk")
+  metrics = COMPUTE_METRICS(deconvolution, "${params.preProcess_dir}/pseudo_bulk_sensitivity")
   
   // resolution analysis
   
@@ -365,7 +364,7 @@ workflow simulation {
   
   
   signature = CREATE_SIGNATURE_FOR_SIUMULATION(sc_files,
-                                               "${params.preProcess_dir}/pseudo_bulk",
+                                               "${params.preProcess_dir}/pseudo_bulk_resolution",
                                                simulations.collect(),
                                                params.simulation_pseudobulk_norm,
                                                params.known_cell_types,
@@ -373,10 +372,10 @@ workflow simulation {
                                                'false')
   
   deconvolution = DECONVOLUTE(signature, 
-                             "${params.preProcess_dir}/pseudo_bulk",
+                             "${params.preProcess_dir}/pseudo_bulk_resolution",
                              'false')
   
-  metrics = COMPUTE_METRICS(deconvolution, "${params.preProcess_dir}/pseudo_bulk")
+  metrics = COMPUTE_METRICS(deconvolution, "${params.preProcess_dir}/pseudo_bulk_resolution")
 }
 
 workflow subsampling {

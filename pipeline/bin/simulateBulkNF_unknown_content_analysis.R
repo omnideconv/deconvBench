@@ -33,8 +33,8 @@ cell_types_simulation <- args$cell_types
 unknown_cell_type <- args$unknown_cell_type
 cell_types_simulation <- c(cell_types_simulation, unknown_cell_type)
 
-pseudobulk_name <- paste0(sc_ds, "-ncells", ncells, "-nsamples", nsamples, "-", 'unknown_content')
-output_dir <- paste0(args$preprocess_dir, '/pseudo_bulk/', pseudobulk_name)
+pseudobulk_name <- paste0(sc_ds, "-ncells", ncells, "-nsamples", nsamples)
+output_dir <- paste0(args$preprocess_dir, '/pseudo_bulk_sensitivity/', pseudobulk_name)
 
 if(dir.exists(output_dir)){
   # check if all files are present

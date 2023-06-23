@@ -112,6 +112,23 @@ process SIMULATE_BULK_UNKNOWN_CELL_TYPE {
       '''
 }
 
+process SIMULATE_BULK_RESOLUTION_ANALYSIS {
+  
+      publishDir "${params.preProcess_dir}/pseudo_bulk", mode: 'copy'
+
+      input:
+      each simulation_n_cells
+      val simulation_n_samples                    // hopefully we would need just one value here
+      each cell_types_fine
+      output:
+      val("${params.simulation_sc_dataset}-ncells${simulation_n_cells}-resolution_analysis")
+
+      shell:
+      '''
+      /nfs/home/students/adietrich/omnideconv/benchmark/pipeline/bin/simulateBulkNF_impact_cell_resolution.R '!{params.simulation_sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{simulation_n_samples}' '!{params.fraction_unknown_cell}' '!{params.preProcess_dir}' '!{params.ncores}' '!{params.cell_types_fine}' 
+      '''
+}
+
 process CREATE_SIGNATURE {
 
       input:
@@ -311,6 +328,34 @@ workflow simulation {
 							                            params.fractions_unknown_cells,
 							                            params.known_cell_types,
 							                            params.unknown_cell_type
+  )
+  
+  sc_files = Channel.fromList(create_file_list_sc(params.data_dir_sc, 
+                                                  params.single_cell_list, 
+                                                  params.single_cell_norm, 
+                                                  'false'))
+  
+  
+  signature = CREATE_SIGNATURE_FOR_SIUMULATION(sc_files,
+                                               "${params.preProcess_dir}/pseudo_bulk",
+                                               simulations.collect(),
+                                               params.simulation_pseudobulk_norm,
+                                               params.known_cell_types,
+                                               params.method_list,
+                                               'false')
+  
+  deconvolution = DECONVOLUTE(signature, 
+                             "${params.preProcess_dir}/pseudo_bulk",
+                             'false')
+  
+  metrics = COMPUTE_METRICS(deconvolution, "${params.preProcess_dir}/pseudo_bulk")
+  
+  // resolution analysis
+  
+  simulations = SIMULATE_BULK_RESOLUTION_ANALYSIS(params.simulation_n_cells,
+							                                    params.simulation_n_samples,
+							                                    params.fractions_unknown_cells,
+							                                    params.cell_types_finer_res
   )
   
   sc_files = Channel.fromList(create_file_list_sc(params.data_dir_sc, 

@@ -15,8 +15,7 @@ Options:
 <simulation_n_samples> number of pseudo-bulk samples
 <preprocess_dir> preprocessing output directory where pseudo-bulks will be stored
 <ncores> number of cores for parallel simulation
-<cell_types_minor> vector, subset of cell types to use for the simulation expressed in the FINER cell type annotation
-<major_cell_type> the cell type at the center of the resolution analysis, expressed in the COARSER cell type annotation" -> doc
+<cell_types_minor> vector, subset of cell types to use for the simulation expressed in the FINER cell type annotation" -> doc
 
 print(doc)
 
@@ -29,9 +28,8 @@ nsamples <- as.numeric(args$simulation_n_samples)
 fraction_unknown <- as.numeric(args$fraction_unknown_cells)
 cell_types_simulation <- args$cell_types_minor
 
-major_cell_type_resolution <- args$major_cell_type
 
-pseudobulk_name <- paste0(sc_ds, "-ncells", ncells, "-nsamples", nsamples, "-", 'resolution_', major_cell_type)
+pseudobulk_name <- paste0(sc_ds, "-ncells", ncells, "-nsamples", nsamples, "-", 'resolution_analysis')
 output_dir <- paste0(args$preprocess_dir, '/pseudo_bulk/', pseudobulk_name)
 
 if(dir.exists(output_dir)){

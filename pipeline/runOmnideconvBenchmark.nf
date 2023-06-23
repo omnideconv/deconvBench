@@ -76,7 +76,7 @@ process SIMULATE_BULK {
 
 process SIMULATE_BULK_SPILLOVER {
   
-      publishDir "${params.preProcess_dir}/pseudo_bulk", mode: 'copy'
+      publishDir "${params.preProcess_dir}/pseudo_bulk_spillover", mode: 'copy'
 
       input:
       val simulation_n_cells
@@ -94,7 +94,7 @@ process SIMULATE_BULK_SPILLOVER {
 
 process SIMULATE_BULK_UNKNOWN_CELL_TYPE {
   
-      publishDir "${params.preProcess_dir}/pseudo_bulk", mode: 'copy'
+      publishDir "${params.preProcess_dir}/pseudo_bulk_sensitivity", mode: 'copy'
 
       input:
       each simulation_n_cells
@@ -114,7 +114,7 @@ process SIMULATE_BULK_UNKNOWN_CELL_TYPE {
 
 process SIMULATE_BULK_RESOLUTION_ANALYSIS {
   
-      publishDir "${params.preProcess_dir}/pseudo_bulk", mode: 'copy'
+      publishDir "${params.preProcess_dir}/pseudo_bulk_resolution", mode: 'copy'
 
       input:
       each simulation_n_cells

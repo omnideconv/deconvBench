@@ -39,7 +39,7 @@ sc_norm <- args$sc_norm
 
 # Here we need to filter for those cell types that are in the simulated dataset. 
 # NOTE: in the resolution analysis the cell types are specified in terms of finest cell types
-position_vector <- sc_celltype_annotations %in% args$cell_types
+position_vector <- sc_celltype_annotations_fine %in% args$cell_types
 sc_matrix <- sc_matrix[, position_vector]
 sc_batch <- sc_batch[position_vector]
 sc_celltype_annotations <- sc_celltype_annotations[position_vector]
@@ -85,20 +85,13 @@ signature <- signature_workflow_general(sc_matrix, sc_celltype_annotations,
                                         bulk_name, bulk_norm, res_path_normal)
 # Deconvolution
 
+deconvolution <- deconvolution_workflow_general(sc_matrix, sc_celltype_annotations, 
+                                                'normal', sc_ds, sc_norm, sc_batch, signature, 
+                                                method, bulk_matrix, 
+                                                bulk_name, bulk_norm, res_path_normal)
 
-for(current.cell in args$cell_types){
-  
-  bulk_matrix <- readRDS(file.path(args$bulk_dir, args$bulk_name, paste0(args$bulk_name, '_', cur.cell.type, '_', args$bulk_norm, '.rds')))
-  bulk_matrix <- as.matrix(bulk_matrix)
-  
-  deconvolution <- deconvolution_workflow_general(sc_matrix, sc_celltype_annotations, 
-                                                  'normal', sc_ds, sc_norm, sc_batch, signature, 
-                                                  method, bulk_matrix, 
-                                                  bulk_name, bulk_norm, res_path_normal)
-  
-  saveRDS(deconvolution, file=paste0(res_path_normal, "/deconvolution_spillover_", current.cell, ".rds"))
-  
-}
+saveRDS(deconvolution, file=paste0(res_path_normal, "/deconvolution_spillover_", current.cell, ".rds"))
+
 
 
 

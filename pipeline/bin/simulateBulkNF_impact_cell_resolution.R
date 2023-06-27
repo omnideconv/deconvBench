@@ -29,7 +29,7 @@ fraction_unknown <- as.numeric(args$fraction_unknown_cells)
 cell_types_simulation <- args$cell_types_minor
 
 
-pseudobulk_name <- paste0(sc_ds, "-ncells", ncells, "-nsamples", nsamples)
+pseudobulk_name <- paste0(sc_ds, '_resolution_analysis')
 output_dir <- paste0(args$preprocess_dir, '/pseudo_bulk_resolution/', pseudobulk_name)
 
 if(dir.exists(output_dir)){

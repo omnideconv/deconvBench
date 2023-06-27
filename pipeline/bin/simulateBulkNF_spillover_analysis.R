@@ -27,7 +27,7 @@ ncells <- as.numeric(args$simulation_n_cells)
 nsamples <- as.numeric(args$simulation_n_samples)
 cell_types_simulation <- args$cell_types
 
-pseudobulk_name <- paste0(sc_ds, "-ncells", ncells, "-nsamples", nsamples)
+pseudobulk_name <- paste0(sc_ds, '_spillover_analysis')
 output_dir <- paste0(args$preprocess_dir, '/pseudo_bulk_spillover/', pseudobulk_name)
 
 if(dir.exists(output_dir)){

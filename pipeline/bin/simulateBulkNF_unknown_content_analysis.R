@@ -33,7 +33,7 @@ cell_types_simulation <- args$cell_types
 unknown_cell_type <- args$unknown_cell_type
 cell_types_simulation <- c(cell_types_simulation, unknown_cell_type)
 
-pseudobulk_name <- paste0(sc_ds, "-ncells", ncells, "-nsamples", nsamples)
+pseudobulk_name <- paste0(sc_ds, '_unknown_content_analysis')
 output_dir <- paste0(args$preprocess_dir, '/pseudo_bulk_sensitivity/', pseudobulk_name)
 
 if(dir.exists(output_dir)){
@@ -75,8 +75,8 @@ simulated_bulk <- SimBu::simulate_bulk(
 )
 
 
-saveRDS(SummarizedExperiment::assays(simulated_bulk$bulk)[["bulk_counts"]], paste0(output_dir,'/', pseudobulk_name, '_counts.rds'))
-saveRDS(SummarizedExperiment::assays(simulated_bulk$bulk)[["bulk_tpm"]], paste0(output_dir,'/', pseudobulk_name, '_tpm.rds'))
-saveRDS(t(simulated_bulk$cell_fractions), paste0(output_dir,'/', pseudobulk_name, '_facs.rds'))
+saveRDS(SummarizedExperiment::assays(simulated_bulk$bulk)[["bulk_counts"]], paste0(output_dir,'/', pseudobulk_name, '_', fraction_unknown, '_counts.rds'))
+saveRDS(SummarizedExperiment::assays(simulated_bulk$bulk)[["bulk_tpm"]], paste0(output_dir,'/', pseudobulk_name, '_', fraction_unknown, '_tpm.rds'))
+saveRDS(t(simulated_bulk$cell_fractions), paste0(output_dir,'/', pseudobulk_name, '_', fraction_unknown, '_facs.rds'))
 
 

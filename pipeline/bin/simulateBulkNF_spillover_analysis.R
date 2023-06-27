@@ -68,6 +68,11 @@ for (cur_cell_type in cell_types_simulation){
     BPPARAM = BiocParallel::MulticoreParam(workers = ncores),
     run_parallel = TRUE
   )
+  
+  saveRDS(SummarizedExperiment::assays(simulated_bulk$bulk)[["bulk_counts"]], paste0(output_dir,'/', pseudobulk_name, '_', cur_cell_type, '_counts.rds'))
+  saveRDS(SummarizedExperiment::assays(simulated_bulk$bulk)[["bulk_tpm"]], paste0(output_dir,'/', pseudobulk_name, '_', cur_cell_type, '_tpm.rds'))
+  saveRDS(t(simulated_bulk$cell_fractions), paste0(output_dir,'/', pseudobulk_name, '_facs.rds'))
+  
 }
 
 simulated_bulk <- merge_simulations(simulation_list)

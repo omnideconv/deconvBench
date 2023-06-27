@@ -119,7 +119,7 @@ process ANALYSIS_SPILLOVER {
       
       shell:
       '''
-      /vol/omnideconv_input/benchmark/pipeline/bin/analysisNF_spillover.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{cell_types}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{params.ncores}'
+      /vol/omnideconv_input/benchmark/pipeline/bin/analysisNF_spillover.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{cell_types}' '!{params.results_dir_spillover}' '!{run_preprocessing}' '!{params.ncores}'
       ''' 
 }
 
@@ -172,7 +172,7 @@ process ANALYSIS_UNKNOWN_CELL_TYPE {
       
       shell:
       '''
-      /vol/omnideconv_input/benchmark/pipeline/bin/analysisNF_unknown_content.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{cell_types}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{params.ncores}'
+      /vol/omnideconv_input/benchmark/pipeline/bin/analysisNF_unknown_content.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{cell_types}' '!{params.results_dir_unknown_content}' '!{run_preprocessing}' '!{params.ncores}'
       ''' 
 }
 
@@ -221,7 +221,7 @@ process ANALYSIS_RESOLUTION {
       
       shell:
       '''
-      /vol/omnideconv_input/benchmark/pipeline/bin/analysisNF_impact_cell_resolution.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{cell_types}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{params.ncores}'
+      /vol/omnideconv_input/benchmark/pipeline/bin/analysisNF_impact_cell_resolution.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{cell_types}' '!{params.results_dir_resolution}' '!{run_preprocessing}' '!{params.ncores}'
       ''' 
 }
 

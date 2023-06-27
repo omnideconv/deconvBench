@@ -84,7 +84,7 @@ process SIMULATE_BULK_SPILLOVER {
       val cell_types
 
       output:
-      val("${params.simulation_sc_dataset}-ncells${simulation_n_cells}-nsamples${spillover_samples_per_cell}-spillover")
+      val("${params.simulation_sc_dataset}-spillover")
 
       shell:
       '''
@@ -113,7 +113,7 @@ process ANALYSIS_SPILLOVER {
 
      
       output:
-      val("${params.simulation_sc_dataset}-unknown")
+      val("${params.simulation_sc_dataset}-spillover")
       
       beforeScript 'chmod o+rw .'
       
@@ -136,7 +136,7 @@ process SIMULATE_BULK_UNKNOWN_CELL_TYPE {
       val unknown_cell_type
 
       output:
-      val("${params.simulation_sc_dataset}-ncells${simulation_n_cells}-fraction_${unknown_cell_type}_${fraction_unknown_cell}-unknown")
+      val("${params.simulation_sc_dataset}-fraction_${unknown_cell_type}_${fraction_unknown_cell}-unknown")
 
       shell:
       '''
@@ -166,7 +166,7 @@ process ANALYSIS_UNKNOWN_CELL_TYPE {
 
      
       output:
-      val("${params.simulation_sc_dataset}-unknown")
+      val("${params.simulation_sc_dataset}-fraction_${unknown_cell_type}_${fraction_unknown_cell}-unknown")
       
       beforeScript 'chmod o+rw .'
       
@@ -186,7 +186,7 @@ process SIMULATE_BULK_RESOLUTION_ANALYSIS {
       val simulation_n_samples                   
       each cell_types_fine
       output:
-      val("${params.simulation_sc_dataset}-ncells${simulation_n_cells}-resolution_analysis")
+      val("${params.simulation_sc_dataset}-resolution_analysis")
 
       shell:
       '''

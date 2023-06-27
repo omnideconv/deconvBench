@@ -92,13 +92,45 @@ process SIMULATE_BULK_SPILLOVER {
       '''
 }
 
+process ANALYSIS_SPILLOVER {
+  
+      publishDir "${params.preProcess_dir}/pseudo_bulk_resolution", mode: 'copy'
+
+      input:
+      tuple path(sc_matrix), 
+            path(sc_anno), 
+            path(sc_batch), 
+            val(sc_ds), 
+            val(sc_norm), 
+            val(replicate), 
+            val(ct_fractions)
+      val bulk_dir
+      each bulk_ds
+      each bulk_norm
+      val cell_types
+      each method 
+      val run_preprocessing
+
+     
+      output:
+      val("${params.simulation_sc_dataset}-unknown")
+      
+      beforeScript 'chmod o+rw .'
+      
+      shell:
+      '''
+      /vol/omnideconv_input/benchmark/pipeline/bin/analysisNF_spillover.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{cell_types}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{params.ncores}'
+      ''' 
+}
+
+
 process SIMULATE_BULK_UNKNOWN_CELL_TYPE {
   
       publishDir "${params.preProcess_dir}/pseudo_bulk_sensitivity", mode: 'copy'
 
       input:
       each simulation_n_cells
-      val simulation_n_samples                    // hopefully we would need just one value here
+      val simulation_n_samples                    
       each fraction_unknown_cell
       val cell_types
       val unknown_cell_type
@@ -112,13 +144,46 @@ process SIMULATE_BULK_UNKNOWN_CELL_TYPE {
       '''
 }
 
+
+process ANALYSIS_UNKNOWN_CELL_TYPE {
+  
+      publishDir "${params.preProcess_dir}/pseudo_bulk_resolution", mode: 'copy'
+
+      input:
+      tuple path(sc_matrix), 
+            path(sc_anno), 
+            path(sc_batch), 
+            val(sc_ds), 
+            val(sc_norm), 
+            val(replicate), 
+            val(ct_fractions)
+      val bulk_dir
+      each bulk_ds
+      each bulk_norm
+      val cell_types
+      each method 
+      val run_preprocessing
+
+     
+      output:
+      val("${params.simulation_sc_dataset}-unknown")
+      
+      beforeScript 'chmod o+rw .'
+      
+      shell:
+      '''
+      /vol/omnideconv_input/benchmark/pipeline/bin/analysisNF_unknown_content.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{cell_types}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{params.ncores}'
+      ''' 
+}
+
+
 process SIMULATE_BULK_RESOLUTION_ANALYSIS {
   
       publishDir "${params.preProcess_dir}/pseudo_bulk_resolution", mode: 'copy'
 
       input:
       each simulation_n_cells
-      val simulation_n_samples                    // hopefully we would need just one value here
+      val simulation_n_samples                   
       each cell_types_fine
       output:
       val("${params.simulation_sc_dataset}-ncells${simulation_n_cells}-resolution_analysis")
@@ -128,6 +193,38 @@ process SIMULATE_BULK_RESOLUTION_ANALYSIS {
       /vol/omnideconv_input/benchmark/pipeline/bin/simulateBulkNF_impact_cell_resolution.R '!{params.simulation_sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{simulation_n_samples}' '!{params.fraction_unknown_cell}' '!{params.preProcess_dir}' '!{params.ncores}' '!{params.cell_types_fine}' 
       '''
 }
+
+process ANALYSIS_RESOLUTION {
+  
+      publishDir "${params.preProcess_dir}/pseudo_bulk_resolution", mode: 'copy'
+
+      input:
+      tuple path(sc_matrix), 
+            path(sc_anno), 
+            path(sc_batch), 
+            val(sc_ds), 
+            val(sc_norm), 
+            val(replicate), 
+            val(ct_fractions)
+      val bulk_dir
+      each bulk_ds
+      each bulk_norm
+      val cell_types
+      each method 
+      val run_preprocessing
+
+     
+      output:
+      val("${params.simulation_sc_dataset}-resolution_analysis")
+      
+      beforeScript 'chmod o+rw .'
+      
+      shell:
+      '''
+      /vol/omnideconv_input/benchmark/pipeline/bin/analysisNF_impact_cell_resolution.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{cell_types}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{params.ncores}'
+      ''' 
+}
+
 
 process CREATE_SIGNATURE {
 
@@ -308,17 +405,13 @@ workflow simulation {
                                                   'false'))
   
   
-  signature = CREATE_SIGNATURE_FOR_SIMULATION(sc_files,
-                                              "${params.preProcess_dir}/pseudo_bulk_spillover",
-                                              simulations.collect(),
-                                              params.simulation_pseudobulk_norm,
-                                              params.spillover_celltypes,
-                                              params.method_list,
-                                              'false')
-  
-  deconvolution = DECONVOLUTE(signature, 
-                             "${params.preProcess_dir}/pseudo_bulk_spillover",
-                             'false')
+  deconvolution = ANALYSIS_SPILLOVER(sc_files,
+                                     "${params.preProcess_dir}/pseudo_bulk_spillover",
+                                     simulations.collect(),
+                                     params.simulation_pseudobulk_norm,
+                                     params.spillover_celltypes,
+                                     params.method_list,
+                                     'false')
   
   // sensitivity to unknown content
   
@@ -335,20 +428,13 @@ workflow simulation {
                                                   'false'))
   
   
-  signature = CREATE_SIGNATURE_FOR_SIUMULATION(sc_files,
-                                               "${params.preProcess_dir}/pseudo_bulk_sensitivity",
-                                               simulations.collect(),
-                                               params.simulation_pseudobulk_norm,
-                                               params.known_cell_types,
-                                               params.method_list,
-                                               'false')
-  
-  deconvolution = DECONVOLUTE(signature, 
-                             "${params.preProcess_dir}/pseudo_bulk_sensitivity",
-                             'false')
-  
-  metrics = COMPUTE_METRICS(deconvolution, "${params.preProcess_dir}/pseudo_bulk_sensitivity")
-  
+  deconvolution = ANALYSIS_UNKNOWN_CONTENT(sc_files,
+                                           "${params.preProcess_dir}/pseudo_bulk_sensitivity",
+                                           simulations.collect(),   // I think this will need ot be edited but not 100% sure how 
+                                           params.simulation_pseudobulk_norm,
+                                           params.known_cell_types,
+                                           params.method_list,
+                                           'false')
   // resolution analysis
   
   simulations = SIMULATE_BULK_RESOLUTION_ANALYSIS(params.simulation_n_cells,
@@ -363,19 +449,13 @@ workflow simulation {
                                                   'false'))
   
   
-  signature = CREATE_SIGNATURE_FOR_SIUMULATION(sc_files,
-                                               "${params.preProcess_dir}/pseudo_bulk_resolution",
-                                               simulations.collect(),
-                                               params.simulation_pseudobulk_norm,
-                                               params.known_cell_types,
-                                               params.method_list,
-                                               'false')
-  
-  deconvolution = DECONVOLUTE(signature, 
-                             "${params.preProcess_dir}/pseudo_bulk_resolution",
-                             'false')
-  
-  metrics = COMPUTE_METRICS(deconvolution, "${params.preProcess_dir}/pseudo_bulk_resolution")
+  deconvolution = ANALYSIS_RESOLUTION(sc_files,
+                                      "${params.preProcess_dir}/pseudo_bulk_resolution",
+                                      simulations.collect(),
+                                      params.simulation_pseudobulk_norm,
+                                      params.known_cell_types,
+                                      params.method_list,
+                                      'false')
 }
 
 workflow subsampling {

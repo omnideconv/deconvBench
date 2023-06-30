@@ -471,7 +471,73 @@ workflow simulation {
                              "${params.preProcess_dir}/pseudo_bulk_resolution",
                              'false')
   
-  metrics = COMPUTE_METRICS(deconvolution, "${params.preProcess_dir}/pseudo_bulk_resolution")
+  metrics = COMPUTE_METRICS(deconvolution, "${params.preProcess_dir}/pseudo_bulk_resolution")///////////////////////////////////////////////////////////////////////////////
+  
+  // spillover
+  
+  simulations = SIMULATE_BULK_SPILLOVER(params.simulation_n_cells,
+							                          params.simulation_n_samples,
+							                          params.spillover_samples_per_cell,
+							                          params.spillover_celltypes
+  )
+  
+  sc_files = Channel.fromList(create_file_list_sc(params.data_dir_sc, 
+                                                  params.single_cell_list, 
+                                                  params.single_cell_norm, 
+                                                  'false'))
+  
+  
+  deconvolution = ANALYSIS_SPILLOVER(sc_files,
+                                     "${params.preProcess_dir}/pseudo_bulk_spillover",
+                                     simulations.collect(),
+                                     params.simulation_pseudobulk_norm,
+                                     params.spillover_celltypes,
+                                     params.method_list,
+                                     'false')
+  
+  // sensitivity to unknown content
+  
+  simulations = SIMULATE_BULK_SENSITIVITY(params.simulation_n_cells,
+							                            params.simulation_n_samples,
+							                            params.fractions_unknown_cells,
+							                            params.known_cell_types,
+							                            params.unknown_cell_type
+  )
+  
+  sc_files = Channel.fromList(create_file_list_sc(params.data_dir_sc, 
+                                                  params.single_cell_list, 
+                                                  params.single_cell_norm, 
+                                                  'false'))
+  
+  
+  deconvolution = ANALYSIS_UNKNOWN_CONTENT(sc_files,
+                                           "${params.preProcess_dir}/pseudo_bulk_sensitivity",
+                                           simulations.collect(),   // I think this will need ot be edited but not 100% sure how 
+                                           params.simulation_pseudobulk_norm,
+                                           params.known_cell_types,
+                                           params.method_list,
+                                           'false')
+  // resolution analysis
+  
+  simulations = SIMULATE_BULK_RESOLUTION_ANALYSIS(params.simulation_n_cells,
+							                                    params.simulation_n_samples,
+							                                    params.fractions_unknown_cells,
+							                                    params.cell_types_finer_res
+  )
+  
+  sc_files = Channel.fromList(create_file_list_sc(params.data_dir_sc, 
+                                                  params.single_cell_list, 
+                                                  params.single_cell_norm, 
+                                                  'false'))
+  
+  
+  deconvolution = ANALYSIS_RESOLUTION(sc_files,
+                                      "${params.preProcess_dir}/pseudo_bulk_resolution",
+                                      simulations.collect(),
+                                      params.simulation_pseudobulk_norm,
+                                      params.known_cell_types,
+                                      params.method_list,
+                                      'false')
 }
 
 workflow subsampling {

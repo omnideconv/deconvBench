@@ -52,7 +52,7 @@ process PREPROCESS_SINGLE_CELL {
 
       shell:
       '''
-      /vol/omnideconv_input/benchmark/pipeline/bin/preprocessSingleCellNF.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{ct_fractions}' '!{replicate}' '!{preProcess_dir}'
+      /nfs/home/students/adietrich/omnideconv/benchmark/pipeline/bin/preprocessSingleCellNF.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{ct_fractions}' '!{replicate}' '!{preProcess_dir}'
       '''
 }
 
@@ -70,7 +70,7 @@ process SIMULATE_BULK {
 
       shell:
       '''
-      /vol/omnideconv_input/benchmark/pipeline/bin/simulateBulkNF.R '!{params.simulation_sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{simulation_n_samples}' '!{simulation_scenario}' '!{params.preProcess_dir}' '!{params.ncores}'
+      /nfs/home/students/adietrich/omnideconv/benchmark/pipeline/bin/simulateBulkNF.R '!{params.simulation_sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{simulation_n_samples}' '!{simulation_scenario}' '!{params.preProcess_dir}' '!{params.ncores}'
       '''
 }
 
@@ -106,7 +106,7 @@ process CREATE_SIGNATURE {
 
       shell:
       '''
-      /vol/omnideconv_input/benchmark/pipeline/bin/computeSignaturesNF.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.ncores}'
+      /nfs/home/students/adietrich/omnideconv/benchmark/pipeline/bin/computeSignaturesNF.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.ncores}'
       ''' 
 }
 
@@ -137,7 +137,7 @@ process DECONVOLUTE {
   
 	shell:
 	'''
-	/vol/omnideconv_input/benchmark/pipeline/bin/runDeconvolutionNF.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.species_sc}' '!{params.ncores}' 
+	/nfs/home/students/adietrich/omnideconv/benchmark/pipeline/bin/runDeconvolutionNF.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.species_sc}' '!{params.ncores}' 
 	''' 
 }
 
@@ -152,7 +152,6 @@ process COMPUTE_METRICS {
 	      val(replicate),
 	      val(ct_fractions)
 	val bulk_dir
-      val run_preprocessing
   
 	output:
 	tuple val(method),
@@ -165,7 +164,7 @@ process COMPUTE_METRICS {
   
 	shell:
 	'''
-	/vol/omnideconv_input/benchmark/pipeline/bin/computeMetricsNF.R '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{replicate}' '!{ct_fractions}' '!{run_preprocessing}' '!{params.results_dir_general}'
+	/nfs/home/students/adietrich/omnideconv/benchmark/pipeline/bin/computeMetricsNF.R '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{replicate}' '!{ct_fractions}' '!{params.results_dir_general}'
 	''' 
 }
 
@@ -194,7 +193,7 @@ workflow simulation {
                              "${params.preProcess_dir}/pseudo_bulk",
                              'false')
   
-  metrics = COMPUTE_METRICS(deconvolution, "${params.preProcess_dir}/pseudo_bulk", 'false')
+  metrics = COMPUTE_METRICS(deconvolution, "${params.preProcess_dir}/pseudo_bulk")
   
 }
 
@@ -225,7 +224,7 @@ workflow subsampling {
                               params.data_dir_bulk,
                               'true')
 
-  metrics = COMPUTE_METRICS(deconvolution, params.data_dir_bulk, 'true')
+  metrics = COMPUTE_METRICS(deconvolution, params.data_dir_bulk)
   
 }
 
@@ -245,5 +244,5 @@ workflow {
   
   deconvolution = DECONVOLUTE(signature, params.data_dir_bulk, 'false')
 
-  metrics = COMPUTE_METRICS(deconvolution, params.data_dir_bulk, 'false')
+  metrics = COMPUTE_METRICS(deconvolution, params.data_dir_bulk)
 }

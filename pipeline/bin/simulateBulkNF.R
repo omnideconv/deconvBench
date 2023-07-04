@@ -24,10 +24,11 @@ print(args)
 
 sc_ds <- args$sc_ds
 scenario <- args$simulation_scenario
-ncells <- args$simulation_n_cells
-nsamples <- args$simulation_n_samples
+ncells <- as.numeric(args$simulation_n_cells)
+nsamples <- as.numeric(args$simulation_n_samples)
 
-output_dir <- paste0(args$preprocess_dir, '/pseudo_bulk/', sc_ds, "_ncells", ncells, "_nsamples", nsamples, "_", scenario)
+pseudobulk_name <- paste0(sc_ds, "-ncells", ncells, "-nsamples", nsamples, "-", scenario)
+output_dir <- paste0(args$preprocess_dir, '/pseudo_bulk/', pseudobulk_name)
 
 if(dir.exists(output_dir)){
   # check if all files are present
@@ -35,6 +36,8 @@ if(dir.exists(output_dir)){
     cat('Simulation with given parameters has already been done and will be skipped.')
     quit(save='no')
   }
+}else{
+  dir.create(output_dir)
 }
 
 sc_dir <- paste0(args$sc_dir, '/', sc_ds, '/')
@@ -43,7 +46,7 @@ sc_matrix_norm <- readRDS(paste0(sc_dir,'/matrix_norm_counts.rds'))
 sc_celltype_annotations <- readRDS(paste0(sc_dir,'/celltype_annotations.rds'))
 sc_batch <- readRDS(paste0(sc_dir,'/batch.rds'))
 
-ncores <- args$ncores
+ncores <- as.numeric(args$ncores)
 
 simbu_ds <- SimBu::dataset(
   annotation = data.frame(ID = colnames(sc_matrix_raw), cell_type = sc_celltype_annotations), 
@@ -63,7 +66,8 @@ simulated_bulk <- SimBu::simulate_bulk(
 )
 
 
-saveRDS(simulated_bulk$bulk, output_dir)
-saveRDS(simulated_bulk$cell_fractions, output_dir)
+saveRDS(SummarizedExperiment::assays(simulated_bulk$bulk)[["bulk_counts"]], paste0(output_dir,'/', pseudobulk_name, '_counts.rds'))
+saveRDS(SummarizedExperiment::assays(simulated_bulk$bulk)[["bulk_tpm"]], paste0(output_dir,'/', pseudobulk_name, '_tpm.rds'))
+saveRDS(t(simulated_bulk$cell_fractions), paste0(output_dir,'/', pseudobulk_name, '_facs.rds'))
 
 

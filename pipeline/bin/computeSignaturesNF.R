@@ -113,6 +113,18 @@ runtime <- system.time({
       temp_dir = scaden_tmp,
       verbose = TRUE
     )
+
+    deconvolution <- omnideconv::deconvolute_scaden(
+      bulk_gene_expression = bulk_matrix, 
+      signature = signature,
+      temp_dir = scaden_tmp
+    )
+
+    unlink(scaden_tmp, recursive=TRUE)
+
+    colnames(deconvolution) <- gsub('\\.',' ',colnames(deconvolution))
+    saveRDS(deconvolution, file=paste0(res_path, "/deconvolution.rds"))
+
   } else if(method == "autogenes"){
     sc_celltype_annotations <- escapeCelltypesAutogenes(sc_celltype_annotations)
     
@@ -170,6 +182,5 @@ runtime_text <- data.frame(method,
                       runtime[['elapsed']])
 
 saveRDS(runtime_text, file = paste0(res_path, "/runtime_signature.rds"))
-#saveRDS(profiling, file = paste0(res_path, "/memory_signature.rds"))
 
 

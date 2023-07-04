@@ -175,22 +175,24 @@ runtime <- system.time({
     )$theta
                 
   } else if (method == "scaden") {
-    scaden_tmp <- paste0('/vol/omnideconv_input/tmp/scaden_tmp_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
-    if(!dir.exists(paste0(scaden_tmp))){
-      dir.create(scaden_tmp)
-    }
-    deconvolution <- omnideconv::deconvolute_scaden(
-      bulk_gene_expression = bulk_matrix, 
-      signature = signature,
-      temp_dir = scaden_tmp
-    )
-    unlink(scaden_tmp, recursive=TRUE)
+    #scaden_tmp <- paste0('/vol/omnideconv_input/tmp/scaden_tmp_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
+    #if(!dir.exists(paste0(scaden_tmp))){
+    #  dir.create(scaden_tmp)
+    #}
+    #deconvolution <- omnideconv::deconvolute_scaden(
+    #  bulk_gene_expression = bulk_matrix, 
+    #  signature = signature,
+    #  temp_dir = scaden_tmp
+    #)
+    #unlink(scaden_tmp, recursive=TRUE)
+
+    deconvolution <- readRDS(paste0(res_path, "/deconvolution.rds"))
 
   }else if (method == 'autogenes') {
     deconvolution <- omnideconv::deconvolute_autogenes(
       bulk_gene_expression = bulk_matrix, 
       signature = signature,
-      max_iter = 1000000
+      max_iter = 10000
     )$proportions
     colnames(deconvolution) <- reEscapeCelltypesAutogenes(colnames(deconvolution))
     signature_dir <- paste0('/vol/omnideconv_input/tmp/autogenes_tmp_',sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate,"/")

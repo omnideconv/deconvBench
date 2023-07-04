@@ -152,6 +152,7 @@ process COMPUTE_METRICS {
 	      val(replicate),
 	      val(ct_fractions)
 	val bulk_dir
+      val run_preprocessing
   
 	output:
 	tuple val(method),
@@ -164,7 +165,7 @@ process COMPUTE_METRICS {
   
 	shell:
 	'''
-	/vol/omnideconv_input/benchmark/pipeline/bin/computeMetricsNF.R '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{replicate}' '!{ct_fractions}' '!{params.results_dir_general}'
+	/vol/omnideconv_input/benchmark/pipeline/bin/computeMetricsNF.R '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{replicate}' '!{ct_fractions}' '!{run_preprocessing}' '!{params.results_dir_general}'
 	''' 
 }
 
@@ -193,7 +194,7 @@ workflow simulation {
                              "${params.preProcess_dir}/pseudo_bulk",
                              'false')
   
-  metrics = COMPUTE_METRICS(deconvolution, "${params.preProcess_dir}/pseudo_bulk")
+  metrics = COMPUTE_METRICS(deconvolution, "${params.preProcess_dir}/pseudo_bulk", 'false')
   
 }
 
@@ -223,7 +224,7 @@ workflow subsampling {
                               params.data_dir_bulk,
                               'true')
 
-  metrics = COMPUTE_METRICS(deconvolution, params.data_dir_bulk)
+  metrics = COMPUTE_METRICS(deconvolution, params.data_dir_bulk, 'true')
   
 }
 
@@ -243,5 +244,5 @@ workflow {
   
   deconvolution = DECONVOLUTE(signature, params.data_dir_bulk, 'false')
 
-  metrics = COMPUTE_METRICS(deconvolution, params.data_dir_bulk)
+  metrics = COMPUTE_METRICS(deconvolution, params.data_dir_bulk, 'false')
 }

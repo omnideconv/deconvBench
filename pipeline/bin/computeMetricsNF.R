@@ -5,7 +5,7 @@ library(docopt)
 
 print("Started metric calculation ...")
 "Usage:
-  computeMetricsNF.R <sc_name> <sc_norm> <bulk_dir>  <bulk_name> <bulk_norm> <deconv_method> <replicate> <subset_value> <results_dir>
+  computeMetricsNF.R <sc_name> <sc_norm> <bulk_dir>  <bulk_name> <bulk_norm> <deconv_method> <replicate> <subset_value> <run_preprocessing> <results_dir>
 Options:
 <sc_name> name of sc datasets
 <sc_norm> count type of sc dataset
@@ -15,6 +15,7 @@ Options:
 <deconv_method>  deconv method
 <subset_value> if < 1: fraction of cell type; if > 1: number of cells per cell type
 <replicate> value of replicate number
+<run_preprocessing> if pre-processing has been done
 <results_dir> results (base) directory" -> doc
 
 print(doc)
@@ -26,8 +27,13 @@ sc_ds <- args$sc_name
 sc_norm <- args$sc_norm
 bulk_name <- args$bulk_name
 bulk_norm <- args$bulk_norm
-subset_value <- as.numeric(args$subset_value)
-replicate <- as.numeric(args$replicate)
+if(args$run_preprocessing == 'true'){
+  subset_value <- as.numeric(args$subset_value)
+  replicate <- as.numeric(args$replicate)
+}else{
+  subset_value <- 0
+  replicate <- 0
+}
 
 method <- args$deconv_method
 res_base_path <- args$results_dir

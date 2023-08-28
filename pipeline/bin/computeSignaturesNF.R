@@ -127,6 +127,9 @@ runtime <- system.time({
       output_dir = signature_dir,
       verbose = TRUE
     )
+  }else if (method == 'bayesprism'){
+    signature <- omnideconv::build_model_bayesprism()
+    
   } else {
     signature <- omnideconv::build_model(
       single_cell_object = sc_matrix,

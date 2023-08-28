@@ -7,15 +7,15 @@ library(SimBu)
 library(Matrix)
 
 "Usage:
-  simulateBulkNF.R <sc_ds> <sc_dir> <simulation_n_cells> <simulation_n_samples> <fraction_unknown_cells> <preprocess_dir> <ncores> <cell_types_minor>
+  simulateBulkNF.R <sc_ds> <sc_dir> <simulation_n_cells> <simulation_n_samples> <cell_types_minor> <preprocess_dir> <ncores> 
 Options:
 <sc_ds> name of sc dataset that is used for simulations
 <sc_dir> path to single cell directory
 <simulation_n_cells> number of cells in each pseudo-bulk
 <simulation_n_samples> number of pseudo-bulk samples
+<cell_types_minor> vector, subset of cell types to use for the simulation expressed in the FINER cell type annotation
 <preprocess_dir> preprocessing output directory where pseudo-bulks will be stored
-<ncores> number of cores for parallel simulation
-<cell_types_minor> vector, subset of cell types to use for the simulation expressed in the FINER cell type annotation" -> doc
+<ncores> number of cores for parallel simulation" -> doc
 
 print(doc)
 
@@ -26,8 +26,12 @@ sc_ds <- args$sc_ds
 ncells <- as.numeric(args$simulation_n_cells)
 nsamples <- as.numeric(args$simulation_n_samples)
 fraction_unknown <- as.numeric(args$fraction_unknown_cells)
-cell_types_simulation <- args$cell_types_minor
 
+
+
+cell_types_simulation <- gsub('\\[|]', '', args$cell_types_minor)
+cell_types_simulation <- strsplit(cell_types_simulation, ",")[[1]]
+print(cell_types_simulation)
 
 pseudobulk_name <- paste0(sc_ds, '_resolution_analysis')
 output_dir <- paste0(args$preprocess_dir, '/pseudo_bulk_resolution/', pseudobulk_name)
@@ -42,15 +46,15 @@ if(dir.exists(output_dir)){
   dir.create(output_dir)
 }
 
-sc_dir <- paste0(args$sc_dir, '/', sc_ds, '/')
+sc_dir <- paste0(args$sc_dir, sc_ds, '/')
 sc_matrix_raw <- readRDS(paste0(sc_dir,'/matrix_counts.rds')) 
 sc_matrix_norm <- readRDS(paste0(sc_dir,'/matrix_norm_counts.rds')) 
 sc_batch <- readRDS(paste0(sc_dir,'/batch.rds'))
 
 # Here we have the three level of annotations for fine, normal and coarse
-sc_celltype_annotations <- readRDS(paste0(sc_dir,'/celltype_annotations.rds'))
-sc_celltype_annotations_fine <- readRDS(paste0(sc_dir,'/celltype_annotations_fine.rds'))
-sc_celltype_annotations_coarse <- readRDS(paste0(sc_dir,'/celltype_annotations_coarse.rds'))
+sc_celltype_annotations <- readRDS(paste0(sc_dir,'celltype_annotations.rds'))
+sc_celltype_annotations_fine <- readRDS(paste0(sc_dir,'celltype_annotations_fine.rds'))
+sc_celltype_annotations_coarse <- readRDS(paste0(sc_dir,'celltype_annotations_coarse.rds'))
 
 
 ncores <- as.numeric(args$ncores)

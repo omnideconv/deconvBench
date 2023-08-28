@@ -6,7 +6,7 @@ library(docopt)
 library(Biobase)
 library(omnideconv)
 reticulate::use_miniconda(condaenv = "r-omnideconv", required = TRUE)
-source('./general_functions/deconvolution_workflow_for_simulation.R')
+source('/vol/omnideconv_input/benchmark/pipeline/bin/general_functions/deconvolution_workflow_for_simulation.R')
 
 #Sys.setenv("LD_LIBRARY_PATH"="/nfs/home/extern/l.merotto/.conda/envs/benchmark_env/x86_64-conda-linux-gnu/lib")
 
@@ -37,7 +37,10 @@ sc_batch <- readRDS(file.path(args$sc_batch))
 sc_ds <- args$sc_name
 sc_norm <- args$sc_norm
 
-sc_celltype_annotations_fine <- readRDS(file.path(gsub('celltype_annotations.rds', 'celltype_annotations_fine.rds', args$sc_anno)))
+print(args$sc_anno)
+fine_type <- gsub('celltype_annotations.rds', 'celltype_annotations_fine.rds', args$sc_anno)
+print(fine_type)
+sc_celltype_annotations_fine <- readRDS(file.path(fine_type))
 sc_celltype_annotations_coarse <- readRDS(file.path(gsub('celltype_annotations.rds', 'celltype_annotations_coarse.rds', args$sc_anno)))
 
 # Here we need to filter for those cell types that are in the simulated dataset. 
@@ -84,46 +87,52 @@ reEscapeCelltypesAutogenes <- function(celltype){
   return(gsub("xxxx", " ", celltype))
 }
 
+subset_list <- subset_cells(sc_matrix, sc_celltype_annotations, sc_batch, 500, 22)
 
+sc_matrix <- subset_list$data
+sc_celltype_annotations <- subset_list$annotations
+sc_batch <- subset_list$batch_id
 
 # Signature building
 
 signature <- signature_workflow_general(sc_matrix, sc_celltype_annotations, 
-                                        'normal', sc_ds, sc_norm, sc_batch, bulk_matrix, method, 
-                                        bulk_name, bulk_norm, res_path_normal)
+                                        'normal', sc_ds, sc_norm, sc_batch, method, bulk_matrix, 
+                                        bulk_name, bulk_norm, ncores, res_path_normal)
 
 
 signature.coarse <- signature_workflow_general(sc_matrix, sc_celltype_annotations_coarse, 
-                                               'coarse', sc_ds, sc_norm, sc_batch, bulk_matrix, method, 
-                                               bulk_name, bulk_norm, res_path_coarse)
+                                               'coarse', sc_ds, sc_norm, sc_batch, method, bulk_matrix,  
+                                               bulk_name, bulk_norm, ncores, res_path_coarse)
 
 
 signature.fine <- signature_workflow_general(sc_matrix, sc_celltype_annotations_fine, 
-                                             'fine', sc_ds, sc_norm, sc_batch, bulk_matrix, method, 
-                                              bulk_name, bulk_norm, res_path_fine)
+                                             'fine', sc_ds, sc_norm, sc_batch, method, bulk_matrix,  
+                                              bulk_name, bulk_norm, ncores, res_path_fine)
 
 
 # Deconvolution
 
 deconvolution <- deconvolution_workflow_general(sc_matrix, sc_celltype_annotations, 
-                                        'normal', sc_ds, sc_norm, sc_batch, bulk_matrix, signature, 
-                                        method, bulk_name, bulk_norm, res_path_normal)
+                                                'normal', sc_ds, sc_norm, sc_batch, signature, 
+                                                method, bulk_matrix, bulk_name, bulk_norm, ncores,res_path_normal)
 
 
-deconvolution.coarse <- deconvolution_workflow_general(sc_matrix, sc_celltype_annotations_coarse, 
-                                               'coarse', sc_ds, sc_norm, sc_batch, bulk_matrix, signature.coarse,
-                                               method, bulk_name, bulk_norm, res_path_coarse)
+deconvolution.coarse <- deconvolution_workflow_general(sc_matrix, sc_celltype_annotations, 
+                                                       'coarse', sc_ds, sc_norm, sc_batch, signature, 
+                                                       method, bulk_matrix, bulk_name, bulk_norm, ncores,res_path_coarse)
 
 
-deconvolution.fine <- deconvolution_workflow_general(sc_matrix, sc_celltype_annotations_fine, 
-                                                 'fine', sc_ds, sc_norm, sc_batch, bulk_matrix, signature.fine, 
-                                                 method, bulk_name, bulk_norm, res_path_fine)
+deconvolution.fine <- deconvolution_workflow_general(sc_matrix, sc_celltype_annotations, 
+                                                     'fine', sc_ds, sc_norm, sc_batch, signature, 
+                                                     method, bulk_matrix, bulk_name, bulk_norm, ncores,res_path_fine)
 
 saveRDS(deconvolution, file=paste0(res_path_normal, "/deconvolution.rds"))
 saveRDS(deconvolution.coarse, file=paste0(res_path_coarse, "/deconvolution.rds"))
 saveRDS(deconvolution.fine, file=paste0(res_path_fine, "/deconvolution.rds"))
 
 
+if(method=='autogenes'){unlink(signature)}
+if(method=='scaden'){unlink(signature)}
 
 
 

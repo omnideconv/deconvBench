@@ -2,12 +2,12 @@
 
 print("Started simulation script ...")
 
-library(docopt)
 library(SimBu)
 library(Matrix)
+reticulate::use_miniconda(condaenv = "r-omnideconv", required = TRUE)
 
 "Usage:
-  simulateBulkNF.R <sc_ds> <sc_dir> <simulation_n_cells> <simulation_n_samples> <cell_types> <preprocess_dir> <ncores> 
+  simulateBulkNF_spillover_analysis.R <sc_ds> <sc_dir> <simulation_n_cells> <simulation_n_samples> <cell_types> <preprocess_dir> <ncores> 
 Options:
 <sc_ds> name of sc dataset that is used for simulations
 <sc_dir> path to single cell directory
@@ -17,7 +17,7 @@ Options:
 <preprocess_dir> preprocessing output directory where pseudo-bulks will be stored
 <ncores> number of cores for parallel simulation" -> doc
 
-print(doc)
+#print(doc)
 
 args <- docopt::docopt(doc)
 print(args)
@@ -25,10 +25,15 @@ print(args)
 sc_ds <- args$sc_ds
 ncells <- as.numeric(args$simulation_n_cells)
 nsamples <- as.numeric(args$simulation_n_samples)
-cell_types_simulation <- args$cell_types
 
-pseudobulk_name <- paste0(sc_ds, '_spillover_analysis')
-output_dir <- paste0(args$preprocess_dir, '/pseudo_bulk_spillover/', pseudobulk_name)
+cell_types_simulation <- gsub('\\[|]', '', args$cell_types)
+cell_types_simulation <- strsplit(cell_types_simulation, ",")[[1]]
+print(cell_types_simulation)
+
+pseudobulk_name <- paste0(sc_ds, '_spillover')
+output_dir <- paste0(args$preprocess_dir, '/pseudo_bulk_spillover/', pseudobulk_name, '_analysis')
+
+
 
 if(dir.exists(output_dir)){
   # check if all files are present
@@ -39,6 +44,8 @@ if(dir.exists(output_dir)){
 }else{
   dir.create(output_dir)
 }
+
+print('Dir created')
 
 sc_dir <- paste0(args$sc_dir, '/', sc_ds, '/')
 sc_matrix_raw <- readRDS(paste0(sc_dir,'/matrix_counts.rds')) 
@@ -55,10 +62,12 @@ simbu_ds <- SimBu::dataset(
   name = sc_ds
 )
 
+print('Dataset created')
+
 simulation_list = list()
 for (cur_cell_type in cell_types_simulation){
   
-  simulation_list[[cur_cell_type]] <-  SimBu::simulate_bulk(
+  simulated_bulk <-  SimBu::simulate_bulk(
     data =  simbu_ds,
     scenario = 'pure',
     pure_cell_type = cur_cell_type,
@@ -68,10 +77,14 @@ for (cur_cell_type in cell_types_simulation){
     BPPARAM = BiocParallel::MulticoreParam(workers = ncores),
     run_parallel = TRUE
   )
+
+  cur_cell_type <- gsub(' ', '_', cur_cell_type)
+
+  simulation_list[[cur_cell_type]] <- simulated_bulk
   
   saveRDS(SummarizedExperiment::assays(simulated_bulk$bulk)[["bulk_counts"]], paste0(output_dir,'/', pseudobulk_name, '_', cur_cell_type, '_counts.rds'))
   saveRDS(SummarizedExperiment::assays(simulated_bulk$bulk)[["bulk_tpm"]], paste0(output_dir,'/', pseudobulk_name, '_', cur_cell_type, '_tpm.rds'))
-  saveRDS(t(simulated_bulk$cell_fractions), paste0(output_dir,'/', pseudobulk_name, '_facs.rds'))
+  saveRDS(t(simulated_bulk$cell_fractions), paste0(output_dir,'/', pseudobulk_name, '_', cur_cell_type, '_facs.rds'))
   
 }
 

@@ -58,9 +58,12 @@ RUN apt-get update -y && apt-get --no-install-recommends --fix-broken install -y
     libgdal-dev \
     cmake
 
+
 RUN R -e "install.packages(c('pak','pkgdepends','devtools'), repos='https://cloud.r-project.org')"
-RUN R -e "pak::pkg_install(c('renozao/NMF','remotes','harmony','terra'))"
-RUN R -e "pak::pkg_install('omnideconv/omnideconv@benchmark', dependencies = TRUE)"
+RUN R -e "pak::pkg_install(c('remotes','harmony','terra'))"
+RUN echo "GITHUB_PAT=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" >> /root/.Renviron
+RUN R -e "remotes::install_github('omnideconv/omnideconv@benchmark', dependencies = TRUE, auth_token='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')"
+RUN R -e "remotes::install_version('NMF', '0.26', repos='https://cloud.r-project.org')"
 
 
 # set systems variable RETICULATE_PYTHON to new conda env, so that omnideconv will use it

@@ -2,11 +2,10 @@
 
 print("Started analysis for spillover script ...")
 
-library(docopt)
 library(Biobase)
 library(omnideconv)
 reticulate::use_miniconda(condaenv = "r-omnideconv", required = TRUE)
-source('./general_functions/deconvolution_workflow_for_simulation.R')
+source('/vol/omnideconv_input/benchmark/pipeline/bin/general_functions/deconvolution_workflow_for_simulation.R')
 
 #Sys.setenv("LD_LIBRARY_PATH"="/nfs/home/extern/l.merotto/.conda/envs/benchmark_env/x86_64-conda-linux-gnu/lib")
 
@@ -39,17 +38,23 @@ sc_norm <- args$sc_norm
 
 # Here we need to filter for those cell types that are in the simulated dataset. 
 # NOTE: in the resolution analysis the cell types are specified in terms of finest cell types
-position_vector <- sc_celltype_annotations %in% args$cell_types
+
+cell_types_simulation <- gsub('\\[|]', '', args$cell_types)
+cell_types_simulation <- strsplit(cell_types_simulation, ",")[[1]]
+print(cell_types_simulation)
+
+position_vector <- sc_celltype_annotations %in% cell_types_simulation
 sc_matrix <- sc_matrix[, position_vector]
 sc_batch <- sc_batch[position_vector]
 sc_celltype_annotations <- sc_celltype_annotations[position_vector]
 
 bulk_name <- args$bulk_name
 bulk_norm <- args$bulk_norm
-bulk_matrix <- readRDS(file.path(args$bulk_dir, args$bulk_name, paste0(args$bulk_name, '_', args$bulk_norm, '.rds')))
+bulk_matrix <- readRDS(file.path(args$bulk_dir, paste0(args$bulk_name, '_analysis'), paste0(args$bulk_name, '_', args$bulk_norm, '.rds')))
 bulk_matrix <- as.matrix(bulk_matrix)
 
 method <- args$deconv_method
+
 res_base_path <- args$results_dir
 
 if(args$run_preprocessing == 'true'){
@@ -63,7 +68,7 @@ if(args$run_preprocessing == 'true'){
 res_path_normal <- paste0(res_base_path, '/', method, "_", sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm)
 
 
-dir.create(res_path, recursive = TRUE, showWarnings = TRUE)
+dir.create(res_path_normal, recursive = TRUE, showWarnings = TRUE)
 
 
 escapeCelltypesAutogenes <- function(celltype){
@@ -78,27 +83,39 @@ reEscapeCelltypesAutogenes <- function(celltype){
 }
 
 
+subset_list <- subset_cells(sc_matrix, sc_celltype_annotations, sc_batch, 500, 22)
+
+sc_matrix <- subset_list$data
+sc_celltype_annotations <- subset_list$annotations
+sc_batch <- subset_list$batch_id
+
 # Signature building 
 
 signature <- signature_workflow_general(sc_matrix, sc_celltype_annotations, 
-                                        'normal', sc_ds, sc_norm, sc_batch, bulk_matrix, method, 
-                                        bulk_name, bulk_norm, res_path_normal)
+                                        'normal', sc_ds, sc_norm, sc_batch, method, bulk_matrix,  
+                                        bulk_name, bulk_norm, ncores, res_path_normal)
+
+print('Signature built')
 # Deconvolution
 
 
-for(current.cell in args$cell_types){
+for(cur_cell_type in cell_types_simulation){
   
-  bulk_matrix <- readRDS(file.path(args$bulk_dir, args$bulk_name, paste0(args$bulk_name, '_', cur.cell.type, '_', args$bulk_norm, '.rds')))
+  cur_cell_type <- gsub(' ', '_', cur_cell_type)
+  bulk_matrix <- readRDS(file.path(args$bulk_dir, paste0(args$bulk_name, '_analysis'), paste0(args$bulk_name, '_', cur_cell_type, '_', args$bulk_norm, '.rds')))
   bulk_matrix <- as.matrix(bulk_matrix)
   
   deconvolution <- deconvolution_workflow_general(sc_matrix, sc_celltype_annotations, 
                                                   'normal', sc_ds, sc_norm, sc_batch, signature, 
                                                   method, bulk_matrix, 
-                                                  bulk_name, bulk_norm, res_path_normal)
+                                                  bulk_name, bulk_norm, ncores, res_path_normal)
   
-  saveRDS(deconvolution, file=paste0(res_path_normal, "/deconvolution_spillover_", current.cell, ".rds"))
+  saveRDS(deconvolution, file=paste0(res_path_normal, "/deconvolution_spillover_", cur_cell_type, ".rds"))
   
 }
+
+if(method=='autogenes'){unlink(signature)}
+if(method=='scaden'){unlink(signature)}
 
 
 

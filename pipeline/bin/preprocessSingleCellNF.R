@@ -46,6 +46,7 @@ sc_batch <- readRDS(file.path(args$sc_batch))
 n_cell_types <- length(unique(sc_celltype_annotations))
 n_cells_per_ct <- table(sc_celltype_annotations) 
 
+
 cat(paste0("Preprocessing sc_matrix file with subset_value=", subset_value, " and replicate=", replicate, "\n"))
 
 # function to transform string to integer to use as seed
@@ -95,11 +96,24 @@ subset_matrix <- sc_matrix[,cell_ids]
 subset_annot <- sc_celltype_annotations[cell_ids]
 subset_batch <- sc_batch[cell_ids]
 
+
 dir.create(output_dir, recursive = T, showWarnings = TRUE)
 print(output_dir)
 saveRDS(subset_matrix, paste0(output_dir,'/matrix_subsampled.rds'))
 saveRDS(subset_annot, paste0(output_dir,'/celltype_annotations.rds'))
 saveRDS(subset_batch, paste0(output_dir,'/batch.rds'))
+
+if(file.exists(file.path(gsub('celltype_annotations.rds', 'celltype_annotations_coarse.rds', args$sc_anno)))){
+  sc_celltype_annotations_coarse <- readRDS(file.path(gsub('celltype_annotations.rds', 'celltype_annotations_coarse.rds', args$sc_anno)))
+  subset_annot_coarse <- sc_celltype_annotations_coarse[cell_ids]
+  saveRDS(subset_annot_coarse, paste0(output_dir,'/celltype_annotations_coarse.rds'))
+}
+
+if(file.exists(file.path(gsub('celltype_annotations.rds', 'celltype_annotations_fine.rds', args$sc_anno)))){
+  sc_celltype_annotations_fine <- readRDS(file.path(gsub('celltype_annotations.rds', 'celltype_annotations_fine.rds', args$sc_anno)))
+  subset_annot_fine <- sc_celltype_annotations_fine[cell_ids]
+  saveRDS(subset_annot_fine, paste0(output_dir,'/celltype_annotations_fine.rds'))
+}
 
 cat(paste0("Preprocessed sc_matrix file stored in '", output_dir, "'\n"))
 

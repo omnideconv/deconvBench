@@ -1,0 +1,10 @@
+method,sc_norm,bulk_norm
+autogenes,cpm,tpm
+bayesprism,counts,counts
+bisque,counts,counts
+cibersortx,cpm,tpm
+dwls,counts,tpm
+music,counts,tpm
+scaden,counts,tpm
+scdc,counts,tpm
+rectangle,counts,tpm

@@ -34,7 +34,7 @@ RUN conda --version
 
 
 # create new conda environment, in which scaden and autogenes is installed
-RUN conda create -n r-omnideconv python=3.9
+RUN conda create -n r-omnideconv python=3.10
 RUN echo "source activate r-omnideconv" > ~/.bashrc
 
 ENV PATH="/root/.local/share/r-miniconda/envs/omnideconv/bin:${PATH}"
@@ -42,6 +42,9 @@ ARG PATH="/root/.local/share/r-miniconda/envs/omnideconv/bin:${PATH}"
 
 RUN conda run --no-capture-output -n r-omnideconv pip install scaden
 RUN conda run --no-capture-output -n r-omnideconv pip install autogenes
+RUN conda run --no-capture-output -n r-omnideconv pip install loguru
+RUN conda run --no-capture-output -n r-omnideconv pip install pydeseq2==0.4.1  
+RUN conda run --no-capture-output -n r-omnideconv pip install quadprog==0.1.11
 
 # install omnideconv with all dependencies
 RUN apt-get update -y && apt-get --no-install-recommends --fix-broken install -y curl \
@@ -61,8 +64,8 @@ RUN apt-get update -y && apt-get --no-install-recommends --fix-broken install -y
 
 RUN R -e "install.packages(c('pak','pkgdepends','devtools'), repos='https://cloud.r-project.org')"
 RUN R -e "pak::pkg_install(c('remotes','harmony','terra'))"
-RUN echo "GITHUB_PAT=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" >> /root/.Renviron
-RUN R -e "remotes::install_github('omnideconv/omnideconv@benchmark', dependencies = TRUE, auth_token='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')"
+RUN echo  "GITHUB_PAT=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" >> /root/.Renviron
+RUN R -e "remotes::install_github('omnideconv/omnideconv@benchmark', dependencies = TRUE, auth_token='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')"
 RUN R -e "remotes::install_version('NMF', '0.26', repos='https://cloud.r-project.org')"
 
 

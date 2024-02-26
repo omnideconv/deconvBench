@@ -30,8 +30,8 @@ cell_types_simulation <- gsub('\\[|]', '', args$cell_types)
 cell_types_simulation <- strsplit(cell_types_simulation, ",")[[1]]
 print(cell_types_simulation)
 
-pseudobulk_name <- paste0(sc_ds, '_spillover')
-output_dir <- paste0(args$preprocess_dir, '/pseudo_bulk_spillover/', pseudobulk_name, '_analysis')
+pseudobulk_name <- paste0(sc_ds, '_spillover_sim')
+output_dir <- paste0(args$preprocess_dir, '/pseudo_bulk_spillover/', pseudobulk_name)
 
 
 

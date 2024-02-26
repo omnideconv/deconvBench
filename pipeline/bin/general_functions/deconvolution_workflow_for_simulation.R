@@ -14,14 +14,14 @@ reEscapeCelltypesAutogenes <- function(celltype){
 
 
 # Function to subset a dataset
-subset_cells <- function(cell_matrix, annotations, batch_ids, num_cells, seed, coarse_annotations = NULL, fine_annotation = NULL){
+subset_cells <- function(cell_matrix, annotations, batch_ids, num_cells, seed, coarse_annotations = NULL, fine_annotations = NULL){
   
   seurat.obj <- Seurat::CreateSeuratObject(counts=cell_matrix,
                                            assay="RNA")
-  seurat.obj <- AddMetaData(seurat.obj, 
+  seurat.obj <- Seurat::AddMetaData(seurat.obj, 
                             batch_ids, 
                             'batch_ids')
-  seurat.obj <- AddMetaData(seurat.obj,
+  seurat.obj <- Seurat::AddMetaData(seurat.obj,
                             annotations,
                             'cell_type')
   set.seed(seed)
@@ -40,16 +40,16 @@ subset_cells <- function(cell_matrix, annotations, batch_ids, num_cells, seed, c
 
       sampled.data <- subset(seurat.obj, 
                              cells = sampled.metadata$barcode)
-      ls <- list('data' = sampled.data@assays$RNA@counts %>%
+      ls <- list('data' = sampled.data[["RNA"]]$counts %>%
                   as.matrix(.),
                  'annotations' = sampled.data@meta.data$cell_type,
                  'batch_id' = sampled.data@meta.data$batch_ids)
   
   } else {
-      seurat.obj <- AddMetaData(seurat.obj,
+      seurat.obj <- Seurat::AddMetaData(seurat.obj,
                                 coarse_annotations,
                                 'cell_type_coarse')
-      seurat.obj <- AddMetaData(seurat.obj,
+      seurat.obj <- Seurat::AddMetaData(seurat.obj,
                                 fine_annotations,
                                 'cell_type_fine')   
       sampled.metadata <- seurat.obj@meta.data %>%
@@ -66,7 +66,7 @@ subset_cells <- function(cell_matrix, annotations, batch_ids, num_cells, seed, c
 
         sampled.data <- subset(seurat.obj, 
                              cells = sampled.metadata$barcode)
-        ls <- list('data' = sampled.data@assays$RNA@counts %>%
+        ls <- list('data' = sampled.data[["RNA"]]$counts %>%
                     as.matrix(.),
                    'annotations' = sampled.data@meta.data$cell_type,
                    'annotations_fine' = sampled.data@meta.data$cell_type_fine,
@@ -82,7 +82,9 @@ signature_workflow_general <- function(sc_matrix, annotations, annotation_catego
   
   # Signature building part
   # Dependent on which method we have 
-  if(method == 'autogenes' | method == 'scaden'){
+  if (method %in% c('autogenes','bisque','music','scdc','bayesprism')){
+    signature <- NULL
+  } else if(method == 'scaden'){
     annotations <- escapeCelltypesAutogenes(annotations)
     
     signature_dir <- paste0(res_path, '/tmp/', method, '_tmp_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_", annotation_category, "_annot/")
@@ -92,37 +94,15 @@ signature_workflow_general <- function(sc_matrix, annotations, annotation_catego
       dir.create(signature_dir, recursive = TRUE)
     }
     
-    if(method == 'autogenes'){
-      signature <- omnideconv::build_model_autogenes(
-        sc_matrix,
-        annotations,
-        output_dir = signature_dir,
-        verbose = TRUE
-      )
-
-      old_signatures <- list.files(res_path, ".pickle", full.names = TRUE) 
+    scaden_tmp <- paste0(res_path, '/tmp/scaden_tmp_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_", annotation_category, "_annot")
     
-    if(length(old_signatures > 0)){
-      print('Found old signatures in output directory; they will be removed.')
-      sapply(old_signatures, file.remove)
-    }
-    
-    #We copy the new signature to the results directory
-    file.copy(signature, res_path, recursive = TRUE)
-    
-    signature <- list.files(res_path, ".pickle", full.names = TRUE)
-    } else {
-      scaden_tmp <- paste0(res_path, '/tmp/scaden_tmp_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_", annotation_category, "_annot")
-    
-      signature <- omnideconv::build_model_scaden(
+    signature <- omnideconv::build_model_scaden(
         sc_matrix,
         annotations,
         bulk_matrix,
         temp_dir = scaden_tmp,
         verbose = TRUE
-      )
-    }
-    
+    )
   } else if(method == 'cibersortx'){
     
     omnideconv::set_cibersortx_credentials("lorenzo.merotto@studenti.unipd.it",
@@ -162,6 +142,29 @@ signature_workflow_general <- function(sc_matrix, annotations, annotation_catego
       ncores = ncores
     )
     
+  } else if (method == "rectangle") {
+    AnnData <- reticulate::import("anndata")
+    pd <- reticulate::import("pandas")
+    # convert sc_matrix to adata object
+    counts <- as.data.frame(t(sc_matrix))
+    annotations_df <- pd$DataFrame(list(annotations))
+    annotations_df <- t(annotations_df)
+    rownames(annotations_df) <- rownames(counts)
+    colnames(annotations_df) <- c("cell_type")
+    annotations_df <- as.data.frame(annotations_df)
+    
+    adata <- AnnData$AnnData(counts, obs=annotations_df)
+    row_indices <- rownames(bulk_matrix)
+
+    # remove counts and annotations_df to free memory
+    rm(counts, annotations_df)
+    signature <- rp$pp$build_rectangle_signatures(adata,bulk_genes=row_indices)
+    rectangle_tmp <- paste0('/vol/omnideconv_results/results_tmp/rectangle_',sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", annotation_category, "_annot")
+    if(!dir.exists(rectangle_tmp)) {
+      dir.create(rectangle_tmp)
+    }
+    # save signature to file as pkl
+    reticulate::py_save_object(signature, file = paste0(rectangle_tmp, "/signature_result.pkl"))
   } else{
     signature <- omnideconv::build_model(
       single_cell_object = sc_matrix,
@@ -184,18 +187,15 @@ signature_workflow_general <- function(sc_matrix, annotations, annotation_catego
 deconvolution_workflow_general <- function(sc_matrix, annotations, annotation_category, sc_ds, sc_norm, sc_batch, signature, method, bulk_matrix, bulk_name, bulk_norm, ncores, res_path){
   
   if(method == 'autogenes'){
-    
-    signature_dir <- paste0(res_path, '/tmp/autogenes_tmp_',sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_", annotation_category, "_annot/")
-    
     deconvolution <- omnideconv::deconvolute_autogenes(
+      single_cell_object = sc_matrix,
+      cell_type_annotations = annotations, 
       bulk_gene_expression = bulk_matrix, 
-      signature = signature,
-      max_iter = 1000000
+      max_iter = 10000,
+      ngen=5000,
+      verbose=TRUE
     )$proportions
     colnames(deconvolution) <- reEscapeCelltypesAutogenes(colnames(deconvolution))
-    unlink(signature_dir, recursive = TRUE)
-    #file.remove(signature)
-    
   } else if(method == 'scaden'){
     
     scaden_tmp <- paste0(res_path, '/tmp/scaden_tmp_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_", annotation_category, "_annot")
@@ -205,6 +205,7 @@ deconvolution_workflow_general <- function(sc_matrix, annotations, annotation_ca
       signature = signature,
       temp_dir = scaden_tmp
     )
+    colnames(deconvolution) <- reEscapeCelltypesAutogenes(colnames(deconvolution))
     #unlink(scaden_tmp, recursive=TRUE)
     
   } else if(method == 'cibersortx'){
@@ -264,9 +265,32 @@ deconvolution_workflow_general <- function(sc_matrix, annotations, annotation_ca
       single_cell_object = sc_matrix, 
       cell_type_annotations = annotations, 
       n_cores = ncores,
-      species = 'hs'
+      species = 'hs',
+      update_gibbs = FALSE,
+      which_theta = 'first'
     )$theta
     
+  } else if (method == 'rectangle') {
+    pd <- reticulate::import("pandas")
+    AnnData <- reticulate::import("anndata")
+    rectangle_tmp <- paste0('/vol/omnideconv_results/results_tmp/rectangle_',sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", annotation_category, "_annot")
+    if(!dir.exists(rectangle_tmp)) {
+      dir.create(rectangle_tmp)
+    }
+    signature <- reticulate::py_load_object(paste0(rectangle_tmp, "/signature_result.pkl"))
+    bulk_obs <- colnames(bulk_matrix)
+    bulk_obs_df <- pd$DataFrame(list(bulk_obs))
+    bulk_obs_df <- t(bulk_obs_df)
+    rownames(bulk_obs_df) <- colnames(bulk_matrix)
+    colnames(bulk_obs_df) <- c("bulk")
+    bulk_obs_df <- as.data.frame(bulk_obs_df)
+    bulk_matrix <- t(bulk_matrix)
+    bulk_matrix <- as.data.frame(bulk_matrix)
+
+
+    bulk_adata <- AnnData$AnnData(bulk_matrix, obs=bulk_obs_df)
+    deconvolution <- rp$tl$deconvolution(signatures = signature, bulks = bulk_adata)
+
   } else {
     
     deconvolution <- omnideconv::deconvolute(
@@ -284,3 +308,71 @@ deconvolution_workflow_general <- function(sc_matrix, annotations, annotation_ca
   deconvolution
 }
 
+compute_metrics <- function(ref_facs, deconvolution, metric = c('cor', 'rmse'),
+                            comparison = c('sample', 'cell_type')){
+  
+  compute_rmse <- function(x, y, zscored = FALSE, weighted = FALSE){
+    if(zscored == TRUE){
+      sd_x = sd(x)
+      sd_y = sd(y)
+      if(sd_x == 0){sd_x = 1}
+      if(sd_y == 0){sd_y = 1}
+      x <- (x - mean(x))/(sd_x)
+      y <- (y - mean(y))/(sd_y)
+    }
+    
+    rmse <- sqrt(mean((x - y)^2)) 
+    if(weighted == TRUE){rmse <- rmse/max(y)}
+    return(rmse)
+  }
+  
+  
+  
+  deconvolution <- as.data.frame(deconvolution) %>%
+    rownames_to_column(., 'sample') %>%
+    gather(., key = 'cell_type', value = 'estimated_frac', -sample)
+  
+  ref_facs <- as.data.frame(ref_facs) %>%
+    rownames_to_column(., 'cell_type') %>%
+    gather(., key = 'sample', value = 'true_frac', -cell_type)
+  
+  results_df <- deconvolution %>%
+    inner_join(., ref_facs) #, by = c('cell_type' ,'sample'))
+  
+  results_df$estimated_frac[which(is.na(results_df$estimated_frac))] <- 0
+  results_df$true_frac[which(is.na(results_df$true_frac))] <- 0
+  
+  if(metric == 'cor'){
+    res_metric <- results_df %>%
+      group_by(!!! syms(comparison)) %>%
+      dplyr::summarize(cor = cor.test(estimated_frac, true_frac)$estimate,
+                       pval = cor.test(estimated_frac, true_frac)$p.value)
+    
+    cor_all_elements <- data.frame(comp = 'all' ,
+                                   'cor' = cor.test(results_df$estimated_frac, results_df$true_frac)$estimate,
+                                   'pval' = cor.test(results_df$estimated_frac, results_df$true_frac)$p.value,
+                                   row.names = (nrow(res_metric) +1))
+    colnames(cor_all_elements)[1] <- comparison
+    res_metric <- rbind(res_metric, cor_all_elements)
+    
+  } else if(metric == 'rmse'){
+    res_metric <- results_df %>%
+      group_by(!!! syms(comparison)) %>%
+      dplyr::summarize(RMSE = compute_rmse(estimated_frac, true_frac),
+                       zRMSE = compute_rmse(estimated_frac, true_frac, zscored=TRUE), 
+                       wRMSE = compute_rmse(estimated_frac, true_frac, weighted=TRUE)
+                       )
+    
+    rmse_all_elements <- data.frame(comp = 'all' ,
+                                    'RMSE' = compute_rmse(results_df$estimated_frac, results_df$true_frac),
+                                    'zRMSE' = compute_rmse(results_df$estimated_frac, results_df$true_frac, zscored=TRUE),
+                                    'wRMSE' = compute_rmse(results_df$estimated_frac, results_df$true_frac, weighted=TRUE),
+                                    row.names = (nrow(res_metric) +1))
+    
+    colnames(rmse_all_elements)[1] <- comparison
+    res_metric <- rbind(res_metric, rmse_all_elements)
+  }
+  
+  return(res_metric)
+  
+}

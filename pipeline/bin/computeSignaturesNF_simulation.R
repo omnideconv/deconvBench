@@ -10,7 +10,7 @@ reticulate::use_miniconda(condaenv = "r-omnideconv", required = TRUE)
 #Sys.setenv("LD_LIBRARY_PATH"="/nfs/home/extern/l.merotto/.conda/envs/benchmark_env/x86_64-conda-linux-gnu/lib")
 
 "Usage:
-  computeSignatureNF.R <sc_matrix> <sc_annotation> <sc_batch> <sc_name> <sc_norm> <bulk_dir> <bulk_name> <bulk_norm> <deconv_method> <results_dir> <run_preprocessing> <replicate> <subset_value> <ncores> [<coarse>]
+  computeSignatureNF.R <sc_matrix> <sc_annotation> <sc_batch> <sc_name> <sc_norm> <bulk_dir> <bulk_name> <bulk_norm> <deconv_method> <cell_types> <results_dir> <run_preprocessing> <replicate> <subset_value> <ncores> [<coarse>]
 Options:
 <sc_matrix> path to sc matrix
 <sc_annotation> path to cell type annotation of sc matrix
@@ -21,6 +21,7 @@ Options:
 <bulk_name> name of bulk RNAseq dataset
 <bulk_norm> normalization of RNAseq
 <deconv_method>  deconv method
+<cell_types> cell types used in the simulation
 <results_dir> results (base) directory
 <run_preprocessing> if pre-processing has been done
 <replicate> value of replicate number
@@ -37,6 +38,14 @@ sc_celltype_annotations <- readRDS(file.path(args$sc_anno))
 sc_batch <- readRDS(file.path(args$sc_batch))
 sc_ds <- args$sc_name
 sc_norm <- args$sc_norm
+
+
+# Here we need to filter for those cell types that are in the simulated dataset
+position_vector <- sc_celltype_annotations %in% args$cell_types
+sc_matrix <- sc_matrix[, position_vector]
+sc_batch <- sc_batch[position_vector]
+sc_celltype_annotations <- sc_celltype_annotations[position_vector]
+
 
 bulk_name <- args$bulk_name
 bulk_norm <- args$bulk_norm
@@ -66,25 +75,6 @@ escapeCelltypesAutogenes <- function(celltype){
 }
 reEscapeCelltypesAutogenes <- function(celltype){ 
   return(gsub("xxxx", " ", celltype))
-}
-
-if(method=="rectangle") {
-    AnnData <- reticulate::import("anndata")
-    pd <- reticulate::import("pandas")
-    # convert sc_matrix to adata object
-    counts <- as.data.frame(t(sc_matrix))
-    annotations_df <- pd$DataFrame(list(sc_celltype_annotations))
-    annotations_df <- t(annotations_df)
-    rownames(annotations_df) <- rownames(counts)
-    colnames(annotations_df) <- c("cell_type")
-    annotations_df <- as.data.frame(annotations_df)
-    
-    adata <- AnnData$AnnData(counts, obs=annotations_df)
-    row_indices <- rownames(bulk_matrix)
-
-
-    # remove counts and annotations_df to free memory
-    rm(counts, annotations_df)
 }
 
 runtime <- system.time({
@@ -120,7 +110,7 @@ runtime <- system.time({
     )
     
   } else if(method == "scaden"){
-    scaden_tmp <- paste0('/vol/omnideconv_results/tmp/scaden_tmp_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
+    scaden_tmp <- paste0('/vol/omnideconv_input/tmp/scaden_tmp_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
     unlink(scaden_tmp, recursive=TRUE)
     if(!dir.exists(paste0(scaden_tmp))){
       dir.create(scaden_tmp)
@@ -132,20 +122,20 @@ runtime <- system.time({
       temp_dir = scaden_tmp,
       verbose = TRUE
     )
-  }else if (method %in% c('autogenes', 'bayesprism', 'bisque', 'music')){
-    signature <- NULL
+  } else if(method == "autogenes"){
+    sc_celltype_annotations <- escapeCelltypesAutogenes(sc_celltype_annotations)
     
-  } else if (method == "rectangle") {
-    # rectangle is a python package not available in omnideconv
-    print(row_indices[1:10])
-    signature <- rp$pp$build_rectangle_signatures(adata,bulk_genes=row_indices)
-
-    rectangle_tmp <- paste0('/vol/omnideconv_results/results_tmp/rectangle_',sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate,"/")
-    if(!dir.exists(rectangle_tmp)) {
-      dir.create(rectangle_tmp)
+    signature_dir <- paste0('/vol/omnideconv_input/tmp/autogenes_tmp_',sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate,"/")
+    unlink(signature_dir, recursive=TRUE)
+    if(!dir.exists(paste0(signature_dir))){
+      dir.create(signature_dir)
     }
-    # save signature to file as pkl
-    reticulate::py_save_object(signature, file = paste0(rectangle_tmp, "signature_result.pkl"))
+    signature <- omnideconv::build_model_autogenes(
+      sc_matrix,
+      sc_celltype_annotations,
+      output_dir = signature_dir,
+      verbose = TRUE
+    )
   } else {
     signature <- omnideconv::build_model(
       single_cell_object = sc_matrix,
@@ -161,7 +151,7 @@ runtime <- system.time({
 
 
 
-if (method %in% c("scaden")) { 
+if (method %in% c("autogenes", "scaden")) { 
   # remove all pickle files in output directory with different name than current signature
   old_signatures <- list.files(res_path, ".pickle", full.names = TRUE) 
   if(length(old_signatures > 0)){

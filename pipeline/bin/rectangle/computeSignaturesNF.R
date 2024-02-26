@@ -68,25 +68,6 @@ reEscapeCelltypesAutogenes <- function(celltype){
   return(gsub("xxxx", " ", celltype))
 }
 
-if(method=="rectangle") {
-    AnnData <- reticulate::import("anndata")
-    pd <- reticulate::import("pandas")
-    # convert sc_matrix to adata object
-    counts <- as.data.frame(t(sc_matrix))
-    annotations_df <- pd$DataFrame(list(sc_celltype_annotations))
-    annotations_df <- t(annotations_df)
-    rownames(annotations_df) <- rownames(counts)
-    colnames(annotations_df) <- c("cell_type")
-    annotations_df <- as.data.frame(annotations_df)
-    
-    adata <- AnnData$AnnData(counts, obs=annotations_df)
-    row_indices <- rownames(bulk_matrix)
-
-
-    # remove counts and annotations_df to free memory
-    rm(counts, annotations_df)
-}
-
 runtime <- system.time({
   if (method == "dwls") {
     signature <- omnideconv::build_model_dwls(
@@ -132,18 +113,46 @@ runtime <- system.time({
       temp_dir = scaden_tmp,
       verbose = TRUE
     )
-  }else if (method %in% c('autogenes', 'bayesprism', 'bisque', 'music')){
+  } else if(method == "autogenes"){
+    sc_celltype_annotations <- escapeCelltypesAutogenes(sc_celltype_annotations)
+    
+    signature_dir <- paste0('/vol/omnideconv_results/tmp/autogenes_tmp_',sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate,"/")
+    unlink(signature_dir, recursive=TRUE)
+    if(!dir.exists(paste0(signature_dir))){
+      dir.create(signature_dir)
+    }
+    signature <- omnideconv::build_model_autogenes(
+      sc_matrix,
+      ngen = 500,
+      sc_celltype_annotations,
+      output_dir = signature_dir,
+      verbose = TRUE
+    )
+  }else if (method %in% c('bayesprism', 'bisque', 'music')){
     signature <- NULL
     
   } else if (method == "rectangle") {
     # rectangle is a python package not available in omnideconv
-    print(row_indices[1:10])
-    signature <- rp$pp$build_rectangle_signatures(adata,bulk_genes=row_indices)
-
+    # we use reticulate to call the python package
+    AnnData <- reticulate::import("anndata")
+    pd <- reticulate::import("pandas")
+    # convert sc_matrix to adata object
+    counts <- as.data.frame(sc_matrix)
+    annotations_df <- pd$DataFrame(list(sc_celltype_annotations))
+    annotations_df <- t(annotations_df)
+    rownames(annotations_df) <- colnames(counts)
+    colnames(annotations_df) <- c("cell_type")
+    annotations_df <- as.data.frame(annotations_df)
+    counts <- t(counts)
+    # I don't know why this is necessary, but it is
+    counts <- as.data.frame(counts)
+    adata <- AnnData$AnnData(counts, obs=annotations_df)
+    signature <- rp$pp$build_rectangle_signatures(adata)
     rectangle_tmp <- paste0('/vol/omnideconv_results/results_tmp/rectangle_',sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate,"/")
-    if(!dir.exists(rectangle_tmp)) {
-      dir.create(rectangle_tmp)
-    }
+    #print temp
+    print("rectangle_tmp")
+    print(rectangle_tmp)
+    dir.create(rectangle_tmp)
     # save signature to file as pkl
     reticulate::py_save_object(signature, file = paste0(rectangle_tmp, "signature_result.pkl"))
   } else {
@@ -161,7 +170,7 @@ runtime <- system.time({
 
 
 
-if (method %in% c("scaden")) { 
+if (method %in% c("autogenes", "scaden")) { 
   # remove all pickle files in output directory with different name than current signature
   old_signatures <- list.files(res_path, ".pickle", full.names = TRUE) 
   if(length(old_signatures > 0)){

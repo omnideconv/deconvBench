@@ -210,15 +210,15 @@ runtime <- system.time({
     unlink(scaden_tmp, recursive=TRUE)
 
   }else if (method == 'autogenes') {
-    deconvolution <- omnideconv::deconvolute_autogenes( 
-      single_cell_object = sc_matrix,
-      cell_type_annotations = sc_celltype_annotations,
+    deconvolution <- omnideconv::deconvolute_autogenes(
       bulk_gene_expression = bulk_matrix, 
-      max_iter = 1000000,
-      ngen = 5000,
-      verbose = TRUE
+      signature = signature,
+      max_iter = 1000000
     )$proportions
     colnames(deconvolution) <- reEscapeCelltypesAutogenes(colnames(deconvolution))
+    signature_dir <- paste0('/vol/omnideconv_results/tmp/autogenes_tmp_',sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate,"/")
+    unlink(signature_dir, recursive = TRUE)
+    file.remove(signature)
 
   } else if (method == 'rectangle') {
     pd <- reticulate::import("pandas")
@@ -237,6 +237,7 @@ runtime <- system.time({
 
     bulk_adata <- AnnData$AnnData(bulk_matrix, obs=bulk_obs_df)
     deconvolution <- rp$tl$deconvolution(signatures = signature, bulks = bulk_adata)
+
 
   } else {
     deconvolution <- omnideconv::deconvolute(

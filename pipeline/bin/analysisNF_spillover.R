@@ -1,11 +1,10 @@
-#!/usr/local/bin/Rscript
+#!/usr/bin/Rscript
 
-print("Started analysis for spillover script ...")
+print("Starting analysis for spillover script ...")
 
 library(Biobase)
 library(omnideconv)
-reticulate::use_miniconda(condaenv = "r-omnideconv", required = TRUE)
-source('/vol/omnideconv_input/benchmark/pipeline/bin/general_functions/deconvolution_workflow_for_simulation.R')
+source('/nfs/home/students/adietrich/omnideconv/benchmark/pipeline/bin/utils.R')
 
 "Usage:
   analysisNF_spillover.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <cell_types> <results_dir> <ncores>
@@ -72,15 +71,23 @@ sc_celltype_annotations <- subset_list$annotations
 sc_batch <- subset_list$batch_id
 
 # Signature building 
+signature <- signature_workflow_general(
+  sc_matrix, 
+  sc_celltype_annotations, 
+  'normal', 
+  sc_dataset, 
+  sc_norm, 
+  sc_batch, 
+  method, 
+  bulk_matrix,
+  bulk_name, 
+  bulk_norm, 
+  ncores, 
+  res_path
+)
 
-signature <- signature_workflow_general(sc_matrix, sc_celltype_annotations, 
-                                        'normal', sc_dataset, sc_norm, sc_batch, method, bulk_matrix,  
-                                        bulk_name, bulk_norm, ncores, res_path_normal)
 
-print('Signature built')
 # Deconvolution
-
-
 for(cur_cell_type in cell_types_simulation){
   
   cur_cell_type <- gsub(' ', '_', cur_cell_type)
@@ -89,9 +96,21 @@ for(cur_cell_type in cell_types_simulation){
   
   true_fractions <- readRDS(file.path(bulk_path, paste0(bulk_name, '_', cur_cell_type, '_facs.rds')))
 
-  deconvolution <- deconvolution_workflow_general(sc_matrix, sc_celltype_annotations, 
-                                                  'normal', sc_dataset, sc_norm, sc_batch, signature, 
-                                                  method, bulk_matrix, bulk_name, bulk_norm, ncores, res_path_normal)
+  deconvolution <- deconvolution_workflow_general(
+    sc_matrix, 
+    sc_celltype_annotations, 
+    'normal', 
+    sc_dataset, 
+    sc_norm, 
+    sc_batch, 
+    method, 
+    bulk_matrix,
+    bulk_name, 
+    bulk_norm, 
+    ncores, 
+    res_path
+  )
+  
   results_list = list(
     'deconvolution' = deconvolution, 
     'true_cell_fractions' = true_fractions

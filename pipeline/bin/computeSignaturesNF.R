@@ -55,9 +55,6 @@ if(args$run_preprocessing == 'true'){
 res_path <- paste0(res_base_path, '/', method, "_", sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
 dir.create(res_path, recursive = TRUE, showWarnings = TRUE)
 
-# path to temporary directory, if needed
-tmp_dir_path <- paste0(res_base_path, '/tmp_', method, "_", sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
-
 escapeCelltypesAutogenes <- function(celltype){
   celltype <- gsub("\\+", "21b2c6e87f8711ec9bf265fb9bf6ab9c", celltype)
   celltype <- gsub("-", "21b2c7567f8711ec9bf265fb9bf6ab9a", celltype)
@@ -76,72 +73,22 @@ reEscapeCelltypesAutogenes <- function(celltype){
 
 runtime <- system.time({
 
-  if (method == "cibersortx") {
-    omnideconv::set_cibersortx_credentials("lorenzo.merotto@studenti.unipd.it",
-                                          " 721a387e91c495174066462484674cb8") 
-    # CibersortX does not work with tmp directories in a Docker in Docker setup
-    # --> created fixed input and output directories!
-    cx_input <- paste0(tmp_dir_path,'_input')
-    if(!dir.exists(paste0(cx_input))){
-      dir.create(cx_input)
-    }
-    cx_input <- paste0(tmp_dir_path,'_output')
-    if(!dir.exists(paste0(cx_output))){
-      dir.create(cx_output)
-    }
+  signature <- signature_workflow_general(
+    sc_matrix, 
+    sc_celltype_annotations, 
+    'normal', 
+    sc_dataset, 
+    sc_norm, 
+    sc_batch, 
+    method, 
+    bulk_matrix,
+    bulk_name, 
+    bulk_norm, 
+    ncores, 
+    res_path
+  )
 
-    signature <- omnideconv::build_model_cibersortx(
-      sc_matrix, 
-      sc_celltype_annotations, 
-      container = "docker", 
-      verbose = TRUE, 
-      input_dir = cx_input, 
-      output_dir = cx_output
-    )
-
-  } else if (method == "dwls") {
-    
-    signature <- omnideconv::build_model_dwls(
-      single_cell_object = sc_matrix,
-      cell_type_annotations = sc_celltype_annotations,
-      dwls_method = "mast_optimized",
-      verbose = TRUE,
-      ncores = ncores
-    )
-    
-  } else if (method == "scdc") {
-    
-    signature <- omnideconv::build_model_scdc(
-      single_cell_object = sc_matrix,
-      cell_type_annotations = sc_celltype_annotations,
-      batch_ids = sc_batch,
-      markers = NULL,
-      verbose = TRUE,
-      ncores = ncores
-    )$basis
-    
-  } else if(method == "scaden"){
-    unlink(tmp_dir_path, recursive=TRUE)
-    if(!dir.exists(paste0(tmp_dir_path))){
-      dir.create(tmp_dir_path)
-    }
-    signature <- omnideconv::build_model_scaden(
-      sc_matrix,
-      sc_celltype_annotations,
-      bulk_matrix,
-      temp_dir = tmp_dir_path,
-      verbose = TRUE
-    )
-
-  }else if (method %in% c('autogenes', 'bayesprism', 'bisque', 'music')){
-    signature <- NULL
-      
-  } else {
-    message('Selected method is not supported in the benchmark. Please check again.')
-    stop()
-  }
 })
-
 
 if (method %in% c("scaden")) { 
   # remove all pickle files in output directory with different name than current signature

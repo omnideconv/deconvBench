@@ -19,7 +19,6 @@ Options:
 <preProcess_dir> directory where subsampling datasets are stored" -> doc
 
 args <- docopt::docopt(doc)
-print(args)
 
 sc_ds <- args$sc_name
 sc_norm <- args$sc_norm

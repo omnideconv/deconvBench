@@ -9,13 +9,14 @@ reticulate::use_miniconda(condaenv = "r-omnideconv", required = TRUE)
 source('/vol/omnideconv_input/benchmark/pipeline/bin/general_functions/deconvolution_workflow_for_simulation.R')
 
 "Usage:
-  analysisNF_impact_cell_resolution.R <sc_name> <sc_path> <bulk_name> <bulk_path> <preprocess_dir> <deconv_method> <results_dir> <ncores>
+  analysisNF_impact_cell_resolution.R <sc_name> <sc_path> <bulk_name> <bulk_path> <preprocess_dir> <replicates> <deconv_method> <results_dir> <ncores>
 Options:
 <sc_name> name of sc datasets
 <sc_path> path to sc dataset
 <bulk_name> name of simulated bulk RNAseq dataset
 <bulk_path> path to simulated bulk datasets
 <preprocess_dir> preprocessing directory where pseudo-bulks are stored
+<replicates> number of replicates
 <deconv_method>  deconv method
 <results_dir> results (base) directory
 <ncores> number of cores to use for method (if available)" -> doc
@@ -30,7 +31,7 @@ preprocess_dir <- args$preprocess_dir
 method <- args$deconv_method
 res_base_path <- args$results_dir
 ncores <- as.numeric(args$ncores) # in case a method can use multiple cores
-
+replicates <- as.numeric(args$replicates)
 # Here we need to filter for those cell types that are in the simulated dataset. 
 
 common.cells <- readRDS(file.path(preprocess_dir, 'cell_types.rds'))
@@ -67,7 +68,7 @@ dir.create(res_path_normal, recursive = TRUE, showWarnings = TRUE)
 # We need a bulk for the creation of the signature matrix, because some methods filter for the common genes between sc and bulk. 
 # In this case it is not relevant to compute the signature n times for each replicate
 
-bulk_matrix <- readRDS(file.path(bulk_path, bulk_name, paste0(bulk_name, '_', bulk_norm, '.rds')))
+bulk_matrix <- readRDS(file.path(bulk_path,  paste0('replicate_1'), paste0('simulation_', bulk_norm, '.rds')))
 bulk_matrix <- as.matrix(bulk_matrix)
 
 signature <- signature_workflow_general(sc_matrix, sc_celltype_annotations, 
@@ -75,21 +76,31 @@ signature <- signature_workflow_general(sc_matrix, sc_celltype_annotations,
                                         bulk_name, bulk_norm, ncores, res_path_normal)
 
 
-deconvolution <- deconvolution_workflow_general(sc_matrix, sc_celltype_annotations, 
+for(r in 1:replicates){
+
+    res_path <- file.path(res_path_normal, paste0(bulk_name, '_pseudobulk_', sc_dataset, '_signature'), paste0('replicate_', r))
+    dir.create(res_path, recursive = TRUE, showWarnings = TRUE)
+    bulk_matrix <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0('simulation_', bulk_norm, '.rds')))
+    bulk_matrix <- as.matrix(bulk_matrix)
+
+    deconvolution <- deconvolution_workflow_general(sc_matrix, sc_celltype_annotations, 
                                                     'normal', sc_dataset, sc_norm, sc_batch, signature, 
                                                     method, bulk_matrix, bulk_name, bulk_norm, ncores, res_path_normal)
 
-true_fractions <- readRDS(file.path(bulk_path, bulk_name, paste0(bulk_name, '_facs.rds')))
+    true_fractions <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0('simulation_facs.rds')))
 
-results_list = list(
+    results_list = list(
         'deconvolution' = deconvolution, 
         'true_cell_fractions' = true_fractions
     )
 
     if(method =='autogenes' | method == 'scaden'){
-    unlink(signature)}
+    unlink(signature)
+    }
 
-saveRDS(results_list, file=paste0(res_path_normal, "/deconvolution.rds")) 
+saveRDS(results_list, file=paste0(res_path, "/deconvolution.rds")) 
+
+}
 
 
 

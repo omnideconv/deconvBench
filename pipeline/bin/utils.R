@@ -95,3 +95,308 @@ char2seed <- function(x){
 
 	return(seed)
 }
+
+# Function to subset a dataset
+subset_cells <- function(cell_matrix, annotations, batch_ids, num_cells, seed, coarse_annotations = NULL, fine_annotations = NULL){
+  
+  require(tidyverse)
+
+  seurat.obj <- Seurat::CreateSeuratObject(counts=cell_matrix,
+                                           assay="RNA")
+  seurat.obj <- Seurat::AddMetaData(seurat.obj, 
+                            batch_ids, 
+                            'batch_ids')
+  seurat.obj <- Seurat::AddMetaData(seurat.obj,
+                            annotations,
+                            'cell_type')
+  set.seed(seed)
+
+  if(is.null(coarse_annotations)){
+    sampled.metadata <- seurat.obj@meta.data %>%
+      rownames_to_column(., 'barcode') %>%
+      group_by(., cell_type) %>% 
+      nest() %>%            
+      mutate(n =  map_dbl(data, nrow)) %>%
+      mutate(n = min(n, num_cells)) %>%
+      ungroup() %>% 
+      mutate(samp = map2(data, n, sample_n)) %>% 
+      select(-data) %>%
+      unnest(samp)
+
+      sampled.data <- subset(seurat.obj, 
+                             cells = sampled.metadata$barcode)
+      ls <- list('data' = sampled.data[["RNA"]]$counts %>%
+                  as.matrix(.),
+                 'annotations' = sampled.data@meta.data$cell_type,
+                 'batch_id' = sampled.data@meta.data$batch_ids)
+  
+  } else {
+      seurat.obj <- Seurat::AddMetaData(seurat.obj,
+                                coarse_annotations,
+                                'cell_type_coarse')
+      seurat.obj <- Seurat::AddMetaData(seurat.obj,
+                                fine_annotations,
+                                'cell_type_fine')   
+      sampled.metadata <- seurat.obj@meta.data %>%
+        rownames_to_column(., 'barcode') %>%
+        group_by(., cell_type_fine) %>% 
+        nest() %>%            
+        mutate(n =  map_dbl(data, nrow)) %>%
+        mutate(n = min(n, num_cells)) %>%
+        ungroup() %>% 
+        mutate(samp = map2(data, n, sample_n)) %>% 
+        select(-data) %>%
+        unnest(samp)     
+
+
+        sampled.data <- subset(seurat.obj, 
+                             cells = sampled.metadata$barcode)
+        ls <- list('data' = sampled.data[["RNA"]]$counts %>%
+                    as.matrix(.),
+                   'annotations' = sampled.data@meta.data$cell_type,
+                   'annotations_fine' = sampled.data@meta.data$cell_type_fine,
+                   'annotations_coarse' = sampled.data@meta.data$cell_type_coarse,
+                   'batch_id' = sampled.data@meta.data$batch_ids)                                            
+  }
+
+  ls
+  
+}
+
+# This function contains all the necessary steps to adapt omnideconv to the benchmarking workflow
+signature_workflow_general <- function(sc_matrix, annotations, annotation_category, sc_ds, sc_norm, sc_batch, method, bulk_matrix, bulk_name, bulk_norm, ncores, res_path, spillover = FALSE){
+  
+  # path to temporary directory that is inside results directory of one unique result 
+  tmp_dir_path <- paste0(res_path, '/tmp/')
+
+  # Signature building part
+  # Dependent on which method we have 
+  if (method == "cibersortx") {
+    omnideconv::set_cibersortx_credentials("lorenzo.merotto@studenti.unipd.it",
+                                          " 721a387e91c495174066462484674cb8") 
+    # CibersortX does not work with tmp directories in a Docker in Docker setup
+    # --> created fixed input and output directories!
+    cx_input <- paste0(tmp_dir_path,'_input')
+    if(!dir.exists(paste0(cx_input))){
+      dir.create(cx_input)
+    }
+    cx_output <- paste0(tmp_dir_path,'_output')
+    if(!dir.exists(paste0(cx_output))){
+      dir.create(cx_output)
+    }
+
+    signature <- omnideconv::build_model_cibersortx(
+      sc_matrix, 
+      annotations, 
+      container = "docker", 
+      verbose = TRUE, 
+      input_dir = cx_input, 
+      output_dir = cx_output
+    )
+
+  } else if (method == "dwls") {
+    
+    signature <- omnideconv::build_model_dwls(
+      single_cell_object = sc_matrix,
+      cell_type_annotations = annotations,
+      dwls_method = "mast_optimized",
+      path=res_path,
+      diff_cutoff = 0.5,
+      pval_cutoff = 0.05,
+      verbose = TRUE,
+      ncores = ncores
+    )
+    
+  } else if (method == "scdc") {
+    
+    signature <- omnideconv::build_model_scdc(
+      single_cell_object = sc_matrix,
+      cell_type_annotations = annotations,
+      batch_ids = sc_batch,
+      markers = NULL,
+      verbose = TRUE,
+      ncores = ncores
+    )$basis
+    
+  } else if(method == "scaden"){
+    unlink(tmp_dir_path, recursive=TRUE)
+    if(!dir.exists(paste0(tmp_dir_path))){
+      dir.create(tmp_dir_path)
+    }
+    signature <- omnideconv::build_model_scaden(
+      sc_matrix,
+      annotations,
+      bulk_matrix,
+      temp_dir = tmp_dir_path,
+      verbose = TRUE
+    )
+
+  }else if (method %in% c('autogenes', 'bayesprism', 'bisque', 'music')){
+    signature <- NULL
+      
+  } else {
+    message('Selected method is not supported in the benchmark. Please check again.')
+    stop()
+  }
+
+  message('Finished signature building.')
+  
+  return(signature)
+  
+}
+
+# This function contains all the necessary steps to adapt omnideconv to the benchmarking workflow
+deconvolution_workflow_general <- function(sc_matrix, annotations, annotation_category, sc_ds, sc_norm, sc_batch, signature, method, bulk_matrix, bulk_name, bulk_norm, ncores, res_path){
+  
+  # path to temporary directory that is inside results directory of one unique result 
+  tmp_dir_path <- paste0(res_path, '/tmp/')
+
+  if(method=="autogenes"){
+
+    deconvolution <- omnideconv::deconvolute_autogenes( 
+      single_cell_object = sc_matrix,
+      cell_type_annotations = annotations,
+      bulk_gene_expression = bulk_matrix, 
+      max_iter = 1000000,
+      ngen = 5000,
+      verbose = TRUE
+    )$proportions
+    colnames(deconvolution) <- reEscapeCelltypesAutogenes(colnames(deconvolution))
+
+  } else if (method=="bayesprism"){
+    
+    # need to use different parameter in case of simulated bulk data
+    if(grepl("simulation", bulk_name)){
+      update_gibbs <- FALSE
+      which_theta <- 'first'
+    }else{
+      update_gibbs <- TRUE
+      which_theta <- 'final'
+    }
+    
+    deconvolution <- omnideconv::deconvolute_bayesprism(
+      bulk_gene_expression = bulk_matrix, 
+      single_cell_object = sc_matrix, 
+      cell_type_annotations = annotations, 
+      n_cores = ncores,
+      species = args$species,
+      update_gibbs = update_gibbs,
+      which_theta = which_theta
+    )$theta
+    
+  } else if (method=="bisque"){
+    deconvolution <- t(omnideconv::deconvolute_bisque(
+      bulk_gene_expression = bulk_matrix, 
+      single_cell_object = sc_matrix, 
+      cell_type_annotations = annotations,
+      batch_ids = sc_batch,
+      verbose = TRUE,
+    )$bulk.props)
+    
+  } else if (method=="cibersortx"){
+
+    omnideconv::set_cibersortx_credentials("lorenzo.merotto@studenti.unipd.it",
+                                          " 721a387e91c495174066462484674cb8")  
+    # CibersortX does not work with tmp directories in a Docker in Docker setup
+    # --> created fixed input and output directories!
+    cx_input <- paste0(tmp_dir_path,'_input')
+    if(!dir.exists(paste0(cx_input))){
+      dir.create(cx_input)
+    }
+    cx_output <- paste0(tmp_dir_path,'_output')
+    if(!dir.exists(paste0(cx_output))){
+      dir.create(cx_output)
+    }
+
+    # batch correction options for cibersortx
+    rmbatch_B_mode <- FALSE
+    rmbatch_S_mode <- TRUE
+    if(grepl("simulation" , bulk_name)){
+      rmbatch_S_mode <- FALSE
+    }
+    
+    deconvolution <- omnideconv::deconvolute_cibersortx(
+      single_cell_object = sc_matrix,
+      bulk_gene_expression = bulk_matrix,
+      cell_type_annotations = annotations, 
+      signature = signature,
+      container = 'docker',
+      verbose = TRUE,
+      input_dir = cx_input,
+      output_dir = cx_output,
+      rmbatch_B_mode = rmbatch_B_mode,
+      rmbatch_S_mode = rmbatch_S_mode
+    )
+    unlink(cx_input, recursive=TRUE)
+    unlink(cx_output, recursive=TRUE)
+    
+  } else if(method=="dwls") {
+    
+    deconvolution <- NULL
+    tryCatch(    
+      deconvolution <<- omnideconv::deconvolute_dwls(
+        bulk_gene_expression = bulk_matrix, 
+        signature = signature, 
+        dwls_submethod = 'DampenedWLS',
+        verbose = TRUE
+      ), error = function(e){
+        # DWLS can crash if there are not enough cells in the dataset or the cells are not differential enough between celltypes
+        print(e[['message']])
+        d <- matrix(
+          rep(1, ncol(bulk_matrix) * ncol(signature)),
+          nrow = ncol(bulk_matrix),
+          ncol = ncol(signature)
+        )
+        deconvolution <<- data.frame(d)
+        colnames(deconvolution) <<- as.character(colnames(signature))
+        rownames(deconvolution) <<- as.character(colnames(bulk_matrix))
+      }
+    )
+
+  } else if (method == "music"){
+    deconvolution <- omnideconv::deconvolute_music(
+      bulk_gene_expression = bulk_matrix, 
+      single_cell_object = sc_matrix, 
+      cell_type_annotations = annotations,
+      batch_ids = sc_batch,
+      verbose = TRUE,
+    )$Est.prop.weighted
+
+  } else if (method == "scdc") {    
+    deconvolution <- omnideconv::deconvolute_scdc(
+      bulk_gene_expression = bulk_matrix, 
+      single_cell_object = sc_matrix, 
+      cell_type_annotations = annotations,
+      batch_ids = sc_batch,
+      verbose = TRUE,
+    )$Est.prop.weighted
+
+    if ("prop.est.mvw" %in% names(deconvolution)) {
+      deconvolution <- deconvolution$prop.est.mvw
+    } else if ("w_table" %in% names(deconvolution)) {
+      deconvolution <- SCDC::wt_prop(deconvolution$w_table, deconvolution$prop.only)
+    } else {
+      message(
+        "There seems to be an error, as the result of deconvolute_scdc did not ",
+        "contain prop.est.mvw or w_table"
+      )
+    }
+                
+  } else if (method == "scaden") {
+    if(!dir.exists(paste0(tmp_dir_path))){
+      dir.create(tmp_dir_path)
+    }
+    deconvolution <- omnideconv::deconvolute_scaden(
+      bulk_gene_expression = bulk_matrix, 
+      signature = signature,
+      temp_dir = tmp_dir_path
+    )
+    unlink(tmp_dir_path, recursive=TRUE)
+
+  } else {
+    message('Selected method is not supported in the benchmark. Please check again.')
+    stop()
+  }
+  
+  return(deconvolution)
+}

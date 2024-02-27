@@ -1,14 +1,14 @@
-#!/usr/bin/Rscript
+#!/usr/local/bin/Rscript
 
-print("Starting analysis for missing cell type script ...")
+print("Started analysis for missing cell type script ...")
 
 library(Biobase)
 library(omnideconv)
 reticulate::use_miniconda(condaenv = "r-omnideconv", required = TRUE)
-source('/nfs/home/students/adietrich/omnideconv/benchmark/pipeline/bin/utils.R')
+source('/vol/omnideconv_input/benchmark/pipeline/bin/general_functions/deconvolution_workflow_for_simulation.R')
 
 "Usage:
-  analysisNF_missing_cell_type.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <missing_cell_type> <results_dir> <ncores>
+  analysisNF_spillover.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <missing_cell_type> <results_dir> <ncores>
 Options:
 <sc_name> name of sc datasets
 <sc_path> path to sc dataset
@@ -29,7 +29,7 @@ method <- args$deconv_method
 res_base_path <- args$results_dir
 ncores <- as.numeric(args$ncores) # in case a method can use multiple cores
 
-method_normalizations <- read.table('/nfs/home/students/adietrich/omnideconv/benchmark/pipeline/optimal_normalizations.csv', sep = ',', header = TRUE)
+method_normalizations <- read.table('/vol/omnideconv_input/benchmark/pipeline/optimal_normalizations.csv', sep = ',', header = TRUE)
 sc_norm <- method_normalizations[method_normalizations$method == method, 2]
 bulk_norm <- method_normalizations[method_normalizations$method == method, 3]
 
@@ -45,6 +45,7 @@ bulk_matrix <- readRDS(file.path(bulk_path, bulk_name, paste0(bulk_name, '_', bu
 bulk_matrix <- as.matrix(bulk_matrix)
 
 # Here we need to filter for those cell types that are in the simulated dataset. 
+# NOTE: in the resolution analysis the cell types are specified in terms of finest cell types
 
 missing_cell_type <- args$missing_cell_type
 

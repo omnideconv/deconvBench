@@ -123,7 +123,6 @@ process ANALYSIS_SPILLOVER {
       ''' 
 }
 
-
 process SIMULATE_BULK_SENSITIVITY {
   
       publishDir "${params.preProcess_dir}/pseudo_bulk_sensitivity", mode: 'copy'
@@ -143,7 +142,6 @@ process SIMULATE_BULK_SENSITIVITY {
       simulateBulkNF_unknown_content_analysis.R '!{params.simulation_sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{simulation_n_samples}' '!{params.fraction_unknown_cell}' '!{params.preProcess_dir}' '!{params.ncores}' '!{params.known_cell_types}' '!{params.unknown_cell_type}' 
       '''
 }
-
 
 process ANALYSIS_SENSITIVITY {
   
@@ -175,7 +173,6 @@ process ANALYSIS_SENSITIVITY {
       analysisNF_unknown_content.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{cell_types}' '!{params.results_dir_unknown_content}' '!{run_preprocessing}' '!{params.ncores}'
       ''' 
 }
-
 
 process SIMULATE_BULK_RESOLUTION_ANALYSIS {
   
@@ -261,44 +258,6 @@ process CREATE_SIGNATURE {
       ''' 
 }
 
-process CREATE_SIGNATURE_FOR_SIMULATION {
-
-      input:
-      tuple path(sc_matrix), 
-            path(sc_anno), 
-            path(sc_batch), 
-            val(sc_ds), 
-            val(sc_norm), 
-            val(replicate), 
-            val(ct_fractions)
-      val bulk_dir
-      each bulk_ds
-      each bulk_norm
-      val cell_types
-      each method 
-      val run_preprocessing
-
-
-      output:
-      tuple path(sc_matrix), 
-            path(sc_anno), 
-            path(sc_batch), 
-            val(sc_ds), 
-            val(sc_norm),
-            val(bulk_ds),
-            val(bulk_norm),
-            val(replicate), 
-            val(ct_fractions),
-            val(method)
-
-      beforeScript 'chmod o+rw .'
-
-      shell:
-      '''
-      computeSignaturesNF_simulation.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{cell_types}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.ncores}'
-      ''' 
-}
-
 process DECONVOLUTE { 
 
 	input:
@@ -356,7 +315,6 @@ process COMPUTE_METRICS {
 	computeMetricsNF.R '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{replicate}' '!{ct_fractions}' '!{params.results_dir_general}'
 	''' 
 }
-
 
 workflow simulation {
   

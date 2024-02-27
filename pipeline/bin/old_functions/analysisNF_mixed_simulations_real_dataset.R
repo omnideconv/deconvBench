@@ -75,21 +75,23 @@ signature <- signature_workflow_general(sc_matrix, sc_celltype_annotations,
                                         bulk_name, bulk_norm, ncores, res_path_normal)
 
 
-deconvolution <- deconvolution_workflow_general(sc_matrix, sc_celltype_annotations, 
+    deconvolution <- deconvolution_workflow_general(sc_matrix, sc_celltype_annotations, 
                                                     'normal', sc_dataset, sc_norm, sc_batch, signature, 
                                                     method, bulk_matrix, bulk_name, bulk_norm, ncores, res_path_normal)
 
-true_fractions <- readRDS(file.path(bulk_path, bulk_name, paste0(bulk_name, '_facs.rds')))
+    true_fractions <- readRDS(file.path(bulk_path, bulk_name, paste0(bulk_name, '_facs.rds')))
 
-results_list = list(
+    results_list = list(
         'deconvolution' = deconvolution, 
         'true_cell_fractions' = true_fractions
     )
 
     if(method =='autogenes' | method == 'scaden'){
-    unlink(signature)}
+    unlink(signature)
 
-saveRDS(results_list, file=paste0(res_path_normal, "/deconvolution.rds")) 
+saveRDS(results_list, file=paste0(res_path, "/deconvolution.rds")) 
+
+}
 
 
 

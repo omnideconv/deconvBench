@@ -28,7 +28,6 @@ def create_file_list_sc(basepath, ds_list, norm_list, do_preprocessing) {
     return file_list
 }
 
-
 process PREPROCESS_SINGLE_CELL {
 
       input: 
@@ -81,8 +80,7 @@ process ANALYSIS_BULK_MISSING_CELL_TYPES {
       each bulk_ds
       each method 
       each cell_types_missing
-      
-     
+           
       output:
       val("${sc_dataset}-missing_cell_types")
       
@@ -90,7 +88,7 @@ process ANALYSIS_BULK_MISSING_CELL_TYPES {
       
       shell:
       '''
-      /vol/omnideconv_input/benchmark/pipeline/bin/analysisNF_missing_cell_type.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{bulk_ds}' '!{params.data_dir_bulk}' '!{method}' '!{cell_types_missing}' '!{params.results_dir_missing_cell_types}' '!{params.ncores}'
+      analysisNF_missing_cell_type.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{bulk_ds}' '!{params.data_dir_bulk}' '!{method}' '!{cell_types_missing}' '!{params.results_dir_missing_cell_types}' '!{params.ncores}'
       ''' 
 }
 
@@ -135,7 +133,6 @@ process ANALYSIS_SPILLOVER {
       /vol/omnideconv_input/benchmark/pipeline/bin/analysisNF_spillover.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{sim_bulk_name}' '!{sim_bulk_path}' '!{method}' '!{cell_types}' '!{params.results_dir_spillover}' '!{params.ncores}'
       ''' 
 }
-
 
 process SIMULATE_BULK_UNKNOWN_CELL_TYPE {
       
@@ -186,8 +183,6 @@ process ANALYSIS_BULK_UNKNOWN_CELL_TYPE {
       ''' 
 }
 
-
-
 process SIMULATE_BULK_RESOLUTION_ANALYSIS {
   
       publishDir "${params.preProcess_dir}/pseudo_bulk_resolution", mode: 'copy'
@@ -232,7 +227,6 @@ process ANALYSIS_BULK_RESOLUTION_ANALYSIS {
       shell:
       '''
       /vol/omnideconv_input/benchmark/pipeline/bin/analysisNF_impact_cell_resolution.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{sim_bulk_name}' '!{sim_bulk_path}' '!{method}' '!{cell_types_fine}' '!{replicates}' '!{params.results_dir_resolution}' '!{params.ncores}'
-      #/vol/omnideconv_input/benchmark/pipeline/bin/analysisNF_impact_cell_resolution_hoek_dataset.R '!{method}' '!{params.results_dir_resolution_hoek}' '!{params.ncores}'
       ''' 
 }
 
@@ -297,7 +291,6 @@ process ANALYSIS_BULK_MIRRORDB {
       /vol/omnideconv_input/benchmark/pipeline/bin/analysisNF_mixed_simulations_real_dataset.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{bulk_name}' '!{bulk_path}' '!{params.preProcess_dir}' '!{method}' '!{params.results_dir_impact_technology}' '!{params.ncores}'
       ''' 
 }
-
 
 process CREATE_SIGNATURE {
 
@@ -409,9 +402,6 @@ process CREATE_SIGNATURE_FOR_SIMULATION {
       ''' 
 }
 
-
-
-
 process DECONVOLUTE { 
 
 	input:
@@ -443,37 +433,6 @@ process DECONVOLUTE {
 	''' 
 }
 
-process DECONVOLUTE_2 { 
-
-	input:
-	tuple path(sc_matrix), 
-	      path(sc_anno), 
-	      path(sc_batch), 
-	      val(sc_ds), 
-	      val(sc_norm),
-	      val(bulk_ds),
-	      val(bulk_norm),
-	      val(replicate), 
-	      val(ct_fractions),
-	      val(method)
-	val bulk_dir
-	val run_preprocessing
-  
-	output:
-	tuple val(method),
-	      val(sc_ds), 
-	      val(sc_norm), 
-	      val(bulk_ds), 
-	      val(bulk_norm), 
-	      val(replicate),
-	      val(ct_fractions)
-  
-	shell:
-	'''
-	/vol/omnideconv_input/benchmark/pipeline/bin/rectangle/runDeconvolutionNF.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.species_sc}' '!{params.ncores}' 
-	''' 
-}
-
 process COMPUTE_METRICS { 
 
 	input:
@@ -500,7 +459,6 @@ process COMPUTE_METRICS {
 	/vol/omnideconv_input/benchmark/pipeline/bin/computeMetricsNF.R '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{replicate}' '!{ct_fractions}' '!{params.results_dir_general}'
 	''' 
 }
-
 
 workflow simulation {
   
@@ -531,7 +489,6 @@ workflow simulation {
   
   metrics = COMPUTE_METRICS(deconvolution, "${params.preProcess_dir}/pseudo_bulk")
 } 
-
 
 workflow impact_missing_cell_types {
 
@@ -640,25 +597,6 @@ workflow subsampling {
 
   metrics = COMPUTE_METRICS(deconvolution, params.data_dir_bulk)
   
-}
-
-workflow rectangle {
-  sc_files = Channel.fromList(create_file_list_sc(params.data_dir_sc, 
-                                                  params.single_cell_list, 
-                                                  params.single_cell_norm, 
-                                                  'false'))
-  preprocess = Channel.empty()
-  signature = CREATE_SIGNATURE(sc_files,
-                               params.data_dir_bulk,
-                               params.bulk_list,
-                               params.bulk_norm,
-                               params.method_list,
-                               'false'
-  )  
-  
-  deconvolution = DECONVOLUTE(signature, params.data_dir_bulk, 'false')
-
-  metrics = COMPUTE_METRICS(deconvolution, params.data_dir_bulk) 
 }
 
 workflow {

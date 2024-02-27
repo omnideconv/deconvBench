@@ -1,6 +1,5 @@
-#!/usr/local/bin/Rscript
+#!/usr/bin/Rscript
 
-#path("${preProcess_dir}/${sc_ds}_${sc_norm}_perc${ct_fractions}_rep*_matrix_subsampled.rds")
 
 library(docopt)
 library(SingleCellExperiment)
@@ -39,7 +38,6 @@ if(dir.exists(output_dir)){
   }
 }
 
-
 sc_matrix <- readRDS(file.path(args$sc_matrix))
 sc_celltype_annotations <- readRDS(file.path(args$sc_anno))
 sc_batch <- readRDS(file.path(args$sc_batch))
@@ -48,23 +46,6 @@ n_cells_per_ct <- table(sc_celltype_annotations)
 
 
 cat(paste0("Preprocessing sc_matrix file with subset_value=", subset_value, " and replicate=", replicate, "\n"))
-
-# function to transform string to integer to use as seed
-# from R package TeachingDemos by Greg Snow
-char2seed <- function(x){
-
-	tmp <- c(0:9,0:25,0:25)
-	names(tmp) <- c(0:9,letters,LETTERS)
-
-	x <- gsub("[^0-9a-zA-Z]","",as.character(x))
-
-	xsplit <- tmp[ strsplit(x,'')[[1]] ]
-
-	seed <- sum(rev( 7^(seq(along=xsplit)-1) ) * xsplit)
-  seed <- as.integer( seed %% (2^31-1) )
-
-	return(seed)
-}
 
 # build seed for subsampling:
 # the goal is to select the cells based on the subset size, replicate id and single-cell dataset
@@ -116,5 +97,3 @@ if(file.exists(file.path(gsub('celltype_annotations.rds', 'celltype_annotations_
 }
 
 cat(paste0("Preprocessed sc_matrix file stored in '", output_dir, "'\n"))
-
-

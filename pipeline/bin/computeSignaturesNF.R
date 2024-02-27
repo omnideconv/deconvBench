@@ -1,16 +1,13 @@
-#!/usr/local/bin/Rscript
+#!/usr/bin/Rscript
 
-print("Started signature building script ...")
+print("Starting signature building script ...")
 
-library(docopt)
-library(Biobase)
 library(omnideconv)
 reticulate::use_miniconda(condaenv = "r-omnideconv", required = TRUE)
-
-#Sys.setenv("LD_LIBRARY_PATH"="/nfs/home/extern/l.merotto/.conda/envs/benchmark_env/x86_64-conda-linux-gnu/lib")
+source('/nfs/home/students/adietrich/omnideconv/benchmark/pipeline/bin/utils.R')
 
 "Usage:
-  computeSignatureNF.R <sc_matrix> <sc_annotation> <sc_batch> <sc_name> <sc_norm> <bulk_dir> <bulk_name> <bulk_norm> <deconv_method> <results_dir> <run_preprocessing> <replicate> <subset_value> <ncores> [<coarse>]
+  computeSignatureNF.R <sc_matrix> <sc_annotation> <sc_batch> <sc_name> <sc_norm> <bulk_dir> <bulk_name> <bulk_norm> <deconv_method> <results_dir> <run_preprocessing> <replicate> <subset_value> <ncores> 
 Options:
 <sc_matrix> path to sc matrix
 <sc_annotation> path to cell type annotation of sc matrix
@@ -30,7 +27,7 @@ Options:
 
 args <- docopt::docopt(doc)
 
-ncores <- as.numeric(args$ncores) # in case a method can use multiple cores
+ncores <- as.numeric(args$ncores)
 
 sc_matrix <- readRDS(file.path(args$sc_matrix))
 sc_celltype_annotations <- readRDS(file.path(args$sc_anno))
@@ -54,8 +51,12 @@ if(args$run_preprocessing == 'true'){
   replicate <- 0
 }
 
+# create output directory
 res_path <- paste0(res_base_path, '/', method, "_", sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
 dir.create(res_path, recursive = TRUE, showWarnings = TRUE)
+
+# path to temporary directory, if needed
+tmp_dir_path <- paste0(res_base_path, '/tmp_', method, "_", sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
 
 escapeCelltypesAutogenes <- function(celltype){
   celltype <- gsub("\\+", "21b2c6e87f8711ec9bf265fb9bf6ab9c", celltype)
@@ -68,48 +69,27 @@ reEscapeCelltypesAutogenes <- function(celltype){
   return(gsub("xxxx", " ", celltype))
 }
 
-if(method=="rectangle") {
-    AnnData <- reticulate::import("anndata")
-    pd <- reticulate::import("pandas")
-    # convert sc_matrix to adata object
-    counts <- as.data.frame(t(sc_matrix))
-    annotations_df <- pd$DataFrame(list(sc_celltype_annotations))
-    annotations_df <- t(annotations_df)
-    rownames(annotations_df) <- rownames(counts)
-    colnames(annotations_df) <- c("cell_type")
-    annotations_df <- as.data.frame(annotations_df)
-    
-    adata <- AnnData$AnnData(counts, obs=annotations_df)
-    row_indices <- rownames(bulk_matrix)
 
-
-    # remove counts and annotations_df to free memory
-    rm(counts, annotations_df)
-}
+####################################
+#### Perform signature building ####
+####################################
 
 runtime <- system.time({
-  if (method == "dwls") {
-    signature <- omnideconv::build_model_dwls(
-      single_cell_object = sc_matrix,
-      cell_type_annotations = sc_celltype_annotations,
-      dwls_method = "mast_optimized",
-      ncores = ncores
-    )
-  } else if (method == "cibersortx") {
+
+  if (method == "cibersortx") {
     omnideconv::set_cibersortx_credentials("lorenzo.merotto@studenti.unipd.it",
                                           " 721a387e91c495174066462484674cb8") 
     # CibersortX does not work with tmp directories in a Docker in Docker setup
     # --> created fixed input and output directories!
-    cx_input <- paste0('/vol/omnideconv_input/tmp/cibersortx_input_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
-    #cx_input <- paste0('/nfs/home/students/adietrich/tmp/cibersortx_input_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
+    cx_input <- paste0(tmp_dir_path,'_input')
     if(!dir.exists(paste0(cx_input))){
       dir.create(cx_input)
     }
-    cx_output <- paste0('/vol/omnideconv_input/tmp/cibersortx_output_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
-    #cx_output <- paste0('/nfs/home/students/adietrich/tmp/cibersortx_output_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
+    cx_input <- paste0(tmp_dir_path,'_output')
     if(!dir.exists(paste0(cx_output))){
       dir.create(cx_output)
     }
+
     signature <- omnideconv::build_model_cibersortx(
       sc_matrix, 
       sc_celltype_annotations, 
@@ -118,47 +98,49 @@ runtime <- system.time({
       input_dir = cx_input, 
       output_dir = cx_output
     )
+
+  } else if (method == "dwls") {
+    
+    signature <- omnideconv::build_model_dwls(
+      single_cell_object = sc_matrix,
+      cell_type_annotations = sc_celltype_annotations,
+      dwls_method = "mast_optimized",
+      verbose = TRUE,
+      ncores = ncores
+    )
+    
+  } else if (method == "scdc") {
+    
+    signature <- omnideconv::build_model_scdc(
+      single_cell_object = sc_matrix,
+      cell_type_annotations = sc_celltype_annotations,
+      batch_ids = sc_batch,
+      markers = NULL,
+      verbose = TRUE,
+      ncores = ncores
+    )$basis
     
   } else if(method == "scaden"){
-    scaden_tmp <- paste0('/vol/omnideconv_results/tmp/scaden_tmp_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
-    unlink(scaden_tmp, recursive=TRUE)
-    if(!dir.exists(paste0(scaden_tmp))){
-      dir.create(scaden_tmp)
+    unlink(tmp_dir_path, recursive=TRUE)
+    if(!dir.exists(paste0(tmp_dir_path))){
+      dir.create(tmp_dir_path)
     }
     signature <- omnideconv::build_model_scaden(
       sc_matrix,
       sc_celltype_annotations,
       bulk_matrix,
-      temp_dir = scaden_tmp,
+      temp_dir = tmp_dir_path,
       verbose = TRUE
     )
+
   }else if (method %in% c('autogenes', 'bayesprism', 'bisque', 'music')){
     signature <- NULL
-    
-  } else if (method == "rectangle") {
-    # rectangle is a python package not available in omnideconv
-    print(row_indices[1:10])
-    signature <- rp$pp$build_rectangle_signatures(adata,bulk_genes=row_indices)
-
-    rectangle_tmp <- paste0('/vol/omnideconv_results/results_tmp/rectangle_',sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate,"/")
-    if(!dir.exists(rectangle_tmp)) {
-      dir.create(rectangle_tmp)
-    }
-    # save signature to file as pkl
-    reticulate::py_save_object(signature, file = paste0(rectangle_tmp, "signature_result.pkl"))
+      
   } else {
-    signature <- omnideconv::build_model(
-      single_cell_object = sc_matrix,
-      cell_type_annotations = sc_celltype_annotations,
-      bulk_gene_expression = bulk_matrix,
-      markers = NULL,
-      batch_ids = sc_batch,
-      verbose = TRUE,
-      method = method
-    )
+    message('Selected method is not supported in the benchmark. Please check again.')
+    stop()
   }
 })
-
 
 
 if (method %in% c("scaden")) { 
@@ -184,11 +166,8 @@ runtime_text <- data.frame(method,
                       subset_value, 
                       replicate, 
                       'SIGNATURE', 
-                      runtime[['user.self']], 
+                      runtime[['user.self']],
                       runtime[['sys.self']], 
                       runtime[['elapsed']])
 
 saveRDS(runtime_text, file = paste0(res_path, "/runtime_signature.rds"))
-#saveRDS(profiling, file = paste0(res_path, "/memory_signature.rds"))
-
-

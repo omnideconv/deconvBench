@@ -38,7 +38,7 @@ if(dir.exists(output_dir)){
     quit(save='no')
   }
 }else{
-  dir.create(output_dir)
+  dir.create(output_dir,  recursive=TRUE)
 }
 
 sc_dir <- paste0(args$sc_dir, '/', sc_ds, '/')

@@ -76,7 +76,7 @@ for (d in datasets){
         quit(save='no')
     }
     }else{
-    dir.create(output_dir, recursive=TRUE)
+      dir.create(output_dir, recursive=TRUE)
     }
 
     simulated_bulk <- SimBu::simulate_bulk(

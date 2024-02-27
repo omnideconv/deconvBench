@@ -156,7 +156,7 @@ process SIMULATE_BULK_UNKNOWN_CELL_TYPE {
       beforeScript 'chmod o+rw .'      
       shell:
       '''
-      /vol/omnideconv_input/benchmark/pipeline/bin/simulateBulkNF_unknown_content_analysis.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{simulation_n_samples}' '!{fraction_unknown_cell}' '!{cell_types}' '!{unknown_cell_type}' '!{replicates}' '!{params.preProcess_dir}' '!{params.ncores}' 
+      simulateBulkNF_unknown_content_analysis.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{simulation_n_samples}' '!{fraction_unknown_cell}' '!{cell_types}' '!{unknown_cell_type}' '!{replicates}' '!{params.preProcess_dir}' '!{params.ncores}' 
       '''
 }
 
@@ -179,7 +179,7 @@ process ANALYSIS_BULK_UNKNOWN_CELL_TYPE {
       
       shell:
       '''
-      /vol/omnideconv_input/benchmark/pipeline/bin/analysisNF_unknown_content.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{sim_bulk_name}' '!{sim_bulk_path}' '!{replicates}' '!{method}' '!{fraction_unknown_cell}' '!{cell_types}' '!{unknown_cell_type}' '!{params.results_dir_unknown_content}' '!{params.ncores}'
+      analysisNF_unknown_content.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{sim_bulk_name}' '!{sim_bulk_path}' '!{replicates}' '!{method}' '!{fraction_unknown_cell}' '!{cell_types}' '!{unknown_cell_type}' '!{params.results_dir_unknown_content}' '!{params.ncores}'
       ''' 
 }
 
@@ -203,7 +203,7 @@ process SIMULATE_BULK_RESOLUTION_ANALYSIS {
 
       shell:
       '''
-      /vol/omnideconv_input/benchmark/pipeline/bin/simulateBulkNF_impact_cell_resolution.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{simulation_n_samples}' '!{cell_types_fine}' '!{replicates}' '!{params.preProcess_dir}' '!{params.ncores}' 
+      simulateBulkNF_impact_cell_resolution.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{simulation_n_samples}' '!{cell_types_fine}' '!{replicates}' '!{params.preProcess_dir}' '!{params.ncores}' 
       '''
 }
 
@@ -226,7 +226,7 @@ process ANALYSIS_BULK_RESOLUTION_ANALYSIS {
       
       shell:
       '''
-      /vol/omnideconv_input/benchmark/pipeline/bin/analysisNF_impact_cell_resolution.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{sim_bulk_name}' '!{sim_bulk_path}' '!{method}' '!{cell_types_fine}' '!{replicates}' '!{params.results_dir_resolution}' '!{params.ncores}'
+      analysisNF_impact_cell_resolution.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{sim_bulk_name}' '!{sim_bulk_path}' '!{method}' '!{cell_types_fine}' '!{replicates}' '!{params.results_dir_resolution}' '!{params.ncores}'
       ''' 
 }
 
@@ -509,12 +509,7 @@ workflow simulation_impact_technology {
 
   deconvolution_bis = ANALYSIS_BULK_MIRRORDB(params.simulation_sc_dataset,
                                                ['vanderbilt_lung', '/vol/omnideconv_input/omnideconv_data/Tumor'], 
-                                               params.method_simulation) 
-
-  //deconvolution = ANALYSIS_PSEUDOBULK_MIRRORDB(params.simulation_sc_dataset,
-  //                                             simulations,
-  //                                             params.method_simulation)
-                                       
+                                               params.method_list)                                        
 }
 
 workflow simulation_spillover {
@@ -527,19 +522,19 @@ workflow simulation_spillover {
   
   deconvolution = ANALYSIS_SPILLOVER(simulations,
                                      params.spillover_celltypes,
-                                     params.method_simulation)
+                                     params.method_list)
 
 }
 
 workflow simulation_unknown_content {
   // sensitivity to unknown content
   simulations = SIMULATE_BULK_UNKNOWN_CELL_TYPE(params.simulation_sc_dataset,
-                                                    params.simulation_n_cells,
-							          params.simulation_n_samples,
-							          params.fractions_unknown_cells,
-							          params.known_cell_types,
-							          params.unknown_cell_type, 
-                                                    params.replicates_unknown_content)
+                                                params.simulation_n_cells,
+							      params.simulation_n_samples,
+							      params.fractions_unknown_cells,
+                                                params.known_cell_types,
+                                                params.unknown_cell_type, 
+                                                params.replicates_unknown_content)
   
   
   
@@ -548,7 +543,7 @@ workflow simulation_unknown_content {
                                              params.fractions_unknown_cells,
 							   params.known_cell_types,
 							   params.unknown_cell_type,
-                                             params.method_simulation)
+                                             params.method_list)
   
 }
 
@@ -565,7 +560,7 @@ workflow simulation_resolution_analysis {
   
   deconvolution = ANALYSIS_BULK_RESOLUTION_ANALYSIS(simulations,
                                                     params.cell_types_finer_res,
-                                                    params.method_simulation)
+                                                    params.method_list)
   
 }
 

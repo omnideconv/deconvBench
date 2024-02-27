@@ -1,8 +1,7 @@
-#!/usr/local/bin/Rscript
+#!/usr/bin/Rscript
 
-print("Started simulation script ...")
+print("Started simulation script [unkown content] ...")
 
-library(docopt)
 library(SimBu)
 library(Matrix)
 
@@ -20,10 +19,8 @@ Options:
 <preprocess_dir> preprocessing output directory where pseudo-bulks will be stored
 <ncores> number of cores for parallel simulation" -> doc
 
-print(doc)
 
 args <- docopt::docopt(doc)
-print(args)
 
 sc_ds <- args$sc_ds
 ncells <- as.numeric(args$simulation_n_cells)
@@ -54,7 +51,7 @@ if(dir.exists(output_dir)){
     quit(save='no')
   }
 }else{
-  dir.create(output_dir)
+  dir.create(output_dir,  recursive=TRUE)
 }
 
 sc_dir <- paste0(args$sc_dir, '/', sc_ds, '/')
@@ -72,11 +69,9 @@ simbu_ds <- SimBu::dataset(
   name = sc_ds
 )
 
-
 for (cur_cell_fraction in fractions_unknown){
   simulation_list = list()
-  for (r in 1:replicates){
-    
+  for (r in 1:replicates){    
 
     simulated_bulk <- SimBu::simulate_bulk(
       data =  simbu_ds,
@@ -97,14 +92,4 @@ for (cur_cell_fraction in fractions_unknown){
     saveRDS(SummarizedExperiment::assays(simulated_bulk$bulk)[["bulk_tpm"]], paste0(output_dir,'/replicate_', r, '/', pseudobulk_name, '_', cur_cell_fraction, '_tpm.rds'))
     saveRDS(t(simulated_bulk$cell_fractions), paste0(output_dir,'/replicate_', r, '/', pseudobulk_name,  '_', cur_cell_fraction, '_facs.rds'))
   }
-
-
 }
-
-
-#simulated_bulk <- merge_simulations(simulation_list)
-
-#saveRDS(SummarizedExperiment::assays(simulated_bulk$bulk)[["bulk_counts"]], paste0(output_dir,'/', pseudobulk_name, '_counts.rds'))
-#saveRDS(SummarizedExperiment::assays(simulated_bulk$bulk)[["bulk_tpm"]], paste0(output_dir,'/', pseudobulk_name, '_tpm.rds'))
-#saveRDS(t(simulated_bulk$cell_fractions), paste0(output_dir,'/', pseudobulk_name, '_facs.rds'))
-

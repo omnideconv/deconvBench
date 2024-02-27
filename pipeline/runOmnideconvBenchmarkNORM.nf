@@ -52,7 +52,7 @@ process PREPROCESS_SINGLE_CELL {
 
       shell:
       '''
-      /nfs/proj/omnideconv_benchmarking/benchmark_lorenzo/benchmark/pipeline/bin/preprocessSingleCellNF.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{ct_fractions}' '!{replicate}' '!{preProcess_dir}'
+      preprocessSingleCellNF.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{ct_fractions}' '!{replicate}' '!{preProcess_dir}'
       '''
 }
 
@@ -70,7 +70,7 @@ process SIMULATE_BULK {
 
       shell:
       '''
-      /nfs/proj/omnideconv_benchmarking/benchmark_lorenzo/benchmark/pipeline/bin/simulateBulkNF.R '!{params.simulation_sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{simulation_n_samples}' '!{simulation_scenario}' '!{params.preProcess_dir}' '!{params.ncores}'
+      simulateBulkNF.R '!{params.simulation_sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{simulation_n_samples}' '!{simulation_scenario}' '!{params.preProcess_dir}' '!{params.ncores}'
       '''
 }
 
@@ -88,7 +88,7 @@ process SIMULATE_BULK_SPILLOVER {
 
       shell:
       '''
-      /nfs/proj/omnideconv_benchmarking/benchmark_lorenzo/benchmark/pipeline/bin/simulateBulkNF_spillover_analysis.R '!{params.simulation_sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{spillover_samples_per_cell}' '!{params.cell_types}' '!{params.preProcess_dir}' '!{params.ncores}' 
+      simulateBulkNF_spillover_analysis.R '!{params.simulation_sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{spillover_samples_per_cell}' '!{params.cell_types}' '!{params.preProcess_dir}' '!{params.ncores}' 
       '''
 }
 
@@ -119,7 +119,7 @@ process ANALYSIS_SPILLOVER {
       
       shell:
       '''
-      /nfs/proj/omnideconv_benchmarking/benchmark_lorenzo/benchmark/pipeline/bin/analysisNF_spillover.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{cell_types}' '!{params.results_dir_spillover}' '!{run_preprocessing}' '!{params.ncores}'
+      analysisNF_spillover.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{cell_types}' '!{params.results_dir_spillover}' '!{run_preprocessing}' '!{params.ncores}'
       ''' 
 }
 
@@ -140,7 +140,7 @@ process SIMULATE_BULK_SENSITIVITY {
 
       shell:
       '''
-      /nfs/proj/omnideconv_benchmarking/benchmark_lorenzo/benchmark/pipeline/bin/simulateBulkNF_unknown_content_analysis.R '!{params.simulation_sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{simulation_n_samples}' '!{params.fraction_unknown_cell}' '!{params.preProcess_dir}' '!{params.ncores}' '!{params.known_cell_types}' '!{params.unknown_cell_type}' 
+      simulateBulkNF_unknown_content_analysis.R '!{params.simulation_sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{simulation_n_samples}' '!{params.fraction_unknown_cell}' '!{params.preProcess_dir}' '!{params.ncores}' '!{params.known_cell_types}' '!{params.unknown_cell_type}' 
       '''
 }
 
@@ -172,7 +172,7 @@ process ANALYSIS_SENSITIVITY {
       
       shell:
       '''
-      /nfs/proj/omnideconv_benchmarking/benchmark_lorenzo/benchmark/pipeline/bin/analysisNF_unknown_content.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{cell_types}' '!{params.results_dir_unknown_content}' '!{run_preprocessing}' '!{params.ncores}'
+      analysisNF_unknown_content.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{cell_types}' '!{params.results_dir_unknown_content}' '!{run_preprocessing}' '!{params.ncores}'
       ''' 
 }
 
@@ -190,7 +190,7 @@ process SIMULATE_BULK_RESOLUTION_ANALYSIS {
 
       shell:
       '''
-      /nfs/proj/omnideconv_benchmarking/benchmark_lorenzo/benchmark/pipeline/bin/simulateBulkNF_impact_cell_resolution.R '!{params.simulation_sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{simulation_n_samples}' '!{params.fraction_unknown_cell}' '!{params.preProcess_dir}' '!{params.ncores}' '!{params.cell_types_finer_res}' 
+      simulateBulkNF_impact_cell_resolution.R '!{params.simulation_sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{simulation_n_samples}' '!{params.fraction_unknown_cell}' '!{params.preProcess_dir}' '!{params.ncores}' '!{params.cell_types_finer_res}' 
       '''
 }
 
@@ -221,7 +221,7 @@ process ANALYSIS_RESOLUTION {
       
       shell:
       '''
-      /nfs/proj/omnideconv_benchmarking/benchmark_lorenzo/benchmark/pipeline/bin/analysisNF_impact_cell_resolution.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{cell_types}' '!{params.results_dir_resolution}' '!{run_preprocessing}' '!{params.ncores}'
+      analysisNF_impact_cell_resolution.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{cell_types}' '!{params.results_dir_resolution}' '!{run_preprocessing}' '!{params.ncores}'
       ''' 
 }
 
@@ -257,7 +257,7 @@ process CREATE_SIGNATURE {
 
       shell:
       '''
-      /nfs/proj/omnideconv_benchmarking/benchmark_lorenzo/benchmark/pipeline/bin/computeSignaturesNF.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.ncores}'
+      computeSignaturesNF.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.ncores}'
       ''' 
 }
 
@@ -295,7 +295,7 @@ process CREATE_SIGNATURE_FOR_SIMULATION {
 
       shell:
       '''
-      /nfs/proj/omnideconv_benchmarking/benchmark_lorenzo/benchmark/pipeline/bin/computeSignaturesNF_simulation.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{cell_types}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.ncores}'
+      computeSignaturesNF_simulation.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{cell_types}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.ncores}'
       ''' 
 }
 
@@ -326,7 +326,7 @@ process DECONVOLUTE {
   
 	shell:
 	'''
-	/nfs/proj/omnideconv_benchmarking/benchmark_lorenzo/benchmark/pipeline/bin/runDeconvolutionNF.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.species_sc}' '!{params.ncores}' 
+	runDeconvolutionNF.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.species_sc}' '!{params.ncores}' 
 	''' 
 }
 
@@ -353,7 +353,7 @@ process COMPUTE_METRICS {
   
 	shell:
 	'''
-	/nfs/proj/omnideconv_benchmarking/benchmark_lorenzo/benchmark/pipeline/bin/computeMetricsNF.R '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{replicate}' '!{ct_fractions}' '!{params.results_dir_general}'
+	computeMetricsNF.R '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{replicate}' '!{ct_fractions}' '!{params.results_dir_general}'
 	''' 
 }
 

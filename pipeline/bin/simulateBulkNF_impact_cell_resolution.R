@@ -1,8 +1,7 @@
-#!/usr/local/bin/Rscript
+#!/usr/bin/Rscript
 
-print("Started simulation script ...")
+print("Starting simulation script [impact cell resolution] ...")
 
-library(docopt)
 library(SimBu)
 library(Matrix)
 
@@ -18,17 +17,13 @@ Options:
 <preprocess_dir> preprocessing output directory where pseudo-bulks will be stored
 <ncores> number of cores for parallel simulation" -> doc
 
-print(doc)
 
 args <- docopt::docopt(doc)
-print(args)
 
 sc_ds <- args$sc_ds
 ncells <- as.numeric(args$simulation_n_cells)
 nsamples <- as.numeric(args$simulation_n_samples)
 fraction_unknown <- as.numeric(args$fraction_unknown_cells)
-
-
 
 cell_types_simulation <- gsub('\\[|]', '', args$cell_types_minor)
 cell_types_simulation <- strsplit(cell_types_simulation, ",")[[1]]
@@ -72,32 +67,6 @@ simbu_ds_normal <- SimBu::dataset(
   name = sc_ds
 )
 
-# This function and the excel file will be needed for the reannotation of the ground truth fractions
-reannotate_facs <- function(facs.table, annotation, new.annotation.level){
-  
-  facs.table <- as.data.frame(facs.table)
-  annotation <- annotation[which(annotation$Fine %in% colnames(facs.table)), ]
-  cell_types <- unique(annotation[[new.annotation.level]])
-  for(c in cell_types){
-    # These are the fine cell types
-    cur.cell.types <- annotation[which(annotation[[new.annotation.level]] == c), 1]
-    
-    if(length(cur.cell.types) > 1){
-      facs.table[c] <- rowSums(facs.table[, c(cur.cell.types)])
-      facs.table[, c(cur.cell.types)] <- NULL
-    }
-  }
-  facs.table
-}
-
-reannotate_cell_types <- function(celltypes_fine, annotation, new.annotation.level){
-  
-  annotation <- annotation[which(annotation$Fine %in% celltypes_fine), ]
-  cell_types <- unique(annotation[[new.annotation.level]])
-
-  cell_types
-}
-
 table.annotations <- read.table(paste0(sc_dir, '/cell_type_mappings.csv'), header = T, sep=',')
 
 
@@ -112,54 +81,51 @@ for(r in 1:replicates){
         quit(save='no')
     }
   }else{
-  dir.create(cur_output_dir, recursive=TRUE)
+    dir.create(cur_output_dir, recursive=TRUE)
   }
 
   set.seed(22+4*r)
+
   simulated_bulk <- SimBu::simulate_bulk(
-  data =  simbu_ds_fine,
-  whitelist = cell_types_simulation,
-  scenario = 'mirror_db',
-  scaling_factor = 'expressed_genes',
-  nsamples = nsamples,
-  ncells = ncells,
-  balance_even_mirror_scenario = 0.05,
-  BPPARAM = BiocParallel::MulticoreParam(workers = ncores),
-  run_parallel = TRUE)
+    data =  simbu_ds_fine,
+    whitelist = cell_types_simulation,
+    scenario = 'mirror_db',
+    scaling_factor = 'expressed_genes',
+    nsamples = nsamples,
+    ncells = ncells,
+    balance_even_mirror_scenario = 0.05,
+    BPPARAM = BiocParallel::MulticoreParam(workers = ncores),
+    run_parallel = TRUE
+  )
 
   simulated_bulk_coarse <- SimBu::simulate_bulk(
-  data =  simbu_ds_coarse,
-  whitelist = reannotate_cell_types(cell_types_simulation, table.annotations, 'Coarse'),
-  scenario = 'mirror_db',
-  scaling_factor = 'expressed_genes',
-  nsamples = nsamples,
-  ncells = ncells,
-  balance_even_mirror_scenario = 0.05,
-  BPPARAM = BiocParallel::MulticoreParam(workers = ncores),
-  run_parallel = TRUE)
+    data =  simbu_ds_coarse,
+    whitelist = reannotate_cell_types(cell_types_simulation, table.annotations, 'Coarse'),
+    scenario = 'mirror_db',
+    scaling_factor = 'expressed_genes',
+    nsamples = nsamples,
+    ncells = ncells,
+    balance_even_mirror_scenario = 0.05,
+    BPPARAM = BiocParallel::MulticoreParam(workers = ncores),
+    run_parallel = TRUE
+  )
 
   simulated_bulk_normal <- SimBu::simulate_bulk(
-  data =  simbu_ds_normal,
-  whitelist = reannotate_cell_types(cell_types_simulation, table.annotations, 'Normal'),
-  scenario = 'mirror_db',
-  scaling_factor = 'expressed_genes',
-  nsamples = nsamples,
-  ncells = ncells,
-  balance_even_mirror_scenario = 0.05,
-  BPPARAM = BiocParallel::MulticoreParam(workers = ncores),
-  run_parallel = TRUE)
+    data =  simbu_ds_normal,
+    whitelist = reannotate_cell_types(cell_types_simulation, table.annotations, 'Normal'),
+    scenario = 'mirror_db',
+    scaling_factor = 'expressed_genes',
+    nsamples = nsamples,
+    ncells = ncells,
+    balance_even_mirror_scenario = 0.05,
+    BPPARAM = BiocParallel::MulticoreParam(workers = ncores),
+    run_parallel = TRUE
+  )
 
   saveRDS(SummarizedExperiment::assays(simulated_bulk$bulk)[["bulk_counts"]], paste0(cur_output_dir,'/', pseudobulk_name, '_counts.rds'))
   saveRDS(SummarizedExperiment::assays(simulated_bulk$bulk)[["bulk_tpm"]], paste0(cur_output_dir,'/', pseudobulk_name, '_tpm.rds'))
   saveRDS(t(simulated_bulk$cell_fractions), paste0(cur_output_dir,'/', pseudobulk_name, '_fine_annot_facs.rds'))
 
-#  saveRDS(SummarizedExperiment::assays(simulated_bulk_coarse$bulk)[["bulk_counts"]], paste0(cur_output_dir,'/', pseudobulk_name, '_coarse_counts.rds'))
-#  saveRDS(SummarizedExperiment::assays(simulated_bulk_coarse$bulk)[["bulk_tpm"]], paste0(cur_output_dir,'/', pseudobulk_name, '_coarse_tpm.rds'))
-#  saveRDS(t(simulated_bulk_coarse$cell_fractions), paste0(cur_output_dir,'/', pseudobulk_name, '_coarse_annot_facs.rds'))
-
-# saveRDS(SummarizedExperiment::assays(simulated_bulk_normal$bulk)[["bulk_counts"]], paste0(cur_output_dir,'/', pseudobulk_name, '_normal_counts.rds'))
-#  saveRDS(SummarizedExperiment::assays(simulated_bulk_normal$bulk)[["bulk_tpm"]], paste0(cur_output_dir,'/', pseudobulk_name, '_normal_tpm.rds'))
-#  saveRDS(t(simulated_bulk_normal$cell_fractions), paste0(cur_output_dir,'/', pseudobulk_name, '_normal_annot_facs.rds'))
   facs.normal.annotations <- reannotate_facs(simulated_bulk$cell_fractions, table.annotations, 'Normal')
   facs.coarse.annotations <- reannotate_facs(simulated_bulk$cell_fractions, table.annotations, 'Coarse')
 
@@ -167,12 +133,3 @@ for(r in 1:replicates){
   saveRDS(t(facs.coarse.annotations), paste0(cur_output_dir,'/', pseudobulk_name, '_coarse_annot_facs.rds'))
 
 }
-
-
-
-
-
-
-
-
-

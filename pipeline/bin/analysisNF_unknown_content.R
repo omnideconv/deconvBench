@@ -48,7 +48,6 @@ if(sc_norm == 'counts'){
 sc_celltype_annotations <- readRDS(file.path(sc_path, sc_dataset, 'celltype_annotations.rds'))
 sc_batch <- readRDS(file.path(sc_path, sc_dataset, 'batch.rds'))
 
-
 unknown_cell_type <- args$unknown_cell_type
 
 fractions_unknown <- gsub('\\[|]', '', args$fraction_unknown_cells)

@@ -1,15 +1,15 @@
-#!/usr/local/bin/Rscript
+#!/usr/bin/Rscript
 
-print("Started analysis for deconvolution of simulated data...")
+print("Starting analysis script for deconvolution of simulated data ...")
 
 library(docopt)
 library(Biobase)
 library(omnideconv)
 reticulate::use_miniconda(condaenv = "r-omnideconv", required = TRUE)
-source('/vol/omnideconv_input/benchmark/pipeline/bin/general_functions/deconvolution_workflow_for_simulation.R')
+source('/nfs/home/students/adietrich/omnideconv/benchmark/pipeline/bin/utils.R')
 
 "Usage:
-  analysisNF_impact_cell_resolution.R <sc_name> <sc_path> <bulk_name> <bulk_path> <preprocess_dir> <replicates> <deconv_method> <results_dir> <ncores>
+  nalysisNF_mixed_simulations.R <sc_name> <sc_path> <bulk_name> <bulk_path> <preprocess_dir> <replicates> <deconv_method> <results_dir> <ncores>
 Options:
 <sc_name> name of sc datasets
 <sc_path> path to sc dataset
@@ -32,14 +32,14 @@ method <- args$deconv_method
 res_base_path <- args$results_dir
 ncores <- as.numeric(args$ncores) # in case a method can use multiple cores
 replicates <- as.numeric(args$replicates)
-# Here we need to filter for those cell types that are in the simulated dataset. 
 
+# Here we need to filter for those cell types that are in the simulated dataset. 
 common.cells <- readRDS(file.path(preprocess_dir, 'cell_types.rds'))
 sc_celltype_annotations <- readRDS(file.path(sc_path, sc_dataset, 'celltype_annotations.rds'))
 position_vector <- sc_celltype_annotations %in% common.cells
 sc_celltype_annotations <- sc_celltype_annotations[position_vector]
 
-method_normalizations <- read.table('/vol/omnideconv_input/benchmark/pipeline/optimal_normalizations.csv', sep = ',', header = TRUE)
+method_normalizations <- read.table('/nfs/home/students/adietrich/omnideconv/benchmark/pipeline/optimal_normalizations.csv', sep = ',', header = TRUE)
 sc_norm <- method_normalizations[method_normalizations$method == method, 2]
 bulk_norm <- method_normalizations[method_normalizations$method == method, 3]
 
@@ -71,10 +71,20 @@ dir.create(res_path_normal, recursive = TRUE, showWarnings = TRUE)
 bulk_matrix <- readRDS(file.path(bulk_path,  paste0('replicate_1'), paste0('simulation_', bulk_norm, '.rds')))
 bulk_matrix <- as.matrix(bulk_matrix)
 
-signature <- signature_workflow_general(sc_matrix, sc_celltype_annotations, 
-                                        'normal', sc_dataset, sc_norm, sc_batch, method, bulk_matrix, 
-                                        bulk_name, bulk_norm, ncores, res_path_normal)
-
+signature <- signature_workflow_general(
+  sc_matrix, 
+  sc_celltype_annotations, 
+  'normal', 
+  sc_dataset, 
+  sc_norm, 
+  sc_batch, 
+  method, 
+  bulk_matrix,
+  bulk_name, 
+  bulk_norm, 
+  ncores, 
+  res_path_normal
+)
 
 for(r in 1:replicates){
 
@@ -83,9 +93,22 @@ for(r in 1:replicates){
     bulk_matrix <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0('simulation_', bulk_norm, '.rds')))
     bulk_matrix <- as.matrix(bulk_matrix)
 
-    deconvolution <- deconvolution_workflow_general(sc_matrix, sc_celltype_annotations, 
-                                                    'normal', sc_dataset, sc_norm, sc_batch, signature, 
-                                                    method, bulk_matrix, bulk_name, bulk_norm, ncores, res_path_normal)
+    # Deconvolution
+    deconvolution <- deconvolution_workflow_general(
+      sc_matrix, 
+      sc_celltype_annotations,
+      'normal', 
+      sc_dataset, 
+      sc_norm, 
+      sc_batch, 
+      signature, 
+      method, 
+      bulk_matrix, 
+      bulk_name, 
+      bulk_norm, 
+      ncores, 
+      res_path_normal
+    )  
 
     true_fractions <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0('simulation_facs.rds')))
 
@@ -101,9 +124,3 @@ for(r in 1:replicates){
 saveRDS(results_list, file=paste0(res_path, "/deconvolution.rds")) 
 
 }
-
-
-
-
-
-

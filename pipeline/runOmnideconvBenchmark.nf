@@ -249,7 +249,7 @@ process SIMULATE_PSEUDOBULK_MIRRORDB {
       beforeScript 'chmod o+rw .'      
       shell:
       '''
-      /vol/omnideconv_input/benchmark/pipeline/bin/simulateBulkNF_general.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{simulation_n_samples}' '!{sc_dataset_list}' '!{replicates}' '!{params.preProcess_dir}' '!{params.ncores}' 
+      simulateBulkNF_general.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{simulation_n_samples}' '!{sc_dataset_list}' '!{replicates}' '!{params.preProcess_dir}' '!{params.ncores}' 
       '''
 }
 
@@ -269,7 +269,7 @@ process ANALYSIS_PSEUDOBULK_MIRRORDB {
       
       shell:
       '''
-      /vol/omnideconv_input/benchmark/pipeline/bin/analysisNF_mixed_simulations.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{sim_bulk_name}' '!{sim_bulk_path}' '!{params.preProcess_dir}' '!{replicates}' '!{method}' '!{params.results_dir_impact_technology}' '!{params.ncores}'
+      analysisNF_mixed_simulations.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{sim_bulk_name}' '!{sim_bulk_path}' '!{params.preProcess_dir}' '!{replicates}' '!{method}' '!{params.results_dir_impact_technology}' '!{params.ncores}'
       ''' 
 }
 
@@ -288,7 +288,7 @@ process ANALYSIS_BULK_MIRRORDB {
       
       shell:
       '''
-      /vol/omnideconv_input/benchmark/pipeline/bin/analysisNF_mixed_simulations_real_dataset.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{bulk_name}' '!{bulk_path}' '!{params.preProcess_dir}' '!{method}' '!{params.results_dir_impact_technology}' '!{params.ncores}'
+      analysisNF_mixed_simulations_real_dataset.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{bulk_name}' '!{bulk_path}' '!{params.preProcess_dir}' '!{method}' '!{params.results_dir_impact_technology}' '!{params.ncores}'
       ''' 
 }
 
@@ -507,9 +507,13 @@ workflow simulation_impact_technology {
 						         params.datasets_impact_technology, 
                                              params.replicates_simulation)
 
-  deconvolution_bis = ANALYSIS_BULK_MIRRORDB(params.simulation_sc_dataset,
-                                               ['vanderbilt_lung', '/vol/omnideconv_input/omnideconv_data/Tumor'], 
-                                               params.method_list)                                        
+  //deconvolution = ANALYSIS_BULK_MIRRORDB(params.simulation_sc_dataset,
+  //                                       ['vanderbilt_lung', '/nfs/data/omnideconv_benchmarking_clean/data/Tumor'], 
+  //                                       params.method_list)          
+
+  deconvolution = ANALYSIS_PSEUDOBULK_MIRRORDB(params.simulation_sc_dataset,
+                                               simulations, 
+                                               params.method_list)                               
 }
 
 workflow simulation_spillover {

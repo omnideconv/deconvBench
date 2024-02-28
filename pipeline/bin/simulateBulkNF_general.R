@@ -1,7 +1,7 @@
-#!/usr/local/bin/Rscript
-print("Started simulation script ...")
+#!/usr/bin/Rscript
 
-library(docopt)
+print("Starting simulation script [general] ...")
+
 library(SimBu)
 library(Matrix)
 
@@ -16,10 +16,8 @@ Options:
 <replicates> number of replicates to generate per dataset
 <preprocess_dir> preprocessing output directory where pseudo-bulks will be stored
 <ncores> number of cores for parallel simulation" -> doc
-print(doc)
 
 args <- docopt::docopt(doc)
-print(args)
 
 sc_ds <- args$sc_ds
 sc_dir <- args$sc_dir
@@ -44,8 +42,6 @@ for (d in datasets){
 
 common.cells <- Reduce(intersect, list.annotations)
 saveRDS(common.cells, file = file.path(args$preprocess_dir, 'cell_types.rds'))
-
-
 
 for (d in datasets){
   sc_dir_cur <- paste0(sc_dir, '/', d, '/')
@@ -80,19 +76,19 @@ for (d in datasets){
     }
 
     simulated_bulk <- SimBu::simulate_bulk(
-    data =  simbu_ds,
-    scenario = 'mirror_db',
-    scaling_factor = 'expressed_genes',
-    total_read_counts = 1e+07,
-    nsamples = nsamples,
-    ncells = ncells,
-    BPPARAM = BiocParallel::MulticoreParam(workers = ncores),
-    balance_even_mirror_scenario = 0.05,
-    run_parallel = TRUE)
+      data =  simbu_ds,
+      scenario = 'mirror_db',
+      scaling_factor = 'expressed_genes',
+      total_read_counts = 1e+07,
+      nsamples = nsamples,
+      ncells = ncells,
+      BPPARAM = BiocParallel::MulticoreParam(workers = ncores),
+      balance_even_mirror_scenario = 0.05,
+      run_parallel = TRUE
+    )
     
     saveRDS(SummarizedExperiment::assays(simulated_bulk$bulk)[["bulk_counts"]], paste0(output_dir, '/simulation_counts.rds'))
     saveRDS(SummarizedExperiment::assays(simulated_bulk$bulk)[["bulk_tpm"]], paste0(output_dir,'/simulation_tpm.rds'))
     saveRDS(t(simulated_bulk$cell_fractions), paste0(output_dir,'/simulation_facs.rds'))
   }
-
 }

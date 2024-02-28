@@ -19,7 +19,6 @@ Options:
 <preprocess_dir> preprocessing output directory where pseudo-bulks will be stored
 <ncores> number of cores for parallel simulation" -> doc
 
-
 args <- docopt::docopt(doc)
 
 sc_ds <- args$sc_ds

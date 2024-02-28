@@ -1,6 +1,6 @@
 #!/usr/bin/Rscript
 
-print("Started analysis script [unkown content] ...")
+print("Starting analysis script [unkown content] ...")
 
 library(docopt)
 library(Biobase)
@@ -56,7 +56,6 @@ fractions_unknown <- strsplit(fractions_unknown, ",")[[1]]
 fractions_unknown <- as.numeric(fractions_unknown)
 print(fractions_unknown)
 
-
 # Here we need to filter for those cell types that are in the simulated dataset. 
 cell_types_simulation <- gsub('\\[|]', '', args$cell_types)
 cell_types_simulation <- strsplit(cell_types_simulation, ",")[[1]]
@@ -66,6 +65,9 @@ position_vector <- sc_celltype_annotations %in% cell_types_simulation
 sc_matrix <- sc_matrix[, position_vector]
 sc_batch <- sc_batch[position_vector]
 sc_celltype_annotations <- sc_celltype_annotations[position_vector]
+
+bulk_matrix <- readRDS(file.path(bulk_path, 'replicate_1', paste0(bulk_name, '_', fractions_unknown[1], '_', bulk_norm, '.rds')))
+bulk_matrix <- as.matrix(bulk_matrix)
 
 res_path_normal <- paste0(res_base_path, '/', method, '_', bulk_name)
 
@@ -80,6 +82,22 @@ sc_matrix <- subset_list$data
 sc_celltype_annotations <- subset_list$annotations
 sc_batch <- subset_list$batch_id
 
+# Signature building can be done here already, as the bulk dataset has no influence on signatures
+signature <- signature_workflow_general(
+  sc_matrix, 
+  sc_celltype_annotations, 
+  'normal', 
+  sc_dataset, 
+  sc_norm, 
+  sc_batch, 
+  method, 
+  bulk_matrix,
+  bulk_name, 
+  bulk_norm, 
+  ncores, 
+  res_path_normal
+)
+
 for(cur_cell_fraction in fractions_unknown){
   
   for (r in 1:replicates){
@@ -87,22 +105,6 @@ for(cur_cell_fraction in fractions_unknown){
     bulk_matrix <- as.matrix(bulk_matrix)
 
     true_fractions <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0(bulk_name, '_', cur_cell_fraction, '_facs.rds')))
-    
-    # Signature building 
-    signature <- signature_workflow_general(
-      sc_matrix, 
-      sc_celltype_annotations, 
-      'normal', 
-      sc_dataset, 
-      sc_norm, 
-      sc_batch, 
-      method, 
-      bulk_matrix,
-      bulk_name, 
-      bulk_norm, 
-      ncores, 
-      res_path_normal
-    )
 
     # Deconvolution
     deconvolution <- deconvolution_workflow_general(
@@ -130,9 +132,6 @@ for(cur_cell_fraction in fractions_unknown){
     saveRDS(results_list, file=paste0(res_path_normal, "/replicate_", r, "/deconvolution_", unknown_cell_type, '_', cur_cell_fraction, ".rds"))
   }
 }
-
-# this is a duplicate save of the final replicate result, but with the current pipeline setup we need this for nextflow
-saveRDS(deconvolution, file=paste0(res_path_normal, "/deconvolution.rds"))
 
 if(method =='autogenes' | method == 'scaden'){
   unlink(signature)

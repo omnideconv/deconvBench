@@ -110,7 +110,7 @@ process SIMULATE_BULK_SPILLOVER {
       beforeScript 'chmod o+rw .'      
       shell:
       '''
-      /vol/omnideconv_input/benchmark/pipeline/bin/simulateBulkNF_spillover_analysis.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{simulation_n_samples}' '!{cell_types}' '!{params.preProcess_dir}' '!{params.ncores}' 
+      simulateBulkNF_spillover_analysis.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{simulation_n_samples}' '!{cell_types}' '!{params.preProcess_dir}' '!{params.ncores}' 
       '''
 }
 
@@ -130,7 +130,7 @@ process ANALYSIS_SPILLOVER {
       
       shell:
       '''
-      /vol/omnideconv_input/benchmark/pipeline/bin/analysisNF_spillover.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{sim_bulk_name}' '!{sim_bulk_path}' '!{method}' '!{cell_types}' '!{params.results_dir_spillover}' '!{params.ncores}'
+      analysisNF_spillover.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{sim_bulk_name}' '!{sim_bulk_path}' '!{method}' '!{cell_types}' '!{params.results_dir_spillover}' '!{params.ncores}'
       ''' 
 }
 

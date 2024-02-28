@@ -1,6 +1,6 @@
 #!/usr/bin/Rscript
 
-print("Starting simulation script for spillover analysis...")
+print("Started simulation script [spillover analysis] ...")
 
 library(SimBu)
 library(Matrix)

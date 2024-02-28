@@ -1,6 +1,6 @@
 #!/usr/bin/Rscript
 
-print("Started simulation script [unkown content] ...")
+print("Starting simulation script [unkown content] ...")
 
 library(SimBu)
 library(Matrix)

@@ -2,10 +2,9 @@
 
 library(SingleCellExperiment)
 library(parallel)
-source('/nfs/home/students/adietrich/omnideconv/benchmark/pipeline/bin/utils.R')
 
 "Usage: 
-  preprocessSingleCellNF.R <sc_name> <sc_path> <method> <subset_value> <replicate> <preProcess_dir>
+  preprocessSingleCellNF.R <sc_name> <sc_path> <method> <subset_value> <replicate> <preProcess_dir> <baseDir>
   
 Options:
 <sc_name> name of sc datasets
@@ -13,16 +12,19 @@ Options:
 <method> deconvolution method, for which the preprocessing is performed. Important to select the correctly normalized sc dataset
 <subset_value> if < 1: fraction of cell type; if > 1: number of cells per cell type
 <replicate> value of replicate number
-<preProcess_dir> directory where subsampling datasets are stored" -> doc
+<preProcess_dir> directory where subsampling datasets are stored
+<baseDir> nextflow base directory" -> doc
+
 
 args <- docopt::docopt(doc)
 
 sc_dataset <- args$sc_name
 sc_path <- args$sc_path
 method <- args$method
+baseDir <- args$baseDir
 
-# find method-specific normalizations for sc
-method_normalizations <- read.table('/nfs/home/students/adietrich/omnideconv/benchmark/pipeline/optimal_normalizations.csv', sep = ',', header = TRUE)
+source(paste0(baseDir, '/bin/utils.R'))
+method_normalizations <- read.table(paste0(baseDir, '/optimal_normalizations.csv'), sep = ',', header = TRUE)
 sc_norm <- method_normalizations[method_normalizations$method == method, 2]
 print(paste0('Method: ', method, '; sc-norm: ', sc_norm))
 

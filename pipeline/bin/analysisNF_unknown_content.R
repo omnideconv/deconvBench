@@ -6,10 +6,9 @@ library(docopt)
 library(Biobase)
 library(omnideconv)
 reticulate::use_miniconda(condaenv = "r-omnideconv", required = TRUE)
-source('/nfs/home/students/adietrich/omnideconv/benchmark/pipeline/bin/utils.R')
 
 "Usage:
-  analysisNF_unknown_content.R <sc_name> <sc_path> <bulk_name> <bulk_path> <replicate> <deconv_method> <fraction_unknown_cells> <cell_types> <unknown_cell_type> <results_dir> <ncores>
+  analysisNF_unknown_content.R <sc_name> <sc_path> <bulk_name> <bulk_path> <replicate> <deconv_method> <fraction_unknown_cells> <cell_types> <unknown_cell_type> <results_dir> <ncores> <baseDir>
 Options:
 <sc_name> name of sc datasets
 <sc_path> path to sc dataset
@@ -21,7 +20,8 @@ Options:
 <cell_types> vector, subset of cell types to use for the simulation
 <unknown_cell_type> string, which cell type will be treated as unknown (i.e. not in the signature)
 <results_dir> results (base) directory
-<ncores> number of cores to use for method (if available)" -> doc
+<ncores> number of cores to use for method (if available)
+<baseDir> nextflow base directory" -> doc
 
 args <- docopt::docopt(doc)
 
@@ -32,10 +32,11 @@ bulk_path <- args$bulk_path
 method <- args$deconv_method
 res_base_path <- args$results_dir
 ncores <- as.numeric(args$ncores) # in case a method can use multiple cores
-
 replicates <- as.numeric(args$replicate)
+baseDir <- args$baseDir
 
-method_normalizations <- read.table('/nfs/home/students/adietrich/omnideconv/benchmark/pipeline/optimal_normalizations.csv', sep = ',', header = TRUE)
+source(paste0(baseDir, '/bin/utils.R'))
+method_normalizations <- read.table(paste0(baseDir, '/optimal_normalizations.csv'), sep = ',', header = TRUE)
 sc_norm <- method_normalizations[method_normalizations$method == method, 2]
 bulk_norm <- method_normalizations[method_normalizations$method == method, 3]
 

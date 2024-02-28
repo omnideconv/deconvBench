@@ -18,7 +18,7 @@ process PREPROCESS_SINGLE_CELL {
 
       shell:
       '''
-      preprocessSingleCellNF.R '!{sc_ds}' '!{params.data_dir_sc}' '!{method}' '!{ct_fractions}' '!{replicate}' '!{params.preProcess_dir}'
+      preprocessSingleCellNF.R '!{sc_ds}' '!{params.data_dir_sc}' '!{method}' '!{ct_fractions}' '!{replicate}' '!{params.preProcess_dir}' '!{baseDir}'
       '''
 }
 
@@ -55,7 +55,7 @@ process ANALYSIS_BULK_MISSING_CELL_TYPES {
       
       shell:
       '''
-      analysisNF_missing_cell_type.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{bulk_ds}' '!{params.data_dir_bulk}' '!{method}' '!{cell_types_missing}' '!{params.results_dir_missing_cell_types}' '!{params.ncores}'
+      analysisNF_missing_cell_type.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{bulk_ds}' '!{params.data_dir_bulk}' '!{method}' '!{cell_types_missing}' '!{params.results_dir_missing_cell_types}' '!{params.ncores}' '!{baseDir}'
       ''' 
 }
 
@@ -97,7 +97,7 @@ process ANALYSIS_SPILLOVER {
       
       shell:
       '''
-      analysisNF_spillover.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{sim_bulk_name}' '!{sim_bulk_path}' '!{method}' '!{cell_types}' '!{params.results_dir_spillover}' '!{params.ncores}'
+      analysisNF_spillover.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{sim_bulk_name}' '!{sim_bulk_path}' '!{method}' '!{cell_types}' '!{params.results_dir_spillover}' '!{params.ncores}' '!{baseDir}'
       ''' 
 }
 
@@ -146,7 +146,7 @@ process ANALYSIS_BULK_UNKNOWN_CELL_TYPE {
       
       shell:
       '''
-      analysisNF_unknown_content.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{sim_bulk_name}' '!{sim_bulk_path}' '!{replicates}' '!{method}' '!{fraction_unknown_cell}' '!{cell_types}' '!{unknown_cell_type}' '!{params.results_dir_unknown_content}' '!{params.ncores}'
+      analysisNF_unknown_content.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{sim_bulk_name}' '!{sim_bulk_path}' '!{replicates}' '!{method}' '!{fraction_unknown_cell}' '!{cell_types}' '!{unknown_cell_type}' '!{params.results_dir_unknown_content}' '!{params.ncores}' '!{baseDir}'
       ''' 
 }
 
@@ -193,7 +193,7 @@ process ANALYSIS_BULK_RESOLUTION_ANALYSIS {
       
       shell:
       '''
-      analysisNF_impact_cell_resolution.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{sim_bulk_name}' '!{sim_bulk_path}' '!{method}' '!{cell_types_fine}' '!{replicates}' '!{params.results_dir_resolution}' '!{params.ncores}'
+      analysisNF_impact_cell_resolution.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{sim_bulk_name}' '!{sim_bulk_path}' '!{method}' '!{cell_types_fine}' '!{replicates}' '!{params.results_dir_resolution}' '!{params.ncores}' '!{baseDir}'
       ''' 
 }
 
@@ -236,7 +236,7 @@ process ANALYSIS_PSEUDOBULK_MIRRORDB {
       
       shell:
       '''
-      analysisNF_mixed_simulations.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{sim_bulk_name}' '!{sim_bulk_path}' '!{params.preProcess_dir}' '!{replicates}' '!{method}' '!{params.results_dir_impact_technology}' '!{params.ncores}'
+      analysisNF_mixed_simulations.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{sim_bulk_name}' '!{sim_bulk_path}' '!{params.preProcess_dir}' '!{replicates}' '!{method}' '!{params.results_dir_impact_technology}' '!{params.ncores}' '!{baseDir}'
       ''' 
 }
 
@@ -255,7 +255,7 @@ process ANALYSIS_BULK_MIRRORDB {
       
       shell:
       '''
-      analysisNF_mixed_simulations_real_dataset.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{bulk_name}' '!{bulk_path}' '!{params.preProcess_dir}' '!{method}' '!{params.results_dir_impact_technology}' '!{params.ncores}'
+      analysisNF_mixed_simulations_real_dataset.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{bulk_name}' '!{bulk_path}' '!{params.preProcess_dir}' '!{method}' '!{params.results_dir_impact_technology}' '!{params.ncores}' '!{baseDir}'
       ''' 
 }
 
@@ -280,7 +280,7 @@ process CREATE_SIGNATURE {
 
       shell:
       '''
-      computeSignaturesNF.R '!{sc_ds}' '!{params.data_dir_sc}' '!{bulk_ds}' '!{params.data_dir_bulk}' '!{method}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.ncores}'
+      computeSignaturesNF.R '!{sc_ds}' '!{params.data_dir_sc}' '!{bulk_ds}' '!{params.data_dir_bulk}' '!{method}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.ncores}' '!{baseDir}'
       ''' 
 }
 
@@ -306,7 +306,7 @@ process CREATE_SIGNATURE_PREPROCESSED {
 
       shell:
       '''
-      computeSignaturesNF.R '!{sc_ds}' '!{sc_path}' '!{bulk_ds}' '!{params.data_dir_bulk}' '!{method}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.ncores}'
+      computeSignaturesNF.R '!{sc_ds}' '!{sc_path}' '!{bulk_ds}' '!{params.data_dir_bulk}' '!{method}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.ncores}' '!{baseDir}'
       ''' 
 }
 
@@ -330,7 +330,7 @@ process DECONVOLUTE {
   
 	shell:
 	'''
-	runDeconvolutionNF.R '!{sc_ds}' '!{sc_path}' '!{bulk_ds}' '!{params.data_dir_bulk}' '!{method}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.species_sc}' '!{params.ncores}'
+	runDeconvolutionNF.R '!{sc_ds}' '!{sc_path}' '!{bulk_ds}' '!{params.data_dir_bulk}' '!{method}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.species_sc}' '!{params.ncores}' '!{baseDir}'
 	''' 
 }
 
@@ -352,7 +352,7 @@ process COMPUTE_METRICS {
   
 	shell:
 	'''
-	computeMetricsNF.R '!{sc_ds}' '!{params.data_dir_sc}' '!{bulk_ds}' '!{params.data_dir_bulk}' '!{method}' '!{replicate}' '!{ct_fractions}' '!{params.results_dir_general}'
+	computeMetricsNF.R '!{sc_ds}' '!{params.data_dir_sc}' '!{bulk_ds}' '!{params.data_dir_bulk}' '!{method}' '!{replicate}' '!{ct_fractions}' '!{params.results_dir_general}' '!{baseDir}'
 	''' 
 }
 

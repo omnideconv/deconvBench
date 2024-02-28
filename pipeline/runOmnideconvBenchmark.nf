@@ -36,7 +36,7 @@ process SIMULATE_BULK {
 
       shell:
       '''
-      /vol/omnideconv_input/benchmark/pipeline/bin/simulateBulkNF.R '!{params.simulation_sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{simulation_n_samples}' '!{simulation_scenario}' '!{params.preProcess_dir}' '!{params.ncores}'
+      simulateBulkNF.R '!{params.simulation_sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{simulation_n_samples}' '!{simulation_scenario}' '!{params.preProcess_dir}' '!{params.ncores}'
       '''
 }
 
@@ -307,80 +307,6 @@ process CREATE_SIGNATURE_PREPROCESSED {
       shell:
       '''
       computeSignaturesNF.R '!{sc_ds}' '!{sc_path}' '!{bulk_ds}' '!{params.data_dir_bulk}' '!{method}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.ncores}'
-      ''' 
-}
-
-process CREATE_SIGNATURE_RECTANGLE {
-
-      input:
-      tuple path(sc_matrix), 
-            path(sc_anno), 
-            path(sc_batch), 
-            val(sc_ds), 
-            val(sc_norm), 
-            val(replicate), 
-            val(ct_fractions)
-      val bulk_dir
-      each bulk_ds
-      each bulk_norm
-      each method 
-      val run_preprocessing
-
-      output:
-      tuple path(sc_matrix), 
-            path(sc_anno), 
-            path(sc_batch), 
-            val(sc_ds), 
-            val(sc_norm),
-            val(bulk_ds),
-            val(bulk_norm),
-            val(replicate), 
-            val(ct_fractions),
-            val(method)
-
-      beforeScript 'chmod o+rw .'
-
-      shell:
-      '''
-      /vol/omnideconv_input/benchmark/pipeline/bin/rectangle/computeSignaturesNF.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.ncores}'
-      ''' 
-}
-
-process CREATE_SIGNATURE_FOR_SIMULATION {
-
-      input:
-      tuple path(sc_matrix), 
-            path(sc_anno), 
-            path(sc_batch), 
-            val(sc_ds), 
-            val(sc_norm), 
-            val(replicate), 
-            val(ct_fractions)
-      val bulk_dir
-      each bulk_ds
-      each bulk_norm
-      val cell_types
-      each method 
-      val run_preprocessing
-
-
-      output:
-      tuple path(sc_matrix), 
-            path(sc_anno), 
-            path(sc_batch), 
-            val(sc_ds), 
-            val(sc_norm),
-            val(bulk_ds),
-            val(bulk_norm),
-            val(replicate), 
-            val(ct_fractions),
-            val(method)
-
-      beforeScript 'chmod o+rw .'
-
-      shell:
-      '''
-      /vol/omnideconv_input/benchmark/pipeline/bin/computeSignaturesNF_simulation.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{cell_types}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.ncores}'
       ''' 
 }
 

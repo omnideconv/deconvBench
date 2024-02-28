@@ -25,27 +25,28 @@ args <- docopt::docopt(doc)
 
 # store basic parameters
 ncores <- as.numeric(args$ncores)
-sc_dataset <- args$sc_name
 sc_path <- args$sc_path
 bulk_name <- args$bulk_name
 bulk_path <- args$bulk_path
 method <- args$deconv_method
 res_base_path <- args$results_dir
 
-# check if preprocessing has been performed
-if(args$run_preprocessing == 'true'){
-  subset_value <- as.numeric(args$subset_value)
-  replicate <- as.numeric(args$replicate)
-}else{
-  subset_value <- 0
-  replicate <- 0
-}
-
 # find method-specific normalizations for sc and bulk
 method_normalizations <- read.table('/nfs/home/students/adietrich/omnideconv/benchmark/pipeline/optimal_normalizations.csv', sep = ',', header = TRUE)
 sc_norm <- method_normalizations[method_normalizations$method == method, 2]
 bulk_norm <- method_normalizations[method_normalizations$method == method, 3]
 print(paste0('Method: ', method, '; sc-norm: ', sc_norm, '; bulk-norm: ', bulk_norm))
+
+# check if preprocessing has been performed
+if(args$run_preprocessing == 'true'){
+  subset_value <- as.numeric(args$subset_value)
+  replicate <- as.numeric(args$replicate)
+  sc_dataset <- paste0(args$sc_name,'_',sc_norm,'_perc',subset_value,'_rep',replicate)
+}else{
+  subset_value <- 0
+  replicate <- 0
+  sc_dataset <- args$sc_name
+}
 
 # read scRNA-seq count matrix
 if(sc_norm == 'counts'){
@@ -61,7 +62,7 @@ bulk_matrix <- readRDS(file.path(args$bulk_path, bulk_name, paste0(bulk_name, '_
 bulk_matrix <- as.matrix(bulk_matrix)
 
 # create output directory
-res_path <- paste0(res_base_path, '/', method, "_", sc_dataset, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
+res_path <- paste0(res_base_path, '/', method, "_", args$sc_name, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
 dir.create(res_path, recursive = TRUE, showWarnings = TRUE)
 
 # load signature
@@ -105,7 +106,7 @@ saveRDS(deconvolution, file=paste0(res_path, "/deconvolution.rds"))
 
 # measure runtime
 runtime_text <- data.frame(method, 
-                      sc_dataset, 
+                      args$sc_name, 
                       sc_norm, 
                       bulk_name, 
                       bulk_norm, 

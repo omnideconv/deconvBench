@@ -1,49 +1,24 @@
 #!/usr/bin/env nextflow
 nextflow.enable.dsl=2
 
-@Grab('com.xlson.groovycsv:groovycsv:1.3')
-import static com.xlson.groovycsv.CsvParser.parseCsv
-
-def create_file_list_sc(basepath, ds_list, do_preprocessing) {
-    def file_list = []
-    for (sc_ds in ds_list) {
-            def anno = "${basepath}/${sc_ds}/celltype_annotations.rds"
-            def batch = "${basepath}/${sc_ds}/batch.rds"
-            def matrix = "${basepath}/${sc_ds}/matrix_"
-            
-            if (do_preprocessing == 'true'){
-                file_list << [matrix, anno, batch, sc_ds, sc_norm]
-            }else{
-                file_list << [matrix, anno, batch, sc_ds, sc_norm, 0, 0]
-            }
-    }
-    return file_list
-}
 
 process PREPROCESS_SINGLE_CELL {
 
       input: 
-      tuple path(sc_matrix), 
-            path(sc_anno), 
-            path(sc_batch), 
-            val(sc_ds), 
-            val(sc_norm)
+      each sc_ds
+      each method
       each ct_fractions
       each replicate
-      path preProcess_dir
 
       output: 
-      tuple path("${preProcess_dir}/${sc_ds}_${sc_norm}_perc${ct_fractions}_rep${replicate}/matrix_subsampled.rds"), 
-      path("${preProcess_dir}/${sc_ds}_${sc_norm}_perc${ct_fractions}_rep${replicate}/celltype_annotations.rds"), 
-      path("${preProcess_dir}/${sc_ds}_${sc_norm}_perc${ct_fractions}_rep${replicate}/batch.rds"), 
-      val(sc_ds), 
-      val(sc_norm), 
-      val(replicate),
-      val(ct_fractions)
+      tuple val(sc_ds), 
+            val(method),
+            val(ct_fractions),
+            val(replicate)
 
       shell:
       '''
-      /vol/omnideconv_input/benchmark/pipeline/bin/preprocessSingleCellNF.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{ct_fractions}' '!{replicate}' '!{preProcess_dir}'
+      preprocessSingleCellNF.R '!{sc_ds}' '!{params.data_dir_sc}' '!{method}' '!{ct_fractions}' '!{replicate}' '!{params.preProcess_dir}'
       '''
 }
 
@@ -309,6 +284,32 @@ process CREATE_SIGNATURE {
       ''' 
 }
 
+process CREATE_SIGNATURE_PREPROCESSED {
+
+      input:
+      tuple val(sc_ds), 
+            val(method),
+            val(ct_fractions),
+            val(replicate)
+      val sc_path
+      each bulk_ds
+      val run_preprocessing
+
+      output:
+      tuple val(sc_ds), 
+            val(bulk_ds),
+            val(method),
+            val(replicate), 
+            val(ct_fractions)
+
+      beforeScript 'chmod o+rw .'
+
+      shell:
+      '''
+      computeSignaturesNF.R '!{sc_ds}' '!{sc_path}' '!{bulk_ds}' '!{params.data_dir_bulk}' '!{method}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.ncores}'
+      ''' 
+}
+
 process CREATE_SIGNATURE_RECTANGLE {
 
       input:
@@ -391,6 +392,7 @@ process DECONVOLUTE {
             val(method),
             val(replicate), 
             val(ct_fractions)
+      val sc_path
 	val run_preprocessing
   
 	output:
@@ -402,7 +404,7 @@ process DECONVOLUTE {
   
 	shell:
 	'''
-	runDeconvolutionNF.R '!{sc_ds}' '!{params.data_dir_sc}' '!{bulk_ds}' '!{params.data_dir_bulk}' '!{method}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.species_sc}' '!{params.ncores}'
+	runDeconvolutionNF.R '!{sc_ds}' '!{sc_path}' '!{bulk_ds}' '!{params.data_dir_bulk}' '!{method}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.species_sc}' '!{params.ncores}'
 	''' 
 }
 
@@ -537,31 +539,26 @@ workflow simulation_resolution_analysis {
 }
 
 workflow subsampling {
-  sc_files = Channel.fromList(create_file_list_sc(params.data_dir_sc, 
-                                                  params.single_cell_list, 
-                                                  params.single_cell_norm, 
-                                                  'true'))
 
   replicates = Channel.of(1..params.replicates).collect()
     
-  preprocess = PREPROCESS_SINGLE_CELL(sc_files,
+  preprocess = PREPROCESS_SINGLE_CELL(params.single_cell_list,
+                                      params.method_list,
                                       params.ct_fractions, 
-                                      replicates, 
-                                      params.preProcess_dir
+                                      replicates
   )
   
-  signature = CREATE_SIGNATURE(preprocess,
-                               params.data_dir_bulk,
-                               params.bulk_list,
-                               params.method_list,
-                               'true'
+  signature = CREATE_SIGNATURE_PREPROCESSED(preprocess,
+                                            params.preProcess_dir,
+                                            params.bulk_list,
+                                            'true'
   )  
   
-  deconvolution = DECONVOLUTE(signature, 
-                              params.data_dir_bulk,
+  deconvolution = DECONVOLUTE(signature,
+                              params.preProcess_dir,
                               'true')
 
-  metrics = COMPUTE_METRICS(deconvolution, params.data_dir_bulk)
+  metrics = COMPUTE_METRICS(deconvolution)
   
 }
 
@@ -576,6 +573,7 @@ workflow {
   )  
   
   deconvolution = DECONVOLUTE(signature,
+                              params.data_dir_sc,      
                               'false'
   )
 

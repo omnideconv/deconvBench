@@ -4,26 +4,18 @@ nextflow.enable.dsl=2
 @Grab('com.xlson.groovycsv:groovycsv:1.3')
 import static com.xlson.groovycsv.CsvParser.parseCsv
 
-def create_file_list_sc(basepath, ds_list, norm_list, do_preprocessing) {
+def create_file_list_sc(basepath, ds_list, do_preprocessing) {
     def file_list = []
     for (sc_ds in ds_list) {
-        for (sc_norm in norm_list) {
             def anno = "${basepath}/${sc_ds}/celltype_annotations.rds"
             def batch = "${basepath}/${sc_ds}/batch.rds"
             def matrix = "${basepath}/${sc_ds}/matrix_"
-            
-            if (sc_norm == 'counts') {
-                matrix += "counts.rds"
-            } else {
-                matrix += "norm_counts.rds"
-            }
             
             if (do_preprocessing == 'true'){
                 file_list << [matrix, anno, batch, sc_ds, sc_norm]
             }else{
                 file_list << [matrix, anno, batch, sc_ds, sc_norm, 0, 0]
             }
-        }
     }
     return file_list
 }
@@ -295,36 +287,25 @@ process ANALYSIS_BULK_MIRRORDB {
 process CREATE_SIGNATURE {
 
       input:
-      tuple path(sc_matrix), 
-            path(sc_anno), 
-            path(sc_batch), 
-            val(sc_ds), 
-            val(sc_norm), 
-            val(replicate), 
-            val(ct_fractions)
-      val bulk_dir
+      each sc_ds
       each bulk_ds
-      each bulk_norm
       each method 
+      each ct_fractions
+      each replicate
       val run_preprocessing
 
       output:
-      tuple path(sc_matrix), 
-            path(sc_anno), 
-            path(sc_batch), 
-            val(sc_ds), 
-            val(sc_norm),
+      tuple val(sc_ds), 
             val(bulk_ds),
-            val(bulk_norm),
+            val(method),
             val(replicate), 
-            val(ct_fractions),
-            val(method)
+            val(ct_fractions)
 
       beforeScript 'chmod o+rw .'
 
       shell:
       '''
-      /vol/omnideconv_input/benchmark/pipeline/bin/computeSignaturesNF.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.ncores}'
+      computeSignaturesNF.R '!{sc_ds}' '!{params.data_dir_sc}' '!{bulk_ds}' '!{params.data_dir_bulk}' '!{method}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.ncores}'
       ''' 
 }
 
@@ -405,31 +386,23 @@ process CREATE_SIGNATURE_FOR_SIMULATION {
 process DECONVOLUTE { 
 
 	input:
-	tuple path(sc_matrix), 
-	      path(sc_anno), 
-	      path(sc_batch), 
-	      val(sc_ds), 
-	      val(sc_norm),
-	      val(bulk_ds),
-	      val(bulk_norm),
-	      val(replicate), 
-	      val(ct_fractions),
-	      val(method)
-	val bulk_dir
+      tuple val(sc_ds), 
+            val(bulk_ds),
+            val(method),
+            val(replicate), 
+            val(ct_fractions)
 	val run_preprocessing
   
 	output:
 	tuple val(method),
 	      val(sc_ds), 
-	      val(sc_norm), 
 	      val(bulk_ds), 
-	      val(bulk_norm), 
 	      val(replicate),
 	      val(ct_fractions)
   
 	shell:
 	'''
-	/vol/omnideconv_input/benchmark/pipeline/bin/runDeconvolutionNF.R '!{sc_matrix}' '!{sc_anno}' '!{sc_batch}' '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.species_sc}' '!{params.ncores}' 
+	runDeconvolutionNF.R '!{sc_ds}' '!{params.data_dir_sc}' '!{bulk_ds}' '!{params.data_dir_bulk}' '!{method}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.species_sc}' '!{params.ncores}'
 	''' 
 }
 
@@ -438,25 +411,20 @@ process COMPUTE_METRICS {
 	input:
 	tuple val(method),
 	      val(sc_ds), 
-	      val(sc_norm), 
 	      val(bulk_ds), 
-	      val(bulk_norm), 
 	      val(replicate),
 	      val(ct_fractions)
-	val bulk_dir
   
 	output:
 	tuple val(method),
 	      val(sc_ds), 
-	      val(sc_norm), 
 	      val(bulk_ds), 
-	      val(bulk_norm), 
 	      val(replicate),
 	      val(ct_fractions)
   
 	shell:
 	'''
-	/vol/omnideconv_input/benchmark/pipeline/bin/computeMetricsNF.R '!{sc_ds}' '!{sc_norm}' '!{bulk_dir}' '!{bulk_ds}' '!{bulk_norm}' '!{method}' '!{replicate}' '!{ct_fractions}' '!{params.results_dir_general}'
+	computeMetricsNF.R '!{sc_ds}' '!{params.data_dir_sc}' '!{bulk_ds}' '!{params.data_dir_bulk}' '!{method}' '!{replicate}' '!{ct_fractions}' '!{params.results_dir_general}'
 	''' 
 }
 
@@ -585,7 +553,6 @@ workflow subsampling {
   signature = CREATE_SIGNATURE(preprocess,
                                params.data_dir_bulk,
                                params.bulk_list,
-                               params.bulk_norm,
                                params.method_list,
                                'true'
   )  
@@ -599,20 +566,18 @@ workflow subsampling {
 }
 
 workflow {
-  sc_files = Channel.fromList(create_file_list_sc(params.data_dir_sc, 
-                                                  params.single_cell_list, 
-                                                  params.single_cell_norm, 
-                                                  'false'))
-  preprocess = Channel.empty()
-  signature = CREATE_SIGNATURE(sc_files,
-                               params.data_dir_bulk,
+
+  signature = CREATE_SIGNATURE(params.single_cell_list,
                                params.bulk_list,
-                               params.bulk_norm,
                                params.method_list,
+                               0,
+                               0,
                                'false'
   )  
   
-  deconvolution = DECONVOLUTE(signature, params.data_dir_bulk, 'false')
+  deconvolution = DECONVOLUTE(signature,
+                              'false'
+  )
 
-  metrics = COMPUTE_METRICS(deconvolution, params.data_dir_bulk) 
+  metrics = COMPUTE_METRICS(deconvolution) 
 }

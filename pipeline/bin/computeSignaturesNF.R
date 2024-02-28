@@ -7,42 +7,31 @@ reticulate::use_miniconda(condaenv = "r-omnideconv", required = TRUE)
 source('/nfs/home/students/adietrich/omnideconv/benchmark/pipeline/bin/utils.R')
 
 "Usage:
-  computeSignatureNF.R <sc_matrix> <sc_annotation> <sc_batch> <sc_name> <sc_norm> <bulk_dir> <bulk_name> <bulk_norm> <deconv_method> <results_dir> <run_preprocessing> <replicate> <subset_value> <ncores> 
+  computeSignaturesNF.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <results_dir> <run_preprocessing> <replicate> <subset_value> <ncores> 
 Options:
-<sc_matrix> path to sc matrix
-<sc_annotation> path to cell type annotation of sc matrix
-<sc_batch> path batch info for sc matrix
 <sc_name> name of sc datasets
-<sc_norm> count type of sc dataset
-<bulk_dir> path to bulk datasets
-<bulk_name> name of bulk RNAseq dataset
-<bulk_norm> normalization of RNAseq
+<sc_path> path to sc dataset
+<bulk_name> name of simulated bulk RNAseq dataset
+<bulk_path> path to simulated bulk datasets
 <deconv_method>  deconv method
 <results_dir> results (base) directory
 <run_preprocessing> if pre-processing has been done
 <replicate> value of replicate number
 <subset_value> if < 1: fraction of cell type; if > 1: number of cells per cell type
-<ncores> number of cores to use for method (if available)
-<coarse> logical, if TRUE celltypes are mapped to higher level" -> doc
+<ncores> number of cores to use for method (if available)" -> doc
 
 args <- docopt::docopt(doc)
 
+# store basic parameters
 ncores <- as.numeric(args$ncores)
-
-sc_matrix <- readRDS(file.path(args$sc_matrix))
-sc_celltype_annotations <- readRDS(file.path(args$sc_anno))
-sc_batch <- readRDS(file.path(args$sc_batch))
-sc_ds <- args$sc_name
-sc_norm <- args$sc_norm
-
+sc_dataset <- args$sc_name
+sc_path <- args$sc_path
 bulk_name <- args$bulk_name
-bulk_norm <- args$bulk_norm
-bulk_matrix <- readRDS(file.path(args$bulk_dir, args$bulk_name, paste0(args$bulk_name, '_', args$bulk_norm, '.rds')))
-bulk_matrix <- as.matrix(bulk_matrix)
-
+bulk_path <- args$bulk_path
 method <- args$deconv_method
 res_base_path <- args$results_dir
 
+# check if preprocessing has been performed
 if(args$run_preprocessing == 'true'){
   subset_value <- as.numeric(args$subset_value)
   replicate <- as.numeric(args$replicate)
@@ -51,20 +40,28 @@ if(args$run_preprocessing == 'true'){
   replicate <- 0
 }
 
-# create output directory
-res_path <- paste0(res_base_path, '/', method, "_", sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
-dir.create(res_path, recursive = TRUE, showWarnings = TRUE)
+# find method-specific normalizations for sc and bulk
+method_normalizations <- read.table('/nfs/home/students/adietrich/omnideconv/benchmark/pipeline/optimal_normalizations.csv', sep = ',', header = TRUE)
+sc_norm <- method_normalizations[method_normalizations$method == method, 2]
+bulk_norm <- method_normalizations[method_normalizations$method == method, 3]
+print(paste0('Method: ', method, '; sc-norm: ', sc_norm, '; bulk-norm: ', bulk_norm))
 
-escapeCelltypesAutogenes <- function(celltype){
-  celltype <- gsub("\\+", "21b2c6e87f8711ec9bf265fb9bf6ab9c", celltype)
-  celltype <- gsub("-", "21b2c7567f8711ec9bf265fb9bf6ab9a", celltype)
-  celltype <- gsub("\\(", "21b2c7567f8711ec9bf265fb9bf6ab9f", celltype)
-  celltype <- gsub(")", "21b2c7567f8711ec9bf265fb9bf6ab9g", celltype)
-  return(gsub(" ", "xxxx", celltype))
+# read scRNA-seq count matrix
+if(sc_norm == 'counts'){
+    sc_matrix <- readRDS(file.path(sc_path, sc_dataset, 'matrix_counts.rds'))
+} else {
+    sc_matrix <- readRDS(file.path(sc_path, sc_dataset, 'matrix_norm_counts.rds'))
 }
-reEscapeCelltypesAutogenes <- function(celltype){ 
-  return(gsub("xxxx", " ", celltype))
-}
+sc_celltype_annotations <- readRDS(file.path(sc_path, sc_dataset, 'celltype_annotations.rds'))
+sc_batch <- readRDS(file.path(sc_path, sc_dataset, 'batch.rds'))
+
+# read bulk expression matrix
+bulk_matrix <- readRDS(file.path(args$bulk_path, bulk_name, paste0(bulk_name, '_', bulk_norm, '.rds')))
+bulk_matrix <- as.matrix(bulk_matrix)
+
+# create output directory
+res_path <- paste0(res_base_path, '/', method, "_", sc_dataset, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
+dir.create(res_path, recursive = TRUE, showWarnings = TRUE)
 
 
 ####################################
@@ -90,6 +87,7 @@ runtime <- system.time({
 
 })
 
+# remove old signatures for scaden
 if (method %in% c("scaden")) { 
   # remove all pickle files in output directory with different name than current signature
   old_signatures <- list.files(res_path, ".pickle", full.names = TRUE) 
@@ -103,10 +101,12 @@ if (method %in% c("scaden")) {
   signature <- list.files(res_path, ".pickle", full.names = TRUE) 
 }
 
+# save signature object
 saveRDS(signature, file=paste0(res_path, "/signature.rds"))
 
+# measure runtime
 runtime_text <- data.frame(method, 
-                      sc_ds, 
+                      sc_dataset, 
                       sc_norm, 
                       bulk_name, 
                       bulk_norm, 

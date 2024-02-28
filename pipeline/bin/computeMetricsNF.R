@@ -7,13 +7,12 @@ source('/nfs/home/students/adietrich/omnideconv/benchmark/pipeline/bin/utils.R')
 
 
 "Usage:
-  computeMetricsNF.R <sc_name> <sc_norm> <bulk_dir>  <bulk_name> <bulk_norm> <deconv_method> <replicate> <subset_value> <results_dir>
+  computeMetricsNF.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <replicate> <subset_value> <results_dir>
 Options:
 <sc_name> name of sc datasets
-<sc_norm> count type of sc dataset
-<bulk_dir> path to bulk datasets
-<bulk_name> name of bulk RNAseq dataset
-<bulk_norm> normalization of RNAseq
+<sc_path> path to sc dataset
+<bulk_name> name of simulated bulk RNAseq dataset
+<bulk_path> path to simulated bulk datasets
 <deconv_method>  deconv method
 <subset_value> if < 1: fraction of cell type; if > 1: number of cells per cell type
 <replicate> value of replicate number
@@ -21,19 +20,27 @@ Options:
 
 args <- docopt::docopt(doc)
 
-sc_ds <- args$sc_name
-sc_norm <- args$sc_norm
+# store basic parameters
+ncores <- as.numeric(args$ncores)
+sc_dataset <- args$sc_name
+sc_path <- args$sc_path
 bulk_name <- args$bulk_name
-bulk_norm <- args$bulk_norm
+bulk_path <- args$bulk_path
+method <- args$deconv_method
+res_base_path <- args$results_dir
 subset_value <- as.numeric(args$subset_value)
 replicate <- as.numeric(args$replicate)
 
-method <- args$deconv_method
-res_base_path <- args$results_dir
+# find method-specific normalizations for sc and bulk
+method_normalizations <- read.table('/nfs/home/students/adietrich/omnideconv/benchmark/pipeline/optimal_normalizations.csv', sep = ',', header = TRUE)
+sc_norm <- method_normalizations[method_normalizations$method == method, 2]
+bulk_norm <- method_normalizations[method_normalizations$method == method, 3]
+print(paste0('Method: ', method, '; sc-norm: ', sc_norm, '; bulk-norm: ', bulk_norm))
 
-facs_data <- readRDS(file.path(args$bulk_dir, args$bulk_name, paste0(args$bulk_name, '_facs.rds')))
+# load ground truth data
+facs_data <- readRDS(file.path(bulk_path, bulk_name, paste0(bulk_name, '_facs.rds')))
 
-res_path <- paste0(res_base_path, '/', method, "_", sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
+res_path <- paste0(res_base_path, '/', method, "_", sc_dataset, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
 
 deconvolution <- readRDS(paste0(res_path, '/deconvolution.rds'))
 

@@ -15,8 +15,8 @@ Parameters can be changed in the `nextflow.config` file.
 
 | Name       | Type   | Description                             | Example                      |
 | ---------- | ------ | ---------------------------------- | -------------------------------- |
-| `data_dir_bulk` | string | absolute path to directory that contains RNA-seq datasets | `/path/to/datasets/` |
-| `data_dir_sc` | string | absolute path to directory that contains scRNA-seq datasets                          | `/path/to/other/datasets/`          |
+| `data_dir_bulk` | path | absolute path to directory that contains RNA-seq datasets | `/path/to/datasets/` |
+| `data_dir_sc` | path | absolute path to directory that contains scRNA-seq datasets                          | `/path/to/other/datasets/`          |
 
 A dedicted description of the input file formats and folder structure can be found [below](#input-formats).
 
@@ -24,10 +24,8 @@ A dedicted description of the input file formats and folder structure can be fou
 
 | Name       | Type   | Description                             | Example                      |
 | ---------- | ------ | ---------------------------------- | -------------------------------- |
-| `results_dir_general` | string | absolute path to directory in which final results of the `main` and `subsampling` workflow are stored | `/path/to/results/` |
-| `results_dir_resolution` | string | absolute path to directory in which final results of the `simulation_resolution_analysis` workflow are stored | `/path/to/simulation_resolution_analysis/results/` |
-| `results_dir_missing_cell_types` | string | absolute path to directory in which final results of the `impact_missing_cell_types` workflow are stored | `/path/to/impact_missing_cell_types/results/` |
-| `preProcess_dir` | string | absolute path to directory in which temporary files are stored                          | `/path/to/temporary/directory/`          |
+| `results_dir_general` | path | absolute path to directory in which final results of the `main` and `subsampling` workflow are stored | `/path/to/results/` |
+| `preProcess_dir` | path | absolute path to directory in which temporary files are stored                          | `/path/to/temporary/directory/`          |
 
 ### General Parameters
 
@@ -60,16 +58,16 @@ The following sets of parameters are only used in the specified workflow.
 
 | Name       | Type   | Description                             | Example                      |
 | ---------- | ------ | ---------------------------------- | -------------------------------- |
-| `results_dir_impact_technology` | string | absolute path to directory in which final results of the `impact_technology` workflow are stored | `/path/to/impact_technology/results/` |
-| `replicates_simulation` | [int] | ---------------------------------- | `[5]` |
-| `datasets_impact_technology` | [string] | ---------------------------------- | `["lambrechts","maynard]` |
+| `results_dir_impact_technology` | path | absolute path to directory in which final results of the `impact_technology` workflow are stored | `/path/to/impact_technology/results/` |
+| `replicates_simulation` | [int] | number of technical replicates for pseudo-bulk simulation | `[5]` |
+| `datasets_impact_technology` | [string] | names of scRNA-seq datasets in `data_dir_sc` that are used for this workflow | `["lambrechts","maynard]` |
 
 
 #### workflow `simulation_spillover` 
 
 | Name       | Type   | Description                             | Example                      |
 | ---------- | ------ | ---------------------------------- | -------------------------------- |
-| `results_dir_spillover` | string | absolute path to directory in which final results of the `simulation_spillover` workflow are stored | `/path/to/simulation_spillover/results/` |
+| `results_dir_spillover` | path | absolute path to directory in which final results of the `simulation_spillover` workflow are stored | `/path/to/simulation_spillover/results/` |
 | `spillover_samples_per_cell` | int | in the spillover analysis samples contain only one cell type. This parameter controls how many pseudo-bulk samples should be simulated that way. | `10` |
 | `spillover_celltypes` | [string] | Control, for which cell types the spillover analysis will be done | `["B cells,Monocytes,NK cells,T cells CD8,T cells CD4 conv"]` |
 
@@ -77,15 +75,25 @@ The following sets of parameters are only used in the specified workflow.
 
 | Name       | Type   | Description                             | Example                      |
 | ---------- | ------ | ---------------------------------- | -------------------------------- |
-| `results_dir_unknown_content` | string | absolute path to directory in which final results of the `simulation_unkown_content` workflow are stored | `/path/to/simulation_unkown_content/results/` |
+| `results_dir_unknown_content` | path | absolute path to directory in which final results of the `simulation_unkown_content` workflow are stored | `/path/to/simulation_unkown_content/results/` |
 | `known_cell_types` | [[string]] | subset of cell types that we will use to build the signature matrix | `[["B cells,Stromal cells,T cells CD4 conv,Macrophages"]]` |
 | `unknown_cell_type` | [string] | unknown cell type to use | `["Tumor cells"]` |
 | `fractions_unknown_cells` | [[int]] | Control, for which cell types the spillover analysis will be done | `[[0, 0.05, 0.1, 0.2, 0.3, 0.5, 0.7, 0.8, 0.9]]` |
-| `replicates_unknown_content` | [int] | ------------------- | `[5]` |
+| `replicates_unknown_content` | [int] | number of technical replicates for pseudo-bulk simulation | `[5]` |
 
 #### workflow `simulation_resolution_analysis` 
 
+| Name       | Type   | Description                             | Example                      |
+| ---------- | ------ | ---------------------------------- | -------------------------------- |
+| `results_dir_resolution` | path | absolute path to directory in which final results of the `simulation_resolution_analysis` workflow are stored | `/path/to/simulation_resolution_analysis/results/` |
+| `cell_types_finer_res` | [[string]] | which cell types will we inspect at various resolutions? | `["Endothelial ACKR1,Endothelial RGS5,Endothelial CXCL12,CAFs MSC iCAF-like s1,CAFs MSC iCAF-like s2, ..."]` |
+
 #### workflow `impact_missing_cell_types` 
+
+| Name       | Type   | Description                             | Example                      |
+| ---------- | ------ | ---------------------------------- | -------------------------------- |
+| `results_dir_missing_cell_types` | path | absolute path to directory in which final results of the `impact_missing_cell_types` workflow are stored | `/path/to/impact_missing_cell_types/results/` |
+| `cell_types_to_exclude` | [string] | each of the cell types in the list will be a candidate for exclusion from the scRNA-seq dataset once | `["B cells","mDC","Monocytes","NK cells","T cells CD4 conv"]` |
 
 ## Input Formats
 

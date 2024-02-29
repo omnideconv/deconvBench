@@ -33,7 +33,7 @@ res_base_path <- args$results_dir
 baseDir <- args$baseDir
 
 source(paste0(baseDir, '/bin/utils.R'))
-method_normalizations <- read.table(paste0(baseDir, '/optimal_normalizations.csv'), sep = ',', header = TRUE)th <- args$results_dir
+method_normalizations <- read.table(paste0(baseDir, '/optimal_normalizations.csv'), sep = ',', header = TRUE)
 
 # find method-specific normalizations for sc and bulk
 sc_norm <- method_normalizations[method_normalizations$method == method, 2]

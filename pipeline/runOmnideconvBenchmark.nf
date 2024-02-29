@@ -548,15 +548,15 @@ workflow simulation_impact_technology {
                                              params.simulation_n_cells,
 						         params.simulation_n_samples,
 						         params.datasets_impact_technology, 
-                                             params.replicates_simulation)
+                                            params.replicates_simulation) 
 
-  deconvolution_bis = ANALYSIS_BULK_MIRRORDB(params.simulation_sc_dataset,
+  deconvolution = ANALYSIS_PSEUDOBULK_MIRRORDB(params.simulation_sc_dataset,
+                                               simulations,
+                                               params.method_simulation)
+
+  deconvolution_real = ANALYSIS_BULK_MIRRORDB(params.simulation_sc_dataset,
                                                ['vanderbilt_lung', '/vol/omnideconv_input/omnideconv_data/Tumor'], 
-                                               params.method_simulation) 
-
-  //deconvolution = ANALYSIS_PSEUDOBULK_MIRRORDB(params.simulation_sc_dataset,
-  //                                             simulations,
-  //                                             params.method_simulation)
+                                               params.method_simulation)                                             
                                        
 }
 

@@ -74,7 +74,11 @@ bulk_matrix <- as.matrix(bulk_matrix)
 signature <- signature_workflow_general(sc_matrix, sc_celltype_annotations, 
                                         'normal', sc_dataset, sc_norm, sc_batch, method, bulk_matrix, 
                                         bulk_name, bulk_norm, ncores, res_path_normal)
-
+if(bulk_name == sc_dataset){
+    smode=FALSE
+} else {
+    smode=TRUE
+}
 
 for(r in 1:replicates){
 
@@ -85,7 +89,8 @@ for(r in 1:replicates){
 
     deconvolution <- deconvolution_workflow_general(sc_matrix, sc_celltype_annotations, 
                                                     'normal', sc_dataset, sc_norm, sc_batch, signature, 
-                                                    method, bulk_matrix, bulk_name, bulk_norm, ncores, res_path_normal)
+                                                    method, bulk_matrix, bulk_name, bulk_norm, ncores, res_path_normal,
+                                                    rmbatch_S_mode = smode)
 
     true_fractions <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0('simulation_facs.rds')))
 

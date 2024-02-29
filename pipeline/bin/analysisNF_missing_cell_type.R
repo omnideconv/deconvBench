@@ -83,9 +83,12 @@ print('Signature built')
 
 true_fractions <- readRDS(file.path(bulk_path, bulk_name, paste0(bulk_name, '_facs.rds')))
 
+
+
 deconvolution <- deconvolution_workflow_general(sc_matrix, sc_celltype_annotations, 
                                                 'normal', sc_dataset, sc_norm, sc_batch, signature, 
-                                                method, bulk_matrix, bulk_name, bulk_norm, ncores, res_path_normal)
+                                                method, bulk_matrix, bulk_name, bulk_norm, ncores, res_path_normal, 
+                                                rmbatch_B_mode = FALSE, rmbatch_S_mode = TRUE)
 
 colnames(deconvolution) <- gsub("xxxx", " ", colnames(deconvolution))
 

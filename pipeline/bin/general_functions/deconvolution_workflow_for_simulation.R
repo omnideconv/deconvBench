@@ -177,14 +177,14 @@ signature_workflow_general <- function(sc_matrix, annotations, annotation_catego
     )
   }
   
-  saveRDS(signature, file=paste0(res_path, "/signature.rds"))
+  #saveRDS(signature, file=paste0(res_path, "/signature.rds"))
   
   signature
   
 }
 
 
-deconvolution_workflow_general <- function(sc_matrix, annotations, annotation_category, sc_ds, sc_norm, sc_batch, signature, method, bulk_matrix, bulk_name, bulk_norm, ncores, res_path){
+deconvolution_workflow_general <- function(sc_matrix, annotations, annotation_category, sc_ds, sc_norm, sc_batch, signature, method, bulk_matrix, bulk_name, bulk_norm, rmbatch_B_mode = FALSE, rmbatch_S_mode = FALSE, ncores, res_path){
   
   if(method == 'autogenes'){
     deconvolution <- omnideconv::deconvolute_autogenes(
@@ -232,7 +232,9 @@ deconvolution_workflow_general <- function(sc_matrix, annotations, annotation_ca
       container = 'docker',
       verbose = TRUE,
       input_dir = cx_input,
-      output_dir = cx_output
+      output_dir = cx_output,
+      rmbatch_B_mode = rmbatch_B_mode,
+      rmbatch_S_mode = rmbatch_S_mode
     )
     #unlink(cx_input, recursive=TRUE)
     

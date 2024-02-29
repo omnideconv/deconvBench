@@ -24,7 +24,7 @@ The results of the **main** workflow are stored in the `results_dir_general` dir
 The **subsampling** workflow is run by using nextflow with the `-entry subsampling` parameter.
 
 
-This workflow builds on the **main** workflow and adds a subsampling step to the scRNA-seq process. The size of the subsamples and the number of replicates can be controlled by the parameters `ct_fractions` and `replicates`.
+This workflow builds upon the **main** workflow and adds a cell-type specific subsampling step. The size of the subsets and the number of replicates can be controlled by the parameters `ct_fractions` and `replicates`.
 
 In the **subsampling** workflow following processes are run:
 1. PREPROCESS_SINGLE_CELL - For each scRNA-seq dataset in `single_cell_list` the dataset is subsampled and preprocessed. If `ct_fractions` contains integer, the number of cells to be subsampled per celltype is equal to the integer, which corresponds to an *even* sampling. For floats, we do a *mirrordb* style sampling, where  a corresponding fraction of the total number of cells per celltype is sampled. The number of replicates is controlled by the `replicates` parameter. Cells are drawn randomly without replacement.
@@ -153,3 +153,16 @@ The following sets of parameters are only used in the specified workflow.
 ## Input Formats
 
 ## Data Normalizations
+
+Each deconvolution method has a recommended set of normalization procedures, both for the scRNA-seq and bulk RNA-seq samples. Possible options currently are `counts` (un-normalized), `tpm` and `cpm`. The specific values for each method are stored in the `optimal_normalization.csv` file, and at time of publication look like this:
+
+| method       | sc_norm   | bulk_norm |
+|----|----|----|
+|autogenes|cpm|tpm|
+|bayesprism|counts|counts|
+|bisque|counts|counts|
+|cibersortx|cpm|tpm|
+|dwls|counts|tpm|
+|music|counts|tpm|
+|scaden|counts|tpm|
+|scdc|counts|tpm|

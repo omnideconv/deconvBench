@@ -48,6 +48,7 @@ if(args$run_preprocessing == 'true'){
 }else{
   subset_value <- 0
   replicate <- 0
+  sc_dataset <- args$sc_name
 }
 
 # read scRNA-seq count matrix

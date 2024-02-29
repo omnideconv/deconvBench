@@ -6,10 +6,9 @@ library(docopt)
 library(Biobase)
 library(omnideconv)
 reticulate::use_miniconda(condaenv = "r-omnideconv", required = TRUE)
-source('/nfs/home/students/adietrich/omnideconv/benchmark/pipeline/bin/utils.R')
 
 "Usage:
-  nalysisNF_mixed_simulations.R <sc_name> <sc_path> <bulk_name> <bulk_path> <preprocess_dir> <replicates> <deconv_method> <results_dir> <ncores>
+  nalysisNF_mixed_simulations.R <sc_name> <sc_path> <bulk_name> <bulk_path> <preprocess_dir> <replicates> <deconv_method> <results_dir> <ncores> <baseDir>
 Options:
 <sc_name> name of sc datasets
 <sc_path> path to sc dataset
@@ -19,7 +18,9 @@ Options:
 <replicates> number of replicates
 <deconv_method>  deconv method
 <results_dir> results (base) directory
-<ncores> number of cores to use for method (if available)" -> doc
+<ncores> number of cores to use for method (if available)
+<baseDir> nextflow base directory" -> doc
+
 
 args <- docopt::docopt(doc)
 
@@ -32,14 +33,16 @@ method <- args$deconv_method
 res_base_path <- args$results_dir
 ncores <- as.numeric(args$ncores) # in case a method can use multiple cores
 replicates <- as.numeric(args$replicates)
+baseDir <- args$baseDir
 
+source(paste0(baseDir, '/bin/utils.R'))
+method_normalizations <- read.table(paste0(baseDir, '/optimal_normalizations.csv'), sep = ',', header = TRUE)
 # Here we need to filter for those cell types that are in the simulated dataset. 
 common.cells <- readRDS(file.path(preprocess_dir, 'cell_types.rds'))
 sc_celltype_annotations <- readRDS(file.path(sc_path, sc_dataset, 'celltype_annotations.rds'))
 position_vector <- sc_celltype_annotations %in% common.cells
 sc_celltype_annotations <- sc_celltype_annotations[position_vector]
 
-method_normalizations <- read.table('/nfs/home/students/adietrich/omnideconv/benchmark/pipeline/optimal_normalizations.csv', sep = ',', header = TRUE)
 sc_norm <- method_normalizations[method_normalizations$method == method, 2]
 bulk_norm <- method_normalizations[method_normalizations$method == method, 3]
 

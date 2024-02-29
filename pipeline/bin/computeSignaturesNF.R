@@ -29,7 +29,8 @@ sc_path <- args$sc_path
 bulk_name <- args$bulk_name
 bulk_path <- args$bulk_path
 method <- args$deconv_method
-res_base_pabaseDir <- args$baseDir
+res_base_path <- args$results_dir
+baseDir <- args$baseDir
 
 source(paste0(baseDir, '/bin/utils.R'))
 method_normalizations <- read.table(paste0(baseDir, '/optimal_normalizations.csv'), sep = ',', header = TRUE)th <- args$results_dir

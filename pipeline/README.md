@@ -1,7 +1,46 @@
 # deconvBench: a nextflow pipeline to benchmark second-generation deconvolution methods using omnideconv
 
-For our effort to benchmark eight second-generation deconvolution methods, all included in [Omnideconv](https://github.com/omnideconv/omnideconv), we implemented a nextflow pipeline that includes several workflows. These offer various simulation scenarios and the option to deconvolve real bulk RNA-seq datasets, all with different scRNA-seq datasets, deconvolution methods and other parameters. 
+For our effort to benchmark eight second-generation deconvolution methods, all included in [omnideconv](https://github.com/omnideconv/omnideconv), we implemented a nextflow pipeline that includes several workflows. These offer various simulation scenarios and the option to deconvolve real bulk RNA-seq datasets, all with different scRNA-seq datasets, deconvolution methods and other parameters. 
 A detailed description of the parameters and workflows follows below.
+
+## Dependencies
+
+All method-related dependencies are installed in a inlcuded Docker image, that you can either build yourself using the Dockerfile in the directory above (`docker/`) or pull it directly from [Dockerhub](https://hub.docker.com/repository/docker/alexd13/omnideconv_benchmark/general).
+
+In addition, to run the pipeline you need an installation of [nextflow](https://www.nextflow.io/). 
+
+## Quickstart
+
+If you want to deconvolve two bulk RNA-seq datasets (`bulk1` and `bulk2`) using one scRNA-seq dataset (`sc1`) and compute quality metrics for four selected deconvolution methods (`AutoGeneS`,`DWLS`,`MuSiC` and `Scaden`), you can start the pipeline like this, inside the current directory:
+
+```
+nextflow -C nextflow.config run main.nf -profile docker
+```
+
+The `nextflow.config` file can then look something like this:
+
+```
+params {
+    data_dir_bulk = "/path/to/bulk/datasets/"
+    data_dir_sc = "/path/to/sc/datasets/"
+    results_dir_general = "/path/to/results/"   
+
+    single_cell_list = ["sc1"]
+    bulk_list = ["bulk1","bulk2"]
+    method_list = ["autogenes", "dwls", "music", "scaden"]
+
+    ncores = '4'
+}
+
+profiles {
+    docker {
+        docker.enabled = true
+        process.container = 'omnideconv_benchmark:latest'
+        // add more parameters regarding e.g. memory usage here
+    }
+}
+
+```
 
 ## Workflows
 

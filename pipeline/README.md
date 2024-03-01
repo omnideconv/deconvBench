@@ -1,11 +1,66 @@
 # deconvBench: a nextflow pipeline to benchmark second-generation deconvolution methods using omnideconv
 
-For our effort to benchmark eight second-generation deconvolution methods, all included in omnideconv, we implemented a nextflow pipeline that includes several workflows. These offer different simulation scenarios and the option to deconvolve real bulk RNA-seq datasets, all with different scRNA-seq datasets, deconvolution methods and other parameters. 
+For our effort to benchmark eight second-generation deconvolution methods, all included in [Omnideconv](https://github.com/omnideconv/omnideconv), we implemented a nextflow pipeline that includes several workflows. These offer various simulation scenarios and the option to deconvolve real bulk RNA-seq datasets, all with different scRNA-seq datasets, deconvolution methods and other parameters. 
 A detailed description of the parameters and workflows follows below.
 
 ## Workflows
 
 ![Alt text](workflows.png)
+
+### main
+The **main** workflow is run by using nextflow without the `-entry` parameter.
+
+
+This workflow does signature creation, deconvolution and result metric calculations on the selected deconvolution methods (`method_list`) and datasets (`single_cell_list`, `bulk_list`).
+
+In the **main** workflow following processes are run:
+1. CREATE_SIGNATURE - Creates signature matrix from scRNA-seq datasets set in `single_cell_list`.
+2. DECONVOLUTION - Deconvolves the bulk RNA-seq datasets set in `bulk_list` using the  created signature matrices.
+3. COMPUTE_METRICS - Calculates the metrics for the deconvolution results.
+
+The results of the **main** workflow are stored in the `results_dir_general` directory.
+
+### subsampling
+The **subsampling** workflow is run by using nextflow with the `-entry subsampling` parameter.
+
+
+This workflow builds upon the **main** workflow and adds a cell-type specific subsampling step. The size of the subsets and the number of replicates can be controlled by the parameters `ct_fractions` and `replicates`.
+
+In the **subsampling** workflow following processes are run:
+1. PREPROCESS_SINGLE_CELL - For each scRNA-seq dataset in `single_cell_list` the dataset is subsampled and preprocessed. If `ct_fractions` contains integer, the number of cells to be subsampled per celltype is equal to the integer, which corresponds to an *even* sampling. For floats, we do a *mirrordb* style sampling, where  a corresponding fraction of the total number of cells per celltype is sampled. The number of replicates is controlled by the `replicates` parameter. Cells are drawn randomly without replacement.
+2. CREATE_SIGNATURE - Creates signature matrix from the subsampled scRNA-seq datasets.
+3. DECONVOLUTION - Deconvolves the bulk RNA-seq datasets set in `bulk_list` using the  created signature matrices.
+4. COMPUTE_METRICS - Calculates the metrics for the deconvolution results.
+
+The results of the **subsampling** workflow are stored in the `results_dir_general` directory.
+
+### impact_missing_cell_types
+The **impact_missing_cell_types** workflow is run by using nextflow with the `-entry impact_missing_cell_types` parameter.
+
+
+This workflow excludes cell types from the scRNA-seq datasets (`single_cell_list`) and then deconvolves the bulk RNA-seq datasets(`bulk_list`) using the created signature matrices. The cell types to be excluded are controlled by the `cell_types_to_exclude` parameter. The workflow is repeated for each cell type in the list, where each time one cell type is excluded.
+
+In the **impact_missing_cell_types** workflow following processes is run:
+1. ANALYSIS_BULK_MISSING_CELL_TYPES - Excludes `cell_types_to_exclude` cell types from the `single_cell_list` scRNA-seq datasets and deconvolves the bulk RNA-seq datasets using the created signature matrices. Finally, the metrics for the deconvolution results are calculated.
+
+The results of the **impact_missing_cell_types** workflow are stored in the `results_dir_missing_cell_types` directory.
+
+### simulation_unknown_content
+
+The **simulation_unknown_content** workflow is run by using nextflow with the `-entry simulation_unknown_content` parameter.
+
+
+This workflow simulates the presence of an unknown cell type in  the bulk RNA-seq datasets (`bulk_list`). The unknown cell type is controlled by the `unknown_cell_type` parameter.
+
+In the **simulation_unknown_content** workflow following processes are run:
+1. SIMULATE_BULK_UNKNOWN_CELL_TYPE - Creates simulated bulk RNA-seq datasets with the presence of `unknown_cell_type` . The datasets are created using the `bulk_list` datasets. The fraction of the unknown cell type is controlled by the `fractions_unknown_cells` parameter. The number of replicates is controlled by the `replicates_unknown_content` parameter. 
+
+2. ANALYSIS_BULK_UNKNOWN_CELL_TYPE - Creates signature matrices using `known_cell_types` subsetss of the `single_cell_list` datasets and deconvolves the simulated bulk RNA-seq datasets using the created signature matrices. Finally, the metrics for the deconvolution results are calculated.
+
+The results of the **simulation_unknown_content** workflow are stored in the `results_dir_unknown_content` directory.
+
+
+
 
 ## Parameters
 
@@ -98,3 +153,16 @@ The following sets of parameters are only used in the specified workflow.
 ## Input Formats
 
 ## Data Normalizations
+
+Each deconvolution method has a recommended set of normalization procedures, both for the scRNA-seq and bulk RNA-seq samples. Possible options currently are `counts` (un-normalized), `tpm` and `cpm`. The specific values for each method are stored in the `optimal_normalization.csv` file, and at time of publication look like this:
+
+| method       | sc_norm   | bulk_norm |
+|----|----|----|
+|autogenes|cpm|tpm|
+|bayesprism|counts|counts|
+|bisque|counts|counts|
+|cibersortx|cpm|tpm|
+|dwls|counts|tpm|
+|music|counts|tpm|
+|scaden|counts|tpm|
+|scdc|counts|tpm|

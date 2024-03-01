@@ -2,8 +2,10 @@
 
 print("Starting analysis script [spillover analysis] ...")
 
+library(docopt)
 library(Biobase)
 library(omnideconv)
+reticulate::use_miniconda(condaenv = "r-omnideconv", required = TRUE)
 
 "Usage:
   analysisNF_spillover.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <cell_types> <results_dir> <ncores> <baseDir>

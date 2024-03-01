@@ -77,6 +77,22 @@ if(method=="autogenes"){
   sc_celltype_annotations <- escapeCelltypesAutogenes(sc_celltype_annotations)
 }
 
+# set cibersortx batch correction options
+datasets_technologies <- read.table(paste0(baseDir, '/sc_datasets_technologies.csv'), sep = ',', header = TRUE)
+cur_tech <- datasets_technologies[datasets_technologies$technology == args$sc_name, 2]
+
+if(grepl("simulation" , bulk_name)){
+    s_mode <- FALSE
+    b_mode <- FALSE
+} else if(cur_tech!='10X'){
+    s_mode <- FALSE
+    b_mode <- TRUE
+} else {
+    s_mode <- TRUE
+    b_mode <- FALSE
+}
+
+
 ###############################
 #### Perform devonvolution ####
 ###############################
@@ -96,7 +112,9 @@ runtime <- system.time({
     bulk_name, 
     bulk_norm, 
     ncores, 
-    res_path
+    res_path,
+    rmbatch_S_mode = s_mode,
+    rmbatch_B_mode = b_mode
   )
 
 })

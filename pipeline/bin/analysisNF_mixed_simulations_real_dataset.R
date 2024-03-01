@@ -1,6 +1,6 @@
 #!/usr/bin/Rscript
 
-print("Starting analysis script for deconvolution of simulated data ...")
+print("Starting analysis script [mixed deconvolution of real dataset] ...")
 
 library(docopt)
 library(Biobase)
@@ -53,7 +53,7 @@ if(sc_norm == 'counts'){
 sc_batch <- readRDS(file.path(sc_path, sc_dataset, 'batch.rds'))[position_vector]
 
 # Subsetting the cells
-subset_list <- subset_cells(sc_matrix, sc_celltype_annotations, sc_batch, 200, 22)
+subset_list <- subset_cells(sc_matrix, sc_celltype_annotations, sc_batch, 500, 22)
 
 sc_matrix <- subset_list$data
 sc_celltype_annotations <- subset_list$annotations
@@ -87,6 +87,20 @@ signature <- signature_workflow_general(
   res_path_normal
 )
 
+# If we are deconvolving bulk data with a 10x dataset, we use the s mode
+# if we are using a smartseq2 dataset, we use the b mode 
+
+datasets_technologies <- read.table(paste0(baseDir, '/sc_datasets_technologies.csv'), sep = ',', header = TRUE)
+cur_tech <- datasets_technologies[datasets_technologies$technology == sc_dataset, 2]
+
+if(cur_tech!='10X'){
+    s_mode <- FALSE
+    b_mode <- TRUE
+} else {
+    s_mode <- TRUE
+    b_mode <- FALSE
+}
+
 deconvolution <- deconvolution_workflow_general(
   sc_matrix, 
   sc_celltype_annotations,
@@ -100,7 +114,9 @@ deconvolution <- deconvolution_workflow_general(
   bulk_name, 
   bulk_norm, 
   ncores, 
-  res_path_normal
+  res_path_normal,
+  rmbatch_S_mode = s_mode,
+  rmbatch_B_mode = b_mode
 ) 
 
 true_fractions <- readRDS(file.path(bulk_path, bulk_name, paste0(bulk_name, '_facs.rds')))

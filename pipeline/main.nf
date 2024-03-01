@@ -216,7 +216,7 @@ process SIMULATE_PSEUDOBULK_MIRRORDB {
       beforeScript 'chmod o+rw .'      
       shell:
       '''
-      simulateBulkNF_general.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{simulation_n_samples}' '!{sc_dataset_list}' '!{replicates}' '!{params.preProcess_dir}' '!{params.ncores}' 
+      simulateBulkNF_mirrordb.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{simulation_n_samples}' '!{sc_dataset_list}' '!{replicates}' '!{params.preProcess_dir}' '!{params.ncores}' 
       '''
 }
 
@@ -244,8 +244,8 @@ process ANALYSIS_BULK_MIRRORDB {
 
       input:
       each sc_dataset
-      tuple val(bulk_name), 
-            val(bulk_path)
+      each bulk_name, 
+      val(bulk_path)
       each method
      
       output:
@@ -400,16 +400,17 @@ workflow simulation_impact_technology {
   simulations = SIMULATE_PSEUDOBULK_MIRRORDB(params.simulation_sc_dataset,
                                              params.simulation_n_cells,
 						         params.simulation_n_samples,
-						         params.datasets_impact_technology, 
+						         params.sc_datasets_impact_technology, 
                                              params.replicates_simulation)
-
-  //deconvolution = ANALYSIS_BULK_MIRRORDB(params.simulation_sc_dataset,
-  //                                       ['vanderbilt_lung', '/nfs/data/omnideconv_benchmarking_clean/data/Tumor'], 
-  //                                       params.method_list)          
 
   deconvolution = ANALYSIS_PSEUDOBULK_MIRRORDB(params.simulation_sc_dataset,
                                                simulations, 
-                                               params.method_list)                               
+                                               params.method_list)
+
+  deconvolution_real = ANALYSIS_BULK_MIRRORDB(params.simulation_sc_dataset,
+                                              params.bulk_impact_technology
+                                              params.data_dir_bulk, 
+                                              params.method_list)                                                                                      
 }
 
 workflow simulation_spillover {

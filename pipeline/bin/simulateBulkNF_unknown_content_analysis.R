@@ -2,6 +2,7 @@
 
 print("Starting simulation script [unkown content] ...")
 
+library(docopt)
 library(SimBu)
 library(Matrix)
 

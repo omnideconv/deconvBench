@@ -1,12 +1,13 @@
 #!/usr/bin/Rscript
 
-print("Starting simulation script [general] ...")
+print("Starting simulation script [mirror db scenario, multiple datasets] ...")
 
+library(docopt)
 library(SimBu)
 library(Matrix)
 
 "Usage: 
-  simulateBulkNF.R <sc_ds> <sc_dir> <simulation_n_cells> <simulation_n_samples> <list_singlecell_datasets> <replicates> <preprocess_dir> <ncores>
+  simulateBulkNF_mirrordb.R <sc_ds> <sc_dir> <simulation_n_cells> <simulation_n_samples> <list_singlecell_datasets> <replicates> <preprocess_dir> <ncores>
 Options:
 <sc_ds> name of sc dataset that is used for simulations
 <sc_dir> path to single cell directory

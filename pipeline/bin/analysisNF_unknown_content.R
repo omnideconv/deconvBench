@@ -1,6 +1,6 @@
 #!/usr/bin/Rscript
 
-print("Starting analysis script [unkown content] ...")
+print("Starting analysis script [tumor unkown content] ...")
 
 library(docopt)
 library(Biobase)

@@ -97,7 +97,8 @@ char2seed <- function(x){
 }
 
 # Function to subset a dataset
-subset_cells <- function(cell_matrix, annotations, batch_ids, num_cells, seed, coarse_annotations = NULL, fine_annotations = NULL){
+subset_cells <- function(cell_matrix, annotations, batch_ids, num_cells, 
+                         seed, coarse_annotations = NULL, fine_annotations = NULL){
   
   require(tidyverse)
 
@@ -164,7 +165,8 @@ subset_cells <- function(cell_matrix, annotations, batch_ids, num_cells, seed, c
 }
 
 # This function contains all the necessary steps to adapt omnideconv to the benchmarking workflow
-signature_workflow_general <- function(sc_matrix, annotations, annotation_category, sc_ds, sc_norm, sc_batch, method, bulk_matrix, bulk_name, bulk_norm, ncores, res_path, spillover = FALSE){
+signature_workflow_general <- function(sc_matrix, annotations, annotation_category, sc_ds, sc_norm, sc_batch, 
+                                       method, bulk_matrix, bulk_name, bulk_norm, ncores, res_path){
   
   # path to temporary directory that is inside results directory of one unique result 
   tmp_dir_path <- paste0(res_path, '/tmp/')
@@ -246,7 +248,9 @@ signature_workflow_general <- function(sc_matrix, annotations, annotation_catego
 }
 
 # This function contains all the necessary steps to adapt omnideconv to the benchmarking workflow
-deconvolution_workflow_general <- function(sc_matrix, annotations, annotation_category, sc_ds, sc_norm, sc_batch, signature, method, bulk_matrix, bulk_name, bulk_norm, ncores, res_path){
+deconvolution_workflow_general <- function(sc_matrix, annotations, annotation_category, sc_ds, sc_norm, sc_batch, 
+                                           signature, method, bulk_matrix, bulk_name, bulk_norm, ncores, res_path,
+                                           rmbatch_B_mode = FALSE, rmbatch_S_mode = FALSE){
   
   # path to temporary directory that is inside results directory of one unique result 
   tmp_dir_path <- paste0(res_path, '/tmp/')
@@ -309,11 +313,11 @@ deconvolution_workflow_general <- function(sc_matrix, annotations, annotation_ca
     }
 
     # batch correction options for cibersortx
-    rmbatch_B_mode <- FALSE
-    rmbatch_S_mode <- TRUE
-    if(grepl("simulation" , bulk_name)){
-      rmbatch_S_mode <- FALSE
-    }
+    #rmbatch_B_mode <- FALSE
+    #rmbatch_S_mode <- TRUE
+    #if(grepl("simulation" , bulk_name)){
+    #  rmbatch_S_mode <- FALSE
+    #}
     
     deconvolution <- omnideconv::deconvolute_cibersortx(
       single_cell_object = sc_matrix,

@@ -1,6 +1,6 @@
 #!/usr/bin/Rscript
 
-print("Starting analysis script for deconvolution of simulated data ...")
+print("Starting analysis script [mixed deconvolution of simulated dataset] ...")
 
 library(docopt)
 library(Biobase)
@@ -55,7 +55,7 @@ if(sc_norm == 'counts'){
 sc_batch <- readRDS(file.path(sc_path, sc_dataset, 'batch.rds'))[position_vector]
 
 # Subsetting the cells
-subset_list <- subset_cells(sc_matrix, sc_celltype_annotations, sc_batch, 200, 22)
+subset_list <- subset_cells(sc_matrix, sc_celltype_annotations, sc_batch, 500, 22)
 
 sc_matrix <- subset_list$data
 sc_celltype_annotations <- subset_list$annotations
@@ -89,6 +89,15 @@ signature <- signature_workflow_general(
   res_path_normal
 )
 
+# If the datasets for pseudobulk simulation and signature building are not the same, 
+# we need to apply CIBERSORTx S mode
+
+if(bulk_name == sc_dataset){
+    s_mode <- FALSE
+} else {
+    s_mode <- TRUE
+}
+
 for(r in 1:replicates){
 
     res_path <- file.path(res_path_normal, paste0(bulk_name, '_pseudobulk_', sc_dataset, '_signature'), paste0('replicate_', r))
@@ -110,7 +119,8 @@ for(r in 1:replicates){
       bulk_name, 
       bulk_norm, 
       ncores, 
-      res_path_normal
+      res_path_normal,
+      rmbatch_S_mode = s_mode
     )  
 
     true_fractions <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0('simulation_facs.rds')))

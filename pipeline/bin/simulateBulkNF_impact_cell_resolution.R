@@ -2,6 +2,7 @@
 
 print("Starting simulation script [impact cell resolution] ...")
 
+library(docopt)
 library(SimBu)
 library(Matrix)
 

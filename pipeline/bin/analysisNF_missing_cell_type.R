@@ -1,7 +1,8 @@
 #!/usr/bin/Rscript
 
-print("Starting analysis for missing cell type script ...")
+print("Starting analysis script [missing cell type] ...")
 
+library(docopt)
 library(Biobase)
 library(omnideconv)
 reticulate::use_miniconda(condaenv = "r-omnideconv", required = TRUE)
@@ -108,7 +109,8 @@ deconvolution <- deconvolution_workflow_general(
   bulk_name, 
   bulk_norm, 
   ncores, 
-  res_path_normal
+  res_path_normal,
+  rmbatch_S_mode = TRUE
 )
 
 colnames(deconvolution) <- gsub("xxxx", " ", colnames(deconvolution))

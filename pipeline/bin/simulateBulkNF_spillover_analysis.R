@@ -2,6 +2,7 @@
 
 print("Started simulation script [spillover analysis] ...")
 
+library(docopt)
 library(SimBu)
 library(Matrix)
 

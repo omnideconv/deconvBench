@@ -99,6 +99,49 @@ In the **simulation_unknown_content** workflow following processes are run:
 The results of the **simulation_unknown_content** workflow are stored in the `results_dir_unknown_content` directory.
 
 
+### simulation_impact_technology
+
+The **simulation_impact_technology** workflow is run by using nextflow with the `-entry simulation_impact_technology` parameter.
+
+In this workflow we evaluate the impact of differences in tissue origin and sequencing technology on deconvolution results. 
+
+In the **simulation_impact_technology** workflow following processes are run:
+1. SIMULATE_PSEUDOBULK_MIRRORDB - 
+
+2. ANALYSIS_PSEUDOBULK_MIRRORDB - 
+
+The results of the **simulation_impact_technology** workflow are stored in the `results_dir_impact_technology` directory.
+
+### simulation_resolution_analysis
+
+The **simulation_resolution_analysis** workflow is run by using nextflow with the `-entry simulation_resolution_analysis` parameter.
+
+This workflow assesses the impact of annoating the usage of single cell atlases with different levels of cell type annotations. 
+
+In the **simulation_resolution_analysis** workflow following processes are run:
+
+1. SIMULATE_BULK_RESOLUTION_ANALYSIS -
+
+2. ANALYSIS_BULK_RESOLUTION_ANALYSIS -
+
+
+The results of the **simulation_resolution_analysis** workflow are stored in the `results_dir_resolution` directory.
+
+
+### simulation_spillover
+
+
+The **simulation_spillover** workflow is run by using nextflow with the `-entry simulation_spillover` parameter.
+
+This workflow assesses the impact  the erroneous prediction of a cell type caused by the occurance of cell types with similar transcriptional profiles.
+
+In the **simulation_spillover** workflow following processes are run:
+
+1. SIMULATE_BULK_SPILLOVER -
+
+2. ANALYSIS_SPILLOVER -
+
+The results of the **simulation_spillover** workflow are stored in the `results_dir_spillover` directory.
 
 
 ## Parameters

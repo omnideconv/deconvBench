@@ -21,9 +21,9 @@ The `nextflow.config` file can then look something like this:
 
 ```
 params {
-    data_dir_bulk = "/path/to/bulk/datasets/"
-    data_dir_sc = "/path/to/sc/datasets/"
-    results_dir_general = "/path/to/results/"   
+    data_dir_bulk = "/user/benchmarking/datasets/bulks"
+    data_dir_sc = "/user/benchmarking/datasets/single_cell"
+    results_dir_general = "/user/benchmarking/results"   
 
     single_cell_list = ["sc1"]
     bulk_list = ["bulk1","bulk2"]
@@ -41,6 +41,32 @@ profiles {
 }
 
 ```
+Running the pipeline with the above configuration will expect the following folder structure:
+
+
+```
+user
+└── benchmarking
+    ├── datasets
+    │   ├── bulks
+    │   │   ├── bulk1
+    │   │   └── bulk2
+    │   └── single_cell
+    │       └── sc1
+    └── results
+    │
+    └── DECONVBENCH
+        ├── docker
+        ├── pipeline
+        │   ├── nextflow.config
+        │   ├── main.nf
+        │   ├── optimal_normalization.csv
+        │   ├── bin
+        │   │   ├── runDeconvolutionNF.R
+        │   │   ├── ...
+        └── visualisation
+```
+
 
 ## Workflows
 

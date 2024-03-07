@@ -50,10 +50,18 @@ user
     ├── datasets
     │   ├── bulks
     │   │   ├── bulk1
+    |   |   |   ├── bulk1_counts.rds
+    |   |   |   ├── bulk1_tpm.rds
+    |   |   |   └── bulk1_facs.rds
     │   │   └── bulk2
+    |   |       └── ...
     │   └── single_cell
     │       └── sc1
-    └── results
+    │           ├── batch.rds
+    │           ├── celltype_annotation.rds
+    │           ├── matrix_counts.rds
+    │           └── matrix_norm_counts.rds
+    ├── results
     │
     └── DECONVBENCH
         ├── docker

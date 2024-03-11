@@ -3,13 +3,13 @@ library(tidyverse)
 library(data.table)
 library(cowplot)
 
-plot_single_cell <- function(obj, colors){
+plot_single_cell <- function(obj, colors, pointsize=0, pixels=c(512,512)){
   meta_df <- obj@meta.data
   meta_df$umap1 <- obj@reductions$umap@cell.embeddings[,1]
   meta_df$umap2 <- obj@reductions$umap@cell.embeddings[,2]
   
   plot.umap <- ggplot(meta_df, aes(x=umap1, y=umap2, color=cell_type))+
-    geom_point(aes(color=cell_type), alpha=.8, size=.5)+
+    geom_scattermore(aes(color=cell_type), pointsize = pointsize, pixels = pixels)+
     theme_minimal()+
     xlab('UMAP1')+ylab("UMAP2")+
     scale_color_manual(values = colors)+
@@ -32,7 +32,7 @@ plot_single_cell <- function(obj, colors){
     coord_flip()+
     xlab('')+ylab('count')+
     theme(legend.position = 'none')+
-    geom_text(aes(label=N), nudge_y = mean(count_df$N)/3)+
+    geom_text(aes(label=N), nudge_y = mean(count_df$N)/5)+
     theme(axis.text.y = element_text(size = 12),
           panel.grid.major.y = element_blank())
   
@@ -58,18 +58,18 @@ plot_single_cell <- function(obj, colors){
     align = 'h',
     label_size = 15, 
     hjust = -1,
-    nrow = 1, ncol = 3
+    nrow = 1, ncol = 3, rel_widths = c(.3, 0.4, .3)
   )
   
   return(p.full)
 }
 
 #### Hao ####
-hao_full <- readRDS('/vol/omnideconv_input/omnideconv_data/singleCell/hao-complete/matrix_counts.rds')
-hao_ct <- readRDS('/vol/omnideconv_input/omnideconv_data/singleCell/hao-complete/celltype_annotations.rds')
-hao_batch <- readRDS('/vol/omnideconv_input/omnideconv_data/singleCell/hao-complete/batch.rds')
+hao_full <- readRDS('/nfs/data/omnideconv_benchmarking_clean/data/singleCell/hao-complete/matrix_counts.rds')
+hao_ct <- readRDS('/nfs/data/omnideconv_benchmarking_clean/data/singleCell/hao-complete/celltype_annotations.rds')
+hao_batch <- readRDS('/nfs/data/omnideconv_benchmarking_clean/data/singleCell/hao-complete/batch.rds')
 
-hao_subset_3_cells <- colnames(readRDS('//vol/omnideconv_input/omnideconv_data/singleCell/hao-sampled-3/matrix_counts.rds'))
+hao_subset_3_cells <- colnames(readRDS('/nfs/data/omnideconv_benchmarking_clean/data/singleCell/hao-sampled-3/matrix_counts.rds'))
 
 meta_df <- data.frame('cell_type' = hao_ct,
                       'batch' = hao_batch,
@@ -82,30 +82,30 @@ hao <- CreateSeuratObject(hao_full, project='hao', meta.data = meta_df)
 hao <- SCTransform(hao) %>%
   RunPCA(npcs = 20, features = VariableFeatures(hao)) %>%
   RunUMAP(reduction = "pca", dims = 1:20) 
-saveRDS(hao, '/vol/omnideconv_input/omnideconv_data/singleCell/hao-complete/seurat_obj.rds')
-hao <- readRDS('/vol/omnideconv_input/omnideconv_data/singleCell/hao-complete/seurat_obj.rds')
+saveRDS(hao, '/nfs/data/omnideconv_benchmarking_clean/data/singleCell/hao-complete/seurat_obj.rds')
+hao <- readRDS('/nfs/data/omnideconv_benchmarking_clean/data/singleCell/hao-complete/seurat_obj.rds')
 
-hao_subset <- subset(hao, subset=='subset')
+#hao_subset <- subset(hao, subset=='subset')
 
 hao_palette <- c('B cells'='#999933',
-                 'Macrophages'='#CC6677',
-                 'mDC'='#882255',
-                 'Monocytes'='#AA4499',
-                 'NK cells'='#DDCC77',
-                 'T cell'='#332288',
-                 'T cells CD4 conv'='#117733',
-                 'T cells CD8'='#44AA99',
-                 'Tregs'='#88CCEE',
-                 'pDC'='#8d4b00',
-                 'Neutrophils'='#fffb6a',
-                 'ILC'='#58564f',
-                 'Plasma cells'='#969489',
-                 'Platelet'='#c2c0b3')
+                  'Macrophages'='#CC6677',
+                  'mDC'='#882255',
+                  'Monocytes'='#AA4499',
+                  'NK cells'='#DDCC77',
+                  'T cell'='#332288',
+                  'T cells CD4 conv'='#117733',
+                  'T cells CD8'='#44AA99',
+                  'Tregs'='#88CCEE',
+                  'pDC'='#8d4b00',
+                  'Neutrophils'='#fffb6a',
+                  'ILC'='#58564f',
+                  'Plasma cells'='#969489',
+                  'Platelet'='#c2c0b3')
 
 #### Maynard ####
-maynard_full <- readRDS('/vol/omnideconv_input/omnideconv_data/singleCell/maynard/matrix_counts.rds')
-maynard_ct <- readRDS('/vol/omnideconv_input/omnideconv_data/singleCell/maynard/celltype_annotations.rds')
-maynard_batch <- readRDS('/vol/omnideconv_input/omnideconv_data/singleCell/maynard/batch.rds')
+maynard_full <- readRDS('/nfs/data/omnideconv_benchmarking_clean/data/singleCell/maynard/matrix_counts.rds')
+maynard_ct <- readRDS('/nfs/data/omnideconv_benchmarking_clean/data/singleCell/maynard/celltype_annotations.rds')
+maynard_batch <- readRDS('/nfs/data/omnideconv_benchmarking_clean/data/singleCell/maynard/batch.rds')
 
 meta_df <- data.frame('cell_type' = maynard_ct,
                       'batch' = maynard_batch,
@@ -115,7 +115,8 @@ maynard <- CreateSeuratObject(maynard_full, project='maynard', meta.data = meta_
 maynard <- SCTransform(maynard) %>%
   RunPCA(npcs = 20, features = VariableFeatures(maynard)) %>%
   RunUMAP(reduction = "pca", dims = 1:20) 
-saveRDS(maynard, '/vol/omnideconv_input/omnideconv_data/singleCell/maynard/seurat_obj.rds')
+saveRDS(maynard, '/nfs/data/omnideconv_benchmarking_clean/data/singleCell/maynard/seurat_obj.rds')
+maynard <- readRDS('/nfs/data/omnideconv_benchmarking_clean/data/singleCell/maynard/seurat_obj.rds')
 
 maynard_palette <- c('B cells'='#999933',
                      'Macrophages'='#CC6677',
@@ -137,9 +138,9 @@ maynard_palette <- c('B cells'='#999933',
 
 #### Lambrechts ####
 
-lambrechts_full <- readRDS('/vol/omnideconv_input/omnideconv_data/singleCell/lambrechts/matrix_counts.rds')
-lambrechts_ct <- readRDS('/vol/omnideconv_input/omnideconv_data/singleCell/lambrechts/celltype_annotations.rds')
-lambrechts_batch <- readRDS('/vol/omnideconv_input/omnideconv_data/singleCell/lambrechts/batch.rds')
+lambrechts_full <- readRDS('/nfs/data/omnideconv_benchmarking_clean/data/singleCell/lambrechts/matrix_counts.rds')
+lambrechts_ct <- readRDS('/nfs/data/omnideconv_benchmarking_clean/data/singleCell/lambrechts/celltype_annotations.rds')
+lambrechts_batch <- readRDS('/nfs/data/omnideconv_benchmarking_clean/data/singleCell/lambrechts/batch.rds')
 
 meta_df <- data.frame('cell_type' = lambrechts_ct,
                       'batch' = lambrechts_batch,
@@ -149,7 +150,8 @@ lambrechts <- CreateSeuratObject(lambrechts_full, project='lambrechts', meta.dat
 lambrechts <- SCTransform(lambrechts) %>%
   RunPCA(npcs = 20, features = VariableFeatures(lambrechts)) %>%
   RunUMAP(reduction = "pca", dims = 1:20) 
-saveRDS(lambrechts, '/vol/omnideconv_input/omnideconv_data/singleCell/lambrechts/seurat_obj.rds')
+saveRDS(lambrechts, '/nfs/data/omnideconv_benchmarking_clean/data/singleCell/lambrechts/seurat_obj.rds')
+lambrechts <- readRDS('/nfs/data/omnideconv_benchmarking_clean/data/singleCell/lambrechts/seurat_obj.rds')
 
 lambrechts_palette <- c('B cells'='#999933',
                         'Macrophages'='#CC6677',
@@ -170,9 +172,9 @@ lambrechts_palette <- c('B cells'='#999933',
 
 #### tabula muris ####
 
-tm_full <- readRDS('/vol/omnideconv_input/omnideconv_data/singleCell/tabula-muris/matrix_counts.rds')
-tm_ct <- readRDS('/vol/omnideconv_input/omnideconv_data/singleCell/tabula-muris/celltype_annotations.rds')
-tm_batch <- readRDS('/vol/omnideconv_input/omnideconv_data/singleCell/tabula-muris/batch.rds')
+tm_full <- readRDS('/nfs/data/omnideconv_benchmarking_clean/data/singleCell/tabula-muris/matrix_counts.rds')
+tm_ct <- readRDS('/nfs/data/omnideconv_benchmarking_clean/data/singleCell/tabula-muris/celltype_annotations.rds')
+tm_batch <- readRDS('/nfs/data/omnideconv_benchmarking_clean/data/singleCell/tabula-muris/batch.rds')
 
 meta_df <- data.frame('cell_type' = tm_ct,
                       'batch' = tm_batch,
@@ -182,7 +184,8 @@ tm <- CreateSeuratObject(tm_full, project='tabula-muris', meta.data = meta_df)
 tm <- SCTransform(tm) %>%
   RunPCA(npcs = 20, features = VariableFeatures(tm)) %>%
   RunUMAP(reduction = "pca", dims = 1:20) 
-saveRDS(tm, '/vol/omnideconv_input/omnideconv_data/singleCell/tabula-muris/seurat_obj.rds')
+saveRDS(tm, '/nfs/data/omnideconv_benchmarking_clean/data/singleCell/tabula-muris/seurat_obj.rds')
+tm <- readRDS('/nfs/data/omnideconv_benchmarking_clean/data/singleCell/tabula-muris/seurat_obj.rds')
 
 tm_palette <- c('B cells'='#999933',
                 'Macrophages'='#CC6677',
@@ -191,17 +194,17 @@ tm_palette <- c('B cells'='#999933',
                 'T cells CD4 conv'='#117733',
                 'T cells CD8'='#44AA99',
                 'Tregs'='#88CCEE'
-)
+                )
 
 
 #### full plot ####
 
-plots.hao <- plot_single_cell(hao, hao_palette)
-plots.maynard <- plot_single_cell(maynard, maynard_palette)
-plots.lambrechts <- plot_single_cell(lambrechts, lambrechts_palette)
-plots.tm <- plot_single_cell(tm, tm_palette)
+plots.hao <- plot_single_cell(hao, hao_palette, pointsize = 1, pixels = c(1024, 1024))
+plots.maynard <- plot_single_cell(maynard, maynard_palette, pointsize = 1.5)
+plots.lambrechts <- plot_single_cell(lambrechts, lambrechts_palette, pointsize = 1.5)
+plots.tm <- plot_single_cell(tm, tm_palette, pointsize = 2)
 
-plot_grid(
+fig_s1 <- plot_grid(
   plots.hao,
   plots.maynard,
   plots.lambrechts,
@@ -213,4 +216,4 @@ plot_grid(
   nrow = 4, ncol = 1
 )
 
-ggsave(fig_s1, 'visualizations_final/fig_s1/fig_s1.pdf', height = 17, width = 14)
+ggsave(plot = fig_s1, filename = 'visualisation/fig_s1/fig_s1.pdf', height = 17, width = 14)

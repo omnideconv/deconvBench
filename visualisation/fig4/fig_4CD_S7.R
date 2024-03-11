@@ -3,8 +3,6 @@ library(dplyr)
 library(circlize)
 library(ggpubr)
 methods <- c('autogenes','bayesprism','bisque','cibersortx','dwls','music','scaden','scdc')
-sc_norm <- c(rep('counts', 3),'cpm',rep('counts',4))
-bulk_norm <- c('tpm', rep('counts', 2), rep('tpm',5))
 
 cell_palette <- c('B cells'='#999933',
                   'Macrophages'='#CC6677',
@@ -32,7 +30,7 @@ method_palette <- c('autogenes'="#66C2A5",
 
 # 1: List directories, methods, cell types
 
-spillover.deconv.results <- list.files('/vol/omnideconv_results/results_spillover', full.names=F, recursive=T)
+spillover.deconv.results <- list.files('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_spillover/', full.names=F, recursive=T)
 
 metadata.table <- spillover.deconv.results %>%
   tibble(path = ., 
@@ -57,7 +55,7 @@ metadata.table$dataset_rep <- NULL
 #2: Combine these in a unique dataframe
 data <- NULL
 for(i in 1:nrow(metadata.table)){
-  result <- readRDS(paste0('/vol/omnideconv_results/results_spillover/', metadata.table$path[i])) %>%
+  result <- readRDS(paste0('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_spillover/', metadata.table$path[i])) %>%
     .$deconvolution %>%
     as.data.frame()
   result <- result %>%

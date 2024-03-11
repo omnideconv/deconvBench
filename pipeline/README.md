@@ -74,7 +74,7 @@ user
         │   │   ├── ...
         └── visualisation
 ```
-
+You can find information on how the individual files have to look like [below](#input-formats). 
 
 ## Workflows
 
@@ -189,7 +189,7 @@ Parameters can be changed in the `nextflow.config` file.
 | `data_dir_bulk` | path | absolute path to directory that contains RNA-seq datasets | `/path/to/datasets/` |
 | `data_dir_sc` | path | absolute path to directory that contains scRNA-seq datasets                          | `/path/to/other/datasets/`          |
 
-A dedicted description of the input file formats and folder structure can be found [below](#input-formats).
+A dedicted description of the input file formats can be found [below](#input-formats).
 
 ### Output Directories
 
@@ -267,6 +267,10 @@ The following sets of parameters are only used in the specified workflow.
 | `cell_types_to_exclude` | [string] | each of the cell types in the list will be a candidate for exclusion from the scRNA-seq dataset once | `["B cells","mDC","Monocytes","NK cells","T cells CD4 conv"]` |
 
 ## Input Formats
+
+- TODO: 
+    - how do files look like? (header, column names)
+    - naming conventions for files ( bulk1_[counts|tpm|facs].rds )
 
 ## Data Normalizations
 

@@ -21,12 +21,14 @@ The `nextflow.config` file can then look something like this:
 
 ```
 params {
-    data_dir_bulk = "/user/benchmarking/datasets/bulks"
-    data_dir_sc = "/user/benchmarking/datasets/single_cell"
-    results_dir_general = "/user/benchmarking/results"   
+    data_dir_bulk = "/path/to/your/DECONVBENCH/data/bulks"
+    data_dir_sc = "/path/to/your/DECONVBENCH/data/bulks"
+    results_dir_general = "/path/to/your/DECONVBENCH/results"   
 
     single_cell_list = ["sc1"]
+    single_cell_norm = ["counts"]
     bulk_list = ["bulk1","bulk2"]
+    bulk_norm = ["tpm"]    
     method_list = ["autogenes", "dwls", "music", "scaden"]
 
     ncores = '4'
@@ -45,9 +47,8 @@ Running the pipeline with the above configuration will expect the following fold
 
 
 ```
-user
-└── benchmarking
-    ├── datasets
+DECONVBENCH
+    ├── data
     │   ├── bulks
     │   │   ├── bulk1
     |   |   |   ├── bulk1_counts.rds
@@ -61,18 +62,16 @@ user
     │           ├── celltype_annotation.rds
     │           ├── matrix_counts.rds
     │           └── matrix_norm_counts.rds
-    ├── results
-    │
-    └── DECONVBENCH
-        ├── docker
-        ├── pipeline
-        │   ├── nextflow.config
-        │   ├── main.nf
-        │   ├── optimal_normalization.csv
-        │   ├── bin
-        │   │   ├── runDeconvolutionNF.R
-        │   │   ├── ...
-        └── visualisation
+    ├── docker
+    ├── pipeline
+    │   ├── nextflow.config
+    │   ├── main.nf
+    │   ├── optimal_normalization.csv
+    │   ├── bin
+    │   │   ├── runDeconvolutionNF.R
+    │   │   ├── ...
+    ├── results 
+    └── visualisation
 ```
 You can find information on how the individual files have to look like [below](#input-formats). 
 
@@ -267,10 +266,20 @@ The following sets of parameters are only used in the specified workflow.
 | `cell_types_to_exclude` | [string] | each of the cell types in the list will be a candidate for exclusion from the scRNA-seq dataset once | `["B cells","mDC","Monocytes","NK cells","T cells CD4 conv"]` |
 
 ## Input Formats
+The pipeline expects the input data to be in a specific format. The following sections describe the expected format for the scRNA-seq and bulk RNA-seq datasets.
+### scRNA-seq datasets
+- `batch.rds` - a character vector equal to the number of cells, indicating the batch of each cell.
+- `celltype_annotation.rds` - a character vector equal to the number of cells, indicating the cell type of each cell.
+- `matrix_counts.rds` - a matrix with the raw counts of each gene in each cell. Columns are cells, rows are genes. Is selected when  `single_cell_norm` config is set to "*counts*".  
+- `matrix_norm_counts.rds` - a matrix with the normalized counts of each gene in each cell. Columns are cells, rows are genes. Is selected when  `single_cell_norm` config is set to "*cpm*".
 
-- TODO: 
-    - how do files look like? (header, column names)
-    - naming conventions for files ( bulk1_[counts|tpm|facs].rds )
+### bulk RNA-seq datasets
+- `bulk_counts.rds` - a matrix with the raw counts of each gene in each sample. Columns are samples, rows are genes. Is selected when  `bulk_norm` config is set to "*counts*". 'bulk' is a placeholder for the name of the bulk RNA-seq dataset, e.g. `finotello'.
+- `bulk_tpm.rds` - a matrix with the TPM of each gene in each sample. Columns are samples, rows are genes. Is selected when  `bulk_norm` config is set to "*tpm*". 'bulk' is a placeholder for the name of the bulk RNA-seq dataset, e.g. `finotello'.
+- `bulk_facs.rds` - a matrix of true fractions for each cell type. Columns are samples, rows are cell types.
+ 'bulk' is a placeholder for the name of the bulk RNA-seq dataset, e.g. `finotello`.
+
+
 
 ## Data Normalizations
 

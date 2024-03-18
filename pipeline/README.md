@@ -21,14 +21,12 @@ The `nextflow.config` file can then look something like this:
 
 ```
 params {
-    data_dir_bulk = "/path/to/your/DECONVBENCH/data/bulks"
-    data_dir_sc = "/path/to/your/DECONVBENCH/data/bulks"
-    results_dir_general = "/path/to/your/DECONVBENCH/results"   
+    data_dir_bulk = "/user/benchmarking/datasets/bulks"
+    data_dir_sc = "/user/benchmarking/datasets/single_cell"
+    results_dir_general = "/user/benchmarking/results"   
 
     single_cell_list = ["sc1"]
-    single_cell_norm = ["counts"]
     bulk_list = ["bulk1","bulk2"]
-    bulk_norm = ["tpm"]    
     method_list = ["autogenes", "dwls", "music", "scaden"]
 
     ncores = '4'
@@ -37,7 +35,7 @@ params {
 profiles {
     docker {
         docker.enabled = true
-        process.container = 'omnideconv_benchmark:latest'
+        process.container = 'omnideconv_benchmark:1.0'
         // add more parameters regarding e.g. memory usage here
     }
 }
@@ -47,8 +45,9 @@ Running the pipeline with the above configuration will expect the following fold
 
 
 ```
-DECONVBENCH
-    ├── data
+user
+└── benchmarking
+    ├── datasets
     │   ├── bulks
     │   │   ├── bulk1
     |   |   |   ├── bulk1_counts.rds
@@ -62,20 +61,24 @@ DECONVBENCH
     │           ├── celltype_annotation.rds
     │           ├── matrix_counts.rds
     │           └── matrix_norm_counts.rds
-    ├── docker
-    ├── pipeline
-    │   ├── nextflow.config
-    │   ├── main.nf
-    │   ├── optimal_normalization.csv
-    │   ├── bin
-    │   │   ├── runDeconvolutionNF.R
-    │   │   ├── ...
-    ├── results 
-    └── visualisation
+    ├── results
+    │
+    └── DECONVBENCH
+        ├── docker
+        ├── pipeline
+        │   ├── nextflow.config
+        │   ├── main.nf
+        │   ├── optimal_normalization.csv
+        │   ├── bin
+        │   │   ├── runDeconvolutionNF.R
+        │   │   ├── ...
+        └── visualisation
 ```
 You can find information on how the individual files have to look like [below](#input-formats). 
 
 ## Workflows
+
+This is a basic overview of the workflows that are offered in this pipeline. The parameters can be adapted in the `nextflow.config` file and are described below.
 
 ![Alt text](workflows.png)
 
@@ -139,9 +142,9 @@ The **simulation_impact_technology** workflow is run by using nextflow with the 
 In this workflow we evaluate the impact of differences in tissue origin and sequencing technology on deconvolution results. 
 
 In the **simulation_impact_technology** workflow following processes are run:
-1. SIMULATE_PSEUDOBULK_MIRRORDB - 
+1. SIMULATE_PSEUDOBULK_MIRRORDB - For each dataset in `datasets_impact_technology` we first identify all common cell types across datasets. Then create as many pseudobulk replicates as the specified in `replicates_simulation`; simulations are created using the 'mirrordb' scenario in SimBu, which matches the cell type fractions from the single-cell dataset to the pseudobulk.
 
-2. ANALYSIS_PSEUDOBULK_MIRRORDB - 
+2. ANALYSIS_PSEUDOBULK_MIRRORDB - Using each dataset in `datasets_impact_technology`, the previously created pseudobulk will be deconvolved. This means that you can add datasets from different technological backgrounds and see how they differently perform during deconvolution of the same pseudobulks.
 
 The results of the **simulation_impact_technology** workflow are stored in the `results_dir_impact_technology` directory.
 
@@ -153,9 +156,9 @@ This workflow assesses the impact of annoating the usage of single cell atlases 
 
 In the **simulation_resolution_analysis** workflow following processes are run:
 
-1. SIMULATE_BULK_RESOLUTION_ANALYSIS -
+1. SIMULATE_BULK_RESOLUTION_ANALYSIS - Pseudobulks are created by using different levels of annotation granularity.
 
-2. ANALYSIS_BULK_RESOLUTION_ANALYSIS -
+2. ANALYSIS_BULK_RESOLUTION_ANALYSIS - Using each level of annotation, the single-cell reference is used for deconvolution of the previoudly simulated samples
 
 
 The results of the **simulation_resolution_analysis** workflow are stored in the `results_dir_resolution` directory.
@@ -170,9 +173,9 @@ This workflow assesses the impact  the erroneous prediction of a cell type cause
 
 In the **simulation_spillover** workflow following processes are run:
 
-1. SIMULATE_BULK_SPILLOVER -
+1. SIMULATE_BULK_SPILLOVER - For each cell type in `spillover_celltypes` a set of pseudobulks is created, where only cells from this cell type are sampled from the single-cell dataset ('pure' scenario in SimBu).
 
-2. ANALYSIS_SPILLOVER -
+2. ANALYSIS_SPILLOVER - The previously simulated samples are deconvolved using the full single-cell dataset
 
 The results of the **simulation_spillover** workflow are stored in the `results_dir_spillover` directory.
 
@@ -237,18 +240,18 @@ The following sets of parameters are only used in the specified workflow.
 
 | Name       | Type   | Description                             | Example                      |
 | ---------- | ------ | ---------------------------------- | -------------------------------- |
-| `results_dir_spillover` | path | absolute path to directory in which final results of the `simulation_spillover` workflow are stored | `/path/to/simulation_spillover/results/` |
+| `results_dir_spillover` | path | absolute path to directory in which final results of the `simulation_spillover` workflow are stored. | `/path/to/simulation_spillover/results/` |
 | `spillover_samples_per_cell` | int | in the spillover analysis samples contain only one cell type. This parameter controls how many pseudo-bulk samples should be simulated that way. | `10` |
-| `spillover_celltypes` | [string] | Control, for which cell types the spillover analysis will be done | `["B cells,Monocytes,NK cells,T cells CD8,T cells CD4 conv"]` |
+| `spillover_celltypes` | [string] | Control, for which cell types the spillover analysis will be done. These cell types need to be present in the dataset that was used in `single_cell_list`. | `["B cells,Monocytes,NK cells,T cells CD8,T cells CD4 conv"]` |
 
 #### workflow `simulation_unkown_content` 
 
 | Name       | Type   | Description                             | Example                      |
 | ---------- | ------ | ---------------------------------- | -------------------------------- |
 | `results_dir_unknown_content` | path | absolute path to directory in which final results of the `simulation_unkown_content` workflow are stored | `/path/to/simulation_unkown_content/results/` |
-| `known_cell_types` | [[string]] | subset of cell types that we will use to build the signature matrix | `[["B cells,Stromal cells,T cells CD4 conv,Macrophages"]]` |
-| `unknown_cell_type` | [string] | unknown cell type to use | `["Tumor cells"]` |
-| `fractions_unknown_cells` | [[int]] | Control, for which cell types the spillover analysis will be done | `[[0, 0.05, 0.1, 0.2, 0.3, 0.5, 0.7, 0.8, 0.9]]` |
+| `known_cell_types` | [string] | subset of cell types that we will use to build the signature matrix | `["B cells,Stromal cells,T cells CD4 conv,Macrophages"]` |
+| `unknown_cell_type` | [string] | unknown cell type to use; currently only supports a single cell type | `["Tumor cells"]` |
+| `fractions_unknown_cells` | [[int]] | How large the fraction of the unkown cell type is | `[0, 0.05, 0.1, 0.2, 0.3, 0.5, 0.7, 0.8, 0.9]` |
 | `replicates_unknown_content` | [int] | number of technical replicates for pseudo-bulk simulation | `[5]` |
 
 #### workflow `simulation_resolution_analysis` 

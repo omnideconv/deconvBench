@@ -1,121 +1,61 @@
-#!/usr/local/bin/Rscript
+#!/usr/bin/Rscript
+
+print("Starting metric calculation ...")
 
 library(tidyverse)
-library(docopt)
 
-print("Started metric calculation ...")
+
 "Usage:
-  computeMetricsNF.R <sc_name> <sc_norm> <bulk_dir>  <bulk_name> <bulk_norm> <deconv_method> <replicate> <subset_value> <results_dir>
+  computeMetricsNF.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <replicate> <subset_value> <results_dir> <baseDir>
 Options:
 <sc_name> name of sc datasets
-<sc_norm> count type of sc dataset
-<bulk_dir> path to bulk datasets
-<bulk_name> name of bulk RNAseq dataset
-<bulk_norm> normalization of RNAseq
+<sc_path> path to sc dataset
+<bulk_name> name of simulated bulk RNAseq dataset
+<bulk_path> path to simulated bulk datasets
 <deconv_method>  deconv method
 <subset_value> if < 1: fraction of cell type; if > 1: number of cells per cell type
 <replicate> value of replicate number
-<results_dir> results (base) directory" -> doc
+<results_dir> results (base) directory
+<baseDir> nextflow base directory" -> doc
 
-print(doc)
 
 args <- docopt::docopt(doc)
-print(args)
 
-sc_ds <- args$sc_name
-sc_norm <- args$sc_norm
+# store basic parameters
+ncores <- as.numeric(args$ncores)
+sc_dataset <- args$sc_name
+sc_path <- args$sc_path
 bulk_name <- args$bulk_name
-bulk_norm <- args$bulk_norm
-subset_value <- as.numeric(args$subset_value)
-replicate <- as.numeric(args$replicate)
-
+bulk_path <- args$bulk_path
 method <- args$deconv_method
 res_base_path <- args$results_dir
+subset_value <- as.numeric(args$subset_value)
+replicate <- as.numeric(args$replicate)
+baseDir <- args$baseDir
 
-facs_data <- readRDS(file.path(args$bulk_dir, args$bulk_name, paste0(args$bulk_name, '_facs.rds')))
+source(paste0(baseDir, '/bin/utils.R'))
+method_normalizations <- read.table(paste0(baseDir, '/optimal_normalizations.csv'), sep = ',', header = TRUE)
+sc_norm <- method_normalizations[method_normalizations$method == method, 2]
+bulk_norm <- method_normalizations[method_normalizations$method == method, 3]
+print(paste0('Method: ', method, '; sc-norm: ', sc_norm, '; bulk-norm: ', bulk_norm))
 
-res_path <- paste0(res_base_path, '/', method, "_", sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
+# load ground truth data
+facs_data <- readRDS(file.path(bulk_path, bulk_name, paste0(bulk_name, '_facs.rds')))
+
+res_path <- paste0(res_base_path, '/', method, "_", sc_dataset, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
 
 deconvolution <- readRDS(paste0(res_path, '/deconvolution.rds'))
 
-
+# sum up fractions of T cell subtypes in this dataset
 if(args$bulk_name=='hoek' | args$bulk_name=='hoek-simulation'){
   deconvolution <- as.data.frame(deconvolution)
   deconvolution$`T cell` <- deconvolution$`T cells CD4 conv` + deconvolution$`T cells CD8` + deconvolution$`Tregs`
 }
 
 
-# Here we need to compute the correlation, RMSE and zRMSE
-# We need to compute it by cell type, sample, all together
-
-compute_metrics <- function(ref_facs, deconvolution, metric = c('cor', 'rmse'),
-                            comparison = c('sample', 'cell_type')){
-  
-  compute_rmse <- function(x, y, zscored = FALSE, weighted = FALSE){
-    if(zscored == TRUE){
-      sd_x = sd(x)
-      sd_y = sd(y)
-      if(sd_x == 0){sd_x = 1}
-      if(sd_y == 0){sd_y = 1}
-      x <- (x - mean(x))/(sd_x)
-      y <- (y - mean(y))/(sd_y)
-    }
-    
-    rmse <- sqrt(mean((x - y)^2)) 
-    if(weighted == TRUE){rmse <- rmse/max(y)}
-    return(rmse)
-  }
-  
-  
-  
-  deconvolution <- as.data.frame(deconvolution) %>%
-    rownames_to_column(., 'sample') %>%
-    gather(., key = 'cell_type', value = 'estimated_frac', -sample)
-  
-  ref_facs <- as.data.frame(ref_facs) %>%
-    rownames_to_column(., 'cell_type') %>%
-    gather(., key = 'sample', value = 'true_frac', -cell_type)
-  
-  results_df <- deconvolution %>%
-    inner_join(., ref_facs) #, by = c('cell_type' ,'sample'))
-  
-  results_df$estimated_frac[which(is.na(results_df$estimated_frac))] <- 0
-  results_df$true_frac[which(is.na(results_df$true_frac))] <- 0
-  
-  if(metric == 'cor'){
-    res_metric <- results_df %>%
-      group_by(!!! syms(comparison)) %>%
-      dplyr::summarize(cor = cor.test(estimated_frac, true_frac)$estimate,
-                       pval = cor.test(estimated_frac, true_frac)$p.value)
-    
-    cor_all_elements <- data.frame(comp = 'all' ,
-                                   'cor' = cor.test(results_df$estimated_frac, results_df$true_frac)$estimate,
-                                   'pval' = cor.test(results_df$estimated_frac, results_df$true_frac)$p.value,
-                                   row.names = (nrow(res_metric) +1))
-    colnames(cor_all_elements)[1] <- comparison
-    res_metric <- rbind(res_metric, cor_all_elements)
-    
-  } else if(metric == 'rmse'){
-    res_metric <- results_df %>%
-      group_by(!!! syms(comparison)) %>%
-      dplyr::summarize(RMSE = compute_rmse(estimated_frac, true_frac),
-                       zRMSE = compute_rmse(estimated_frac, true_frac, zscored=TRUE), 
-                       wRMSE = compute_rmse(estimated_frac, true_frac, weighted=TRUE)
-                       )
-    
-    rmse_all_elements <- data.frame(comp = 'all' ,
-                                    'RMSE' = compute_rmse(results_df$estimated_frac, results_df$true_frac),
-                                    'zRMSE' = compute_rmse(results_df$estimated_frac, results_df$true_frac, zscored=TRUE),
-                                    'wRMSE' = compute_rmse(results_df$estimated_frac, results_df$true_frac, weighted=TRUE),
-                                    row.names = (nrow(res_metric) +1))
-    
-    colnames(rmse_all_elements)[1] <- comparison
-    res_metric <- rbind(res_metric, rmse_all_elements)
-  }
-  
-  return(res_metric)
-  
-}
+#########################
+#### Compute metrics ####
+#########################
 
 results_metric <- list()
 
@@ -144,7 +84,3 @@ runtimes <- data.frame(rbind(runtime_df_sig, runtime_df_dec))
 results_metric$runtimes <- runtimes
 
 saveRDS(results_metric, paste0(res_path, '/results_metric.rds'))
-
-
-
-## 

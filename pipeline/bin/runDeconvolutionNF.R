@@ -1,20 +1,17 @@
-#!/usr/local/bin/Rscript
+#!/usr/bin/Rscript
+
+print("Starting deconvolution script ...")
 
 library(omnideconv)
 reticulate::use_miniconda(condaenv = "r-omnideconv", required = TRUE)
 
-print("Started deconvolution  ...")
 "Usage:
-  runDeconvolutionNF.R <sc_matrix> <sc_annotation> <sc_batch> <sc_name> <sc_norm> <bulk_dir> <bulk_name> <bulk_norm> <deconv_method> <results_dir> <run_preprocessing> <replicate> <subset_value> <species> <ncores> [<coarse>]
+  runDeconvolutionNF.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <results_dir> <run_preprocessing> <replicate> <subset_value> <species> <ncores> <baseDir>
 Options:
-<sc_matrix> path to sc matrix
-<sc_annotation> path to cell type annotation of sc matrix
-<sc_batch> path batch info for sc matrix
 <sc_name> name of sc datasets
-<sc_norm> count type of sc dataset
-<bulk_dir> path to bulk datasets
-<bulk_name> name of bulk RNAseq dataset
-<bulk_norm> normalization of RNAseq
+<sc_path> path to sc dataset
+<bulk_name> name of simulated bulk RNAseq dataset
+<bulk_path> path to simulated bulk datasets
 <deconv_method>  deconv method
 <results_dir> results (base) directory
 <run_preprocessing> if pre-processing has been done
@@ -22,239 +19,113 @@ Options:
 <subset_value> if < 1: fraction of cell type; if > 1: number of cells per cell type
 <species> type of species
 <ncores> number of cores to use for method (if available)
-<coarse> logical, if TRUE celltypes are mapped to higher level" -> doc
+<baseDir> nextflow base directory" -> doc
 
 args <- docopt::docopt(doc)
-print(args)
 
-ncores <- as.numeric(args$ncores) # in case a method can use multiple cores
-
-sc_matrix <- readRDS(file.path(args$sc_matrix))
-sc_celltype_annotations <- readRDS(file.path(args$sc_anno))
-sc_batch <- readRDS(file.path(args$sc_batch))
-sc_ds <- args$sc_name
-sc_norm <- args$sc_norm
-
+# store basic parameters
+ncores <- as.numeric(args$ncores)
+sc_path <- args$sc_path
 bulk_name <- args$bulk_name
-bulk_norm <- args$bulk_norm
-bulk_matrix <- readRDS(file.path(args$bulk_dir, args$bulk_name, paste0(args$bulk_name, '_', args$bulk_norm, '.rds')))
-bulk_matrix <- as.matrix(bulk_matrix)
-
+bulk_path <- args$bulk_path
 method <- args$deconv_method
 res_base_path <- args$results_dir
+baseDir <- args$baseDir
 
+source(paste0(baseDir, '/bin/utils.R'))
+method_normalizations <- read.table(paste0(baseDir, '/optimal_normalizations.csv'), sep = ',', header = TRUE)
+sc_norm <- method_normalizations[method_normalizations$method == method, 2]
+bulk_norm <- method_normalizations[method_normalizations$method == method, 3]
+print(paste0('Method: ', method, '; sc-norm: ', sc_norm, '; bulk-norm: ', bulk_norm))
+
+# check if preprocessing has been performed
 if(args$run_preprocessing == 'true'){
   subset_value <- as.numeric(args$subset_value)
   replicate <- as.numeric(args$replicate)
+  sc_dataset <- paste0(args$sc_name,'_',sc_norm,'_perc',subset_value,'_rep',replicate)
 }else{
   subset_value <- 0
   replicate <- 0
+  sc_dataset <- args$sc_name
 }
 
-res_path <- paste0(res_base_path, '/', method, "_", sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
+# read scRNA-seq count matrix
+if(sc_norm == 'counts'){
+    sc_matrix <- readRDS(file.path(sc_path, sc_dataset, 'matrix_counts.rds'))
+} else {
+    sc_matrix <- readRDS(file.path(sc_path, sc_dataset, 'matrix_norm_counts.rds'))
+}
+sc_celltype_annotations <- readRDS(file.path(sc_path, sc_dataset, 'celltype_annotations.rds'))
+sc_batch <- readRDS(file.path(sc_path, sc_dataset, 'batch.rds'))
 
+# read bulk expression matrix
+bulk_matrix <- readRDS(file.path(args$bulk_path, bulk_name, paste0(bulk_name, '_', bulk_norm, '.rds')))
+bulk_matrix <- as.matrix(bulk_matrix)
+
+# create output directory
+res_path <- paste0(res_base_path, '/', method, "_", args$sc_name, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
+dir.create(res_path, recursive = TRUE, showWarnings = TRUE)
+
+# load signature
 signature <- readRDS(paste0(res_path, "/signature.rds"))
 if(method == 'scaden'){
   signature <- file.path(paste0(res_path, "/model"))
 }
-if(method == 'autogenes'){
-  signature <- list.files(res_path, ".pickle", full.names = TRUE)
-}
 
-
-escapeCelltypesAutogenes <- function(celltype){
-  return(gsub(" ", "xxxx", celltype))
-}
-reEscapeCelltypesAutogenes <- function(celltype){
-  celltype <- gsub("21b2c6e87f8711ec9bf265fb9bf6ab9c", "+", celltype)
-  celltype <- gsub("21b2c7567f8711ec9bf265fb9bf6ab9a", "-", celltype)
-  celltype <- gsub("21b2c7567f8711ec9bf265fb9bf6ab9f", "(", celltype)
-  celltype <- gsub("21b2c7567f8711ec9bf265fb9bf6ab9g", ")", celltype)
-  return(gsub("xxxx", " ", celltype))
-}
-
-
-library(Biobase) # necessary for music
-
-###autogenes ONLY works this way!! i don't get why###
-#if(method=="autogenes"){
-#  library("devtools")
-#  load_all("/nfs/home/extern/l.merotto/R/x86_64-pc-linux-gnu-library/4.1/omnideconv")
-#}
-
-
+# escape celltype names for python based method autogenes
 if(method=="autogenes"){
   sc_celltype_annotations <- escapeCelltypesAutogenes(sc_celltype_annotations)
 }
 
+# set cibersortx batch correction options
+datasets_technologies <- read.table(paste0(baseDir, '/sc_datasets_technologies.csv'), sep = ',', header = TRUE)
+cur_tech <- datasets_technologies[datasets_technologies$technology == args$sc_name, 2]
+
+if(grepl("simulation" , bulk_name)){
+    s_mode <- FALSE
+    b_mode <- FALSE
+} else if(cur_tech!='10X'){
+    s_mode <- FALSE
+    b_mode <- TRUE
+} else {
+    s_mode <- TRUE
+    b_mode <- FALSE
+}
+
+
+###############################
+#### Perform devonvolution ####
+###############################
+
 runtime <- system.time({
-  if(method=="cpm"){
-    deconvolution <- omnideconv::deconvolute(
-      bulk_gene_expression = bulk_matrix, 
-      signature = signature, 
-      single_cell_object = sc_matrix, 
-      batch_ids = sc_batch, 
-      cell_type_annotations = sc_celltype_annotations, 
-      method = method,
-      no_cores = ncores
-    )
 
-  } else if (method=="dwls"){
-    # DWLS can crash if there are not enough cells in the dataset or the cells are not differential enough between celltypes
-    deconvolution <- NULL
-    tryCatch(    
-      deconvolution <<- omnideconv::deconvolute_dwls(
-        bulk_gene_expression = bulk_matrix, 
-        signature = signature, 
-        dwls_submethod = 'DampenedWLS',
-        verbose = TRUE
-      ), error = function(e){
-        print(e[['message']])
-        d <- matrix(
-          rep(1, ncol(bulk_matrix) * ncol(signature)),
-          nrow = ncol(bulk_matrix),
-          ncol = ncol(signature)
-        )
-        deconvolution <<- data.frame(d)
-        colnames(deconvolution) <<- as.character(colnames(signature))
-        rownames(deconvolution) <<- as.character(colnames(bulk_matrix))
-      }
-    )
-    
-  } else if(method=="cibersortx") {
-    omnideconv::set_cibersortx_credentials("lorenzo.merotto@studenti.unipd.it",
-                                          " 721a387e91c495174066462484674cb8")  
-    # CibersortX does not work with tmp directories in a Docker in Docker setup
-    # --> created fixed input and output directories!
-    cx_input <- paste0('/vol/omnideconv_input/tmp/cibersortx_input_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
-    #cx_input <- paste0('/nfs/home/students/adietrich/tmp/cibersortx_input_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
-    if(!dir.exists(paste0(cx_input))){
-      dir.create(cx_input)
-    }
-    cx_output <- paste0('/vol/omnideconv_input/tmp/cibersortx_output_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
-    #cx_output <- paste0('/nfs/home/students/adietrich/tmp/cibersortx_output_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
-    if(!dir.exists(paste0(cx_output))){
-      dir.create(cx_output)
-    }
+  deconvolution <- deconvolution_workflow_general(
+    sc_matrix, 
+    sc_celltype_annotations, 
+    'normal', 
+    sc_dataset, 
+    sc_norm, 
+    sc_batch, 
+    signature,
+    method, 
+    bulk_matrix,
+    bulk_name, 
+    bulk_norm, 
+    ncores, 
+    res_path,
+    rmbatch_S_mode = s_mode,
+    rmbatch_B_mode = b_mode
+  )
 
-    # batch correction options for cibersortx
-    rmbatch_B_mode <- FALSE
-    rmbatch_S_mode <- TRUE
-    if(grepl("simulation" , bulk_name)){
-      rmbatch_S_mode <- FALSE
-    }
-    
-    deconvolution <- omnideconv::deconvolute_cibersortx(
-      single_cell_object = sc_matrix,
-      bulk_gene_expression = bulk_matrix,
-      cell_type_annotations = sc_celltype_annotations, 
-      signature = signature,
-      container = 'docker',
-      verbose = TRUE,
-      input_dir = cx_input,
-      output_dir = cx_output,
-      rmbatch_B_mode = rmbatch_B_mode,
-      rmbatch_S_mode = rmbatch_S_mode
-    )
-    unlink(cx_input, recursive=TRUE)
-    unlink(cx_output, recursive=TRUE)
-
-  } else if (method == "cdseq"){
-    source('/vol/omnideconv_input/benchmark/pipeline/bin/bin/CDseq.R')
-    num_cell_type = c(5, 10, 15, 20, 30)
-
-    deconvolution <- deconvolute_cdseq(
-      bulk_gene_expression = bulk_matrix, 
-      single_cell_object = sc_matrix, 
-      cell_type_annotations = sc_celltype_annotations, 
-      batch_ids = sc_batch, 
-      cell_type_number =  num_cell_type, 
-      cpu_number = ncores,
-      block_number = 5, 
-      gene_subset_size = 1000
-    )
-
-    deconvolution <- t(deconvolution$cdseq_prop_merged)
-
-  } else if (method == "bayesprism") {
-    
-    # need to use different parameter in case of simulated bulk data
-    if(grepl("simulation", bulk_name)){
-      update_gibbs <- FALSE
-      which_theta <- 'first'
-    }else{
-      update_gibbs <- TRUE
-      which_theta <- 'final'
-    }
-    
-    deconvolution <- omnideconv::deconvolute_bayesprism(
-      bulk_gene_expression = bulk_matrix, 
-      single_cell_object = sc_matrix, 
-      cell_type_annotations = sc_celltype_annotations, 
-      n_cores = ncores,
-      species = args$species,
-      update_gibbs = update_gibbs,
-      which_theta = which_theta
-    )$theta
-                
-  } else if (method == "scaden") {
-    scaden_tmp <- paste0('/vol/omnideconv_results/tmp/scaden_tmp_', sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
-    if(!dir.exists(paste0(scaden_tmp))){
-      dir.create(scaden_tmp)
-    }
-    deconvolution <- omnideconv::deconvolute_scaden(
-      bulk_gene_expression = bulk_matrix, 
-      signature = signature,
-      temp_dir = scaden_tmp
-    )
-    unlink(scaden_tmp, recursive=TRUE)
-
-  }else if (method == 'autogenes') {
-    deconvolution <- omnideconv::deconvolute_autogenes( 
-      single_cell_object = sc_matrix,
-      cell_type_annotations = sc_celltype_annotations,
-      bulk_gene_expression = bulk_matrix, 
-      max_iter = 1000000,
-      ngen = 5000,
-      verbose = TRUE
-    )$proportions
-    colnames(deconvolution) <- reEscapeCelltypesAutogenes(colnames(deconvolution))
-
-  } else if (method == 'rectangle') {
-    pd <- reticulate::import("pandas")
-    AnnData <- reticulate::import("anndata")
-    rectangle_tmp <- paste0('/vol/omnideconv_results/results_tmp/rectangle_',sc_ds, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate,"/")
-    signature <- reticulate::py_load_object(paste0(rectangle_tmp, "/signature_result.pkl"))
-    bulk_obs <- colnames(bulk_matrix)
-    bulk_obs_df <- pd$DataFrame(list(bulk_obs))
-    bulk_obs_df <- t(bulk_obs_df)
-    rownames(bulk_obs_df) <- colnames(bulk_matrix)
-    colnames(bulk_obs_df) <- c("bulk")
-    bulk_obs_df <- as.data.frame(bulk_obs_df)
-    bulk_matrix <- t(bulk_matrix)
-    bulk_matrix <- as.data.frame(bulk_matrix)
-
-
-    bulk_adata <- AnnData$AnnData(bulk_matrix, obs=bulk_obs_df)
-    deconvolution <- rp$tl$deconvolution(signatures = signature, bulks = bulk_adata)
-
-  } else {
-    deconvolution <- omnideconv::deconvolute(
-      bulk_gene_expression = bulk_matrix, 
-      signature = signature, 
-      single_cell_object = sc_matrix, 
-      batch_ids = sc_batch, 
-      cell_type_annotations = sc_celltype_annotations, 
-      method = method
-    )
-  }
 })
 
+# save deconvolution result
 colnames(deconvolution) <- gsub('\\.',' ',colnames(deconvolution))
 saveRDS(deconvolution, file=paste0(res_path, "/deconvolution.rds"))
 
+# measure runtime
 runtime_text <- data.frame(method, 
-                      sc_ds, 
+                      args$sc_name, 
                       sc_norm, 
                       bulk_name, 
                       bulk_norm, 

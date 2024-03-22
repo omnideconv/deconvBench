@@ -1,15 +1,14 @@
-#!/usr/local/bin/Rscript
+#!/usr/bin/Rscript
 
-print("Started analysis for deconvolution of simulated data...")
+print("Starting analysis script [mixed deconvolution of real dataset] ...")
 
 library(docopt)
 library(Biobase)
 library(omnideconv)
 reticulate::use_miniconda(condaenv = "r-omnideconv", required = TRUE)
-source('/vol/omnideconv_input/benchmark/pipeline/bin/general_functions/deconvolution_workflow_for_simulation.R')
 
 "Usage:
-  analysisNF_impact_cell_resolution.R <sc_name> <sc_path> <bulk_name> <bulk_path> <preprocess_dir> <deconv_method> <results_dir> <ncores>
+  analysisNF_mixed_simulations_real_dataset.R <sc_name> <sc_path> <bulk_name> <bulk_path> <preprocess_dir> <deconv_method> <results_dir> <ncores> <baseDir>
 Options:
 <sc_name> name of sc datasets
 <sc_path> path to sc dataset
@@ -18,7 +17,8 @@ Options:
 <preprocess_dir> preprocessing directory where pseudo-bulks are stored
 <deconv_method>  deconv method
 <results_dir> results (base) directory
-<ncores> number of cores to use for method (if available)" -> doc
+<ncores> number of cores to use for method (if available)
+<baseDir> nextflow base directory" -> doc
 
 args <- docopt::docopt(doc)
 
@@ -30,7 +30,10 @@ preprocess_dir <- args$preprocess_dir
 method <- args$deconv_method
 res_base_path <- args$results_dir
 ncores <- as.numeric(args$ncores) # in case a method can use multiple cores
+baseDir <- args$baseDir
 
+source(paste0(baseDir, '/bin/utils.R'))
+method_normalizations <- read.table(paste0(baseDir, '/optimal_normalizations.csv'), sep = ',', header = TRUE)
 # Here we need to filter for those cell types that are in the simulated dataset. 
 
 #common.cells <- c('B cells', 'Tregs', 'T cells CD8', 'Macrophages', 'Mast cells', 'Monocytes', 'T cells CD4 conv', 'NK cells', 'Neutrophils', 'Stromal cells')
@@ -38,7 +41,6 @@ sc_celltype_annotations <- readRDS(file.path(sc_path, sc_dataset, 'celltype_anno
 #position_vector <- sc_celltype_annotations %in% common.cells
 #sc_celltype_annotations <- sc_celltype_annotations[position_vector]
 
-method_normalizations <- read.table('/vol/omnideconv_input/benchmark/pipeline/optimal_normalizations.csv', sep = ',', header = TRUE)
 sc_norm <- method_normalizations[method_normalizations$method == method, 2]
 bulk_norm <- method_normalizations[method_normalizations$method == method, 3]
 
@@ -71,22 +73,52 @@ dir.create(res_path_normal, recursive = TRUE, showWarnings = TRUE)
 bulk_matrix <- readRDS(file.path(bulk_path, bulk_name, paste0(bulk_name, '_', bulk_norm, '.rds')))
 bulk_matrix <- as.matrix(bulk_matrix)
 
-signature <- signature_workflow_general(sc_matrix, sc_celltype_annotations, 
-                                        'normal', sc_dataset, sc_norm, sc_batch, method, bulk_matrix, 
-                                        bulk_name, bulk_norm, ncores, res_path_normal)
+signature <- signature_workflow_general(
+  sc_matrix, 
+  sc_celltype_annotations, 
+  'normal', 
+  sc_dataset, 
+  sc_norm, 
+  sc_batch, 
+  method, 
+  bulk_matrix,
+  bulk_name, 
+  bulk_norm, 
+  ncores, 
+  res_path_normal
+)
 
-if(sc_dataset=='maynard'){
-    smode=FALSE
-    bmode=TRUE
+# If we are deconvolving bulk data with a 10x dataset, we use the s mode
+# if we are using a smartseq2 dataset, we use the b mode 
+
+datasets_technologies <- read.table(paste0(baseDir, '/sc_datasets_technologies.csv'), sep = ',', header = TRUE)
+cur_tech <- datasets_technologies[datasets_technologies$technology == sc_dataset, 2]
+
+if(cur_tech!='10X'){
+    s_mode <- FALSE
+    b_mode <- TRUE
 } else {
-    smode=TRUE
-    bmode=FALSE
+    s_mode <- TRUE
+    b_mode <- FALSE
 }
 
-deconvolution <- deconvolution_workflow_general(sc_matrix, sc_celltype_annotations, 
-                                                    'normal', sc_dataset, sc_norm, sc_batch, signature, 
-                                                    method, bulk_matrix, bulk_name, bulk_norm, ncores, res_path_normal, 
-                                                    rmbatch_B_mode = bmode, rmbatch_S_mode = smode)
+deconvolution <- deconvolution_workflow_general(
+  sc_matrix, 
+  sc_celltype_annotations,
+  'normal', 
+  sc_dataset, 
+  sc_norm, 
+  sc_batch, 
+  signature, 
+  method, 
+  bulk_matrix, 
+  bulk_name, 
+  bulk_norm, 
+  ncores, 
+  res_path_normal,
+  rmbatch_S_mode = s_mode,
+  rmbatch_B_mode = b_mode
+) 
 
 true_fractions <- readRDS(file.path(bulk_path, bulk_name, paste0(bulk_name, '_facs.rds')))
 

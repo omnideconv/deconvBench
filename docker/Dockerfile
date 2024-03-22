@@ -18,8 +18,8 @@ RUN apt-get update -y && apt-get --no-install-recommends --fix-broken install -y
 # install R 4.2.3 https://docs.posit.co/resources/install-r/
 RUN curl -O https://cdn.rstudio.com/r/ubuntu-2004/pkgs/r-4.2.3_1_amd64.deb
 RUN gdebi r-4.2.3_1_amd64.deb -n
-RUN ln -s /opt/R/4.2.3/bin/R /usr/local/bin/R
-RUN ln -s /opt/R/4.2.3/bin/Rscript /usr/local/bin/Rscript
+RUN ln -s /opt/R/4.2.3/bin/R /usr/bin/R
+RUN ln -s /opt/R/4.2.3/bin/Rscript /usr/bin/Rscript
 
 # install miniconda into /root/miniconda3
 RUN wget \

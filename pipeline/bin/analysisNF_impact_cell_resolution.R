@@ -1,15 +1,14 @@
-#!/usr/local/bin/Rscript
+#!/usr/bin/Rscript
 
-print("Started analysis for cell resolution impact script ...")
+print("Starting analysis script [impact cell resolution] ...")
 
 library(docopt)
 library(Biobase)
 library(omnideconv)
 reticulate::use_miniconda(condaenv = "r-omnideconv", required = TRUE)
-source('/vol/omnideconv_input/benchmark/pipeline/bin/general_functions/deconvolution_workflow_for_simulation.R')
 
 "Usage:
-  analysisNF_impact_cell_resolution.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <cell_types_fine> <replicates> <results_dir> <ncores>
+  analysisNF_impact_cell_resolution.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <cell_types_fine> <replicates> <results_dir> <ncores> <baseDir>
 Options:
 <sc_name> name of sc datasets
 <sc_path> path to sc dataset
@@ -19,7 +18,8 @@ Options:
 <cell_types_fine> cell types used in the simulation
 <replicates> number of replicates
 <results_dir> results (base) directory
-<ncores> number of cores to use for method (if available)" -> doc
+<ncores> number of cores to use for method (if available)
+<baseDir> nextflow base directory" -> doc
 
 args <- docopt::docopt(doc)
 
@@ -31,14 +31,17 @@ method <- args$deconv_method
 res_base_path <- args$results_dir
 ncores <- as.numeric(args$ncores) # in case a method can use multiple cores
 replicates <- as.numeric(args$replicates)
-method_normalizations <- read.table('/vol/omnideconv_input/benchmark/pipeline/optimal_normalizations.csv', sep = ',', header = TRUE)
+baseDir <- args$baseDir
+
+source(paste0(baseDir, '/bin/utils.R'))
+method_normalizations <- read.table(paste0(baseDir, '/optimal_normalizations.csv'), sep = ',', header = TRUE)
 sc_norm <- method_normalizations[method_normalizations$method == method, 2]
 bulk_norm <- method_normalizations[method_normalizations$method == method, 3]
 
 if(sc_norm == 'counts'){
-    sc_matrix <- readRDS(file.path(sc_path, sc_dataset, 'matrix_counts.rds'))
+  sc_matrix <- readRDS(file.path(sc_path, sc_dataset, 'matrix_counts.rds'))
 } else {
-    sc_matrix <- readRDS(file.path(sc_path, sc_dataset, 'matrix_norm_counts.rds'))
+  sc_matrix <- readRDS(file.path(sc_path, sc_dataset, 'matrix_norm_counts.rds'))
 }
 
 annotation_path <- file.path(sc_path, sc_dataset, 'celltype_annotations_normal.rds')
@@ -63,10 +66,6 @@ sc_celltype_annotations_coarse <- sc_celltype_annotations_coarse[position_vector
 sc_celltype_annotations <- sc_celltype_annotations[position_vector]
 
 bulk_matrix <- readRDS(file.path(bulk_path, paste0('replicate_1'), paste0(bulk_name, '_', bulk_norm, '.rds'))) %>% as.matrix(.)
-#bulk_matrix_coarse <- readRDS(file.path(bulk_path, paste0('replicate_1'), paste0(bulk_name, '_coarse_', bulk_norm, '.rds'))) %>% as.matrix(.)
-#bulk_matrix_normal <- readRDS(file.path(bulk_path, paste0('replicate_1'), paste0(bulk_name, '_normal_', bulk_norm, '.rds'))) %>% as.matrix(.)
-
-
 
 res_path_normal <- paste0(res_base_path, '/', method, '/', bulk_name, "_normal_annot")
 res_path_fine <- paste0(res_base_path, '/', method, '/', bulk_name, "_fine_annot")
@@ -76,7 +75,7 @@ dir.create(res_path_normal, recursive = TRUE, showWarnings = TRUE)
 dir.create(res_path_coarse, recursive = TRUE, showWarnings = TRUE)
 dir.create(res_path_fine, recursive = TRUE, showWarnings = TRUE)
 
-subset_list <- subset_cells(sc_matrix, sc_celltype_annotations, sc_batch, 300, 22, 
+subset_list <- subset_cells(sc_matrix, sc_celltype_annotations, sc_batch, 500, 22, 
                             sc_celltype_annotations_coarse, 
                             sc_celltype_annotations_fine)
 
@@ -88,9 +87,20 @@ sc_celltype_annotations_fine <- subset_list$annotations_fine
 
 # Normal deconv
 ##############################################################################################
-signature <- signature_workflow_general(sc_matrix, sc_celltype_annotations, 
-                                        'normal', sc_dataset, sc_norm, sc_batch, method, bulk_matrix, 
-                                        sc_dataset, bulk_norm, ncores, res_path_normal)
+signature <- signature_workflow_general(
+  sc_matrix, 
+  sc_celltype_annotations,
+  'normal', 
+  sc_dataset, 
+  sc_norm, 
+  sc_batch,
+  method, 
+  bulk_matrix,
+  bulk_name, 
+  bulk_norm, 
+  ncores, 
+  res_path_normal
+)
 
 for(r in 1:replicates){
 
@@ -100,9 +110,21 @@ for(r in 1:replicates){
   bulk_matrix <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0(bulk_name, '_', bulk_norm, '.rds')))
   bulk_matrix <- as.matrix(bulk_matrix)
 
-  deconvolution <- deconvolution_workflow_general(sc_matrix, sc_celltype_annotations, 
-                                                'normal', sc_dataset, sc_norm, sc_batch, signature, 
-                                                method, bulk_matrix, sc_dataset, bulk_norm, ncores, res_path_normal)
+  deconvolution <- deconvolution_workflow_general(
+    sc_matrix, 
+    sc_celltype_annotations, 
+    'normal', 
+    sc_dataset, 
+    sc_norm, 
+    sc_batch, 
+    signature, 
+    method, 
+    bulk_matrix, 
+    bulk_name, 
+    bulk_norm, 
+    ncores, 
+    res_path_normal
+  )
 
   true_fractions <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0(bulk_name, '_normal_annot_facs.rds')))
 
@@ -121,9 +143,20 @@ if(method =='autogenes' | method == 'scaden'){
 
 # Coarse deconv
 ###############################################################################################
-signature_coarse <- signature_workflow_general(sc_matrix, sc_celltype_annotations_coarse, 
-                                               'coarse', sc_dataset, sc_norm, sc_batch, method, bulk_matrix,  
-                                               sc_dataset, bulk_norm, ncores, res_path_coarse)
+signature_coarse <- signature_workflow_general(
+  sc_matrix, 
+  sc_celltype_annotations_coarse,
+  'coarse', 
+  sc_dataset, 
+  sc_norm, 
+  sc_batch,
+  method, 
+  bulk_matrix,
+  bulk_name, 
+  bulk_norm, 
+  ncores, 
+  res_path_coarse
+)                                               
 
 for(r in 1:replicates){
 
@@ -133,9 +166,21 @@ for(r in 1:replicates){
   bulk_matrix <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0(bulk_name, '_', bulk_norm, '.rds')))
   bulk_matrix <- as.matrix(bulk_matrix)
 
-  deconvolution <- deconvolution_workflow_general(sc_matrix, sc_celltype_annotations_coarse, 
-                                                  'coarse', sc_dataset, sc_norm, sc_batch, signature_coarse, 
-                                                  method, bulk_matrix, sc_dataset, bulk_norm, ncores, res_path_coarse)
+  deconvolution <- deconvolution_workflow_general(
+    sc_matrix, 
+    sc_celltype_annotations_coarse, 
+    'coarse', 
+    sc_dataset, 
+    sc_norm, 
+    sc_batch, 
+    signature_coarse, 
+    method, 
+    bulk_matrix, 
+    bulk_name, 
+    bulk_norm, 
+    ncores, 
+    res_path_coarse
+  )
 
   true_fractions <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0(bulk_name, '_coarse_annot_facs.rds')))
 
@@ -156,9 +201,20 @@ if(method =='autogenes' | method == 'scaden'){
 # Fine deconv 
 ###############################################################################################
 
-signature_fine <- signature_workflow_general(sc_matrix, sc_celltype_annotations_fine, 
-                                             'fine', sc_dataset, sc_norm, sc_batch, method, bulk_matrix,  
-                                              sc_dataset, bulk_norm, ncores, res_path_fine)
+signature_fine <- signature_workflow_general(
+  sc_matrix, 
+  sc_celltype_annotations_fine,
+  'fine', 
+  sc_dataset, 
+  sc_norm, 
+  sc_batch,
+  method, 
+  bulk_matrix,
+  bulk_name, 
+  bulk_norm, 
+  ncores, 
+  res_path_fine
+) 
 
 for(r in 1:replicates){
 
@@ -168,9 +224,21 @@ for(r in 1:replicates){
   bulk_matrix <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0(bulk_name, '_', bulk_norm, '.rds')))
   bulk_matrix <- as.matrix(bulk_matrix)
 
-  deconvolution <- deconvolution_workflow_general(sc_matrix, sc_celltype_annotations_fine, 
-                                                  'fine', sc_dataset, sc_norm, sc_batch, signature_fine, 
-                                                  method, bulk_matrix, sc_dataset, bulk_norm, ncores, res_path_fine)
+  deconvolution <- deconvolution_workflow_general(
+    sc_matrix, 
+    sc_celltype_annotations_fine, 
+    'fine', 
+    sc_dataset, 
+    sc_norm, 
+    sc_batch, 
+    signature_fine, 
+    method, 
+    bulk_matrix, 
+    bulk_name, 
+    bulk_norm, 
+    ncores, 
+    res_path_fine
+  )
 
   true_fractions <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0(bulk_name, '_fine_annot_facs.rds')))
 
@@ -186,15 +254,3 @@ for(r in 1:replicates){
 if(method =='autogenes' | method == 'scaden'){
   unlink(signature_fine)
 }
-
-
-
-
-
-
-
-
-
-
-
-

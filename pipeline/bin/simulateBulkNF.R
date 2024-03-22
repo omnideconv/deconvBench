@@ -1,6 +1,6 @@
-#!/usr/local/bin/Rscript
+#!/usr/bin/Rscript
 
-print("Started simulation script ...")
+print("Starting simulation script ...")
 
 library(docopt)
 library(SimBu)
@@ -17,16 +17,12 @@ Options:
 <preprocess_dir> preprocessing output directory where pseudo-bulks will be stored
 <ncores> number of cores for parallel simulation)" -> doc
 
-print(doc)
-
 args <- docopt::docopt(doc)
-print(args)
 
 sc_ds <- args$sc_ds
 scenario <- args$simulation_scenario
 ncells <- as.numeric(args$simulation_n_cells)
 nsamples <- as.numeric(args$simulation_n_samples)
-
 
 pseudobulk_name <- paste0(sc_ds, "-ncells", ncells, "-nsamples", nsamples, "-", scenario)
 output_dir <- paste0(args$preprocess_dir, '/pseudo_bulk/', pseudobulk_name)
@@ -66,9 +62,6 @@ simulated_bulk <- SimBu::simulate_bulk(
   run_parallel = TRUE
 )
 
-
 saveRDS(SummarizedExperiment::assays(simulated_bulk$bulk)[["bulk_counts"]], paste0(output_dir,'/', pseudobulk_name, '_counts.rds'))
 saveRDS(SummarizedExperiment::assays(simulated_bulk$bulk)[["bulk_tpm"]], paste0(output_dir,'/', pseudobulk_name, '_tpm.rds'))
 saveRDS(t(simulated_bulk$cell_fractions), paste0(output_dir,'/', pseudobulk_name, '_facs.rds'))
-
-

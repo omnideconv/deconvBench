@@ -1,14 +1,14 @@
-#!/usr/local/bin/Rscript
+#!/usr/bin/Rscript
 
-print("Started analysis for missing cell type script ...")
+print("Starting analysis script [missing cell type] ...")
 
+library(docopt)
 library(Biobase)
 library(omnideconv)
 reticulate::use_miniconda(condaenv = "r-omnideconv", required = TRUE)
-source('/vol/omnideconv_input/benchmark/pipeline/bin/general_functions/deconvolution_workflow_for_simulation.R')
 
 "Usage:
-  analysisNF_spillover.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <missing_cell_type> <results_dir> <ncores>
+  analysisNF_missing_cell_type.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <missing_cell_type> <results_dir> <ncores> <baseDir>
 Options:
 <sc_name> name of sc datasets
 <sc_path> path to sc dataset
@@ -17,7 +17,8 @@ Options:
 <deconv_method>  deconv method
 <missing_cell_type> cell type to be removed from the signature
 <results_dir> results (base) directory
-<ncores> number of cores to use for method (if available)" -> doc
+<ncores> number of cores to use for method (if available)
+<baseDir> nextflow base directory" -> doc
 
 args <- docopt::docopt(doc)
 
@@ -28,8 +29,10 @@ bulk_path <- args$bulk_path
 method <- args$deconv_method
 res_base_path <- args$results_dir
 ncores <- as.numeric(args$ncores) # in case a method can use multiple cores
+baseDir <- args$baseDir
 
-method_normalizations <- read.table('/vol/omnideconv_input/benchmark/pipeline/optimal_normalizations.csv', sep = ',', header = TRUE)
+source(paste0(baseDir, '/bin/utils.R'))
+method_normalizations <- read.table(paste0(baseDir, '/optimal_normalizations.csv'), sep = ',', header = TRUE)
 sc_norm <- method_normalizations[method_normalizations$method == method, 2]
 bulk_norm <- method_normalizations[method_normalizations$method == method, 3]
 
@@ -45,7 +48,6 @@ bulk_matrix <- readRDS(file.path(bulk_path, bulk_name, paste0(bulk_name, '_', bu
 bulk_matrix <- as.matrix(bulk_matrix)
 
 # Here we need to filter for those cell types that are in the simulated dataset. 
-# NOTE: in the resolution analysis the cell types are specified in terms of finest cell types
 
 missing_cell_type <- args$missing_cell_type
 
@@ -74,21 +76,42 @@ sc_batch <- subset_list$batch_id
 
 # Signature building 
 
-signature <- signature_workflow_general(sc_matrix, sc_celltype_annotations, 
-                                        'normal', sc_dataset, sc_norm, sc_batch, method, bulk_matrix,  
-                                        bulk_name, bulk_norm, ncores, res_path_normal)
+signature <- signature_workflow_general(
+  sc_matrix, 
+  sc_celltype_annotations,
+  'normal', 
+  sc_dataset, 
+  sc_norm, 
+  sc_batch,
+  method, 
+  bulk_matrix,
+  bulk_name, 
+  bulk_norm, 
+  ncores, 
+  res_path_normal
+)
 
 print('Signature built')
 # Deconvolution
 
 true_fractions <- readRDS(file.path(bulk_path, bulk_name, paste0(bulk_name, '_facs.rds')))
 
-
-
-deconvolution <- deconvolution_workflow_general(sc_matrix, sc_celltype_annotations, 
-                                                'normal', sc_dataset, sc_norm, sc_batch, signature, 
-                                                method, bulk_matrix, bulk_name, bulk_norm, ncores, res_path_normal, 
-                                                rmbatch_B_mode = FALSE, rmbatch_S_mode = TRUE)
+deconvolution <- deconvolution_workflow_general(
+  sc_matrix, 
+  sc_celltype_annotations, 
+  'normal', 
+  sc_dataset, 
+  sc_norm, 
+  sc_batch, 
+  signature, 
+  method, 
+  bulk_matrix, 
+  bulk_name, 
+  bulk_norm, 
+  ncores, 
+  res_path_normal,
+  rmbatch_S_mode = TRUE
+)
 
 colnames(deconvolution) <- gsub("xxxx", " ", colnames(deconvolution))
 

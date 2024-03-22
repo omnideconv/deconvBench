@@ -1,15 +1,14 @@
-#!/usr/local/bin/Rscript
+#!/usr/bin/Rscript
 
-print("Started analysis for deconvolution of simulated data...")
+print("Starting analysis script [mixed deconvolution of simulated dataset] ...")
 
 library(docopt)
 library(Biobase)
 library(omnideconv)
 reticulate::use_miniconda(condaenv = "r-omnideconv", required = TRUE)
-source('/vol/omnideconv_input/benchmark/pipeline/bin/general_functions/deconvolution_workflow_for_simulation.R')
 
 "Usage:
-  analysisNF_impact_cell_resolution.R <sc_name> <sc_path> <bulk_name> <bulk_path> <preprocess_dir> <replicates> <deconv_method> <results_dir> <ncores>
+  nalysisNF_mixed_simulations.R <sc_name> <sc_path> <bulk_name> <bulk_path> <preprocess_dir> <replicates> <deconv_method> <results_dir> <ncores> <baseDir>
 Options:
 <sc_name> name of sc datasets
 <sc_path> path to sc dataset
@@ -19,7 +18,9 @@ Options:
 <replicates> number of replicates
 <deconv_method>  deconv method
 <results_dir> results (base) directory
-<ncores> number of cores to use for method (if available)" -> doc
+<ncores> number of cores to use for method (if available)
+<baseDir> nextflow base directory" -> doc
+
 
 args <- docopt::docopt(doc)
 
@@ -32,14 +33,16 @@ method <- args$deconv_method
 res_base_path <- args$results_dir
 ncores <- as.numeric(args$ncores) # in case a method can use multiple cores
 replicates <- as.numeric(args$replicates)
-# Here we need to filter for those cell types that are in the simulated dataset. 
+baseDir <- args$baseDir
 
+source(paste0(baseDir, '/bin/utils.R'))
+method_normalizations <- read.table(paste0(baseDir, '/optimal_normalizations.csv'), sep = ',', header = TRUE)
+# Here we need to filter for those cell types that are in the simulated dataset. 
 common.cells <- readRDS(file.path(preprocess_dir, 'cell_types.rds'))
 sc_celltype_annotations <- readRDS(file.path(sc_path, sc_dataset, 'celltype_annotations.rds'))
 position_vector <- sc_celltype_annotations %in% common.cells
 sc_celltype_annotations <- sc_celltype_annotations[position_vector]
 
-method_normalizations <- read.table('/vol/omnideconv_input/benchmark/pipeline/optimal_normalizations.csv', sep = ',', header = TRUE)
 sc_norm <- method_normalizations[method_normalizations$method == method, 2]
 bulk_norm <- method_normalizations[method_normalizations$method == method, 3]
 
@@ -52,7 +55,7 @@ if(sc_norm == 'counts'){
 sc_batch <- readRDS(file.path(sc_path, sc_dataset, 'batch.rds'))[position_vector]
 
 # Subsetting the cells
-subset_list <- subset_cells(sc_matrix, sc_celltype_annotations, sc_batch, 200, 22)
+subset_list <- subset_cells(sc_matrix, sc_celltype_annotations, sc_batch, 500, 22)
 
 sc_matrix <- subset_list$data
 sc_celltype_annotations <- subset_list$annotations
@@ -71,13 +74,28 @@ dir.create(res_path_normal, recursive = TRUE, showWarnings = TRUE)
 bulk_matrix <- readRDS(file.path(bulk_path,  paste0('replicate_1'), paste0('simulation_', bulk_norm, '.rds')))
 bulk_matrix <- as.matrix(bulk_matrix)
 
-signature <- signature_workflow_general(sc_matrix, sc_celltype_annotations, 
-                                        'normal', sc_dataset, sc_norm, sc_batch, method, bulk_matrix, 
-                                        bulk_name, bulk_norm, ncores, res_path_normal)
+signature <- signature_workflow_general(
+  sc_matrix, 
+  sc_celltype_annotations, 
+  'normal', 
+  sc_dataset, 
+  sc_norm, 
+  sc_batch, 
+  method, 
+  bulk_matrix,
+  bulk_name, 
+  bulk_norm, 
+  ncores, 
+  res_path_normal
+)
+
+# If the datasets for pseudobulk simulation and signature building are not the same, 
+# we need to apply CIBERSORTx S mode
+
 if(bulk_name == sc_dataset){
-    smode=FALSE
+    s_mode <- FALSE
 } else {
-    smode=TRUE
+    s_mode <- TRUE
 }
 
 for(r in 1:replicates){
@@ -87,10 +105,30 @@ for(r in 1:replicates){
     bulk_matrix <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0('simulation_', bulk_norm, '.rds')))
     bulk_matrix <- as.matrix(bulk_matrix)
 
+<<<<<<< HEAD
     deconvolution <- deconvolution_workflow_general(sc_matrix, sc_celltype_annotations, 
                                                     'normal', sc_dataset, sc_norm, sc_batch, signature, 
                                                     method, bulk_matrix, bulk_name, bulk_norm, ncores, res_path_normal,
                                                     rmbatch_S_mode = smode)
+=======
+    # Deconvolution
+    deconvolution <- deconvolution_workflow_general(
+      sc_matrix, 
+      sc_celltype_annotations,
+      'normal', 
+      sc_dataset, 
+      sc_norm, 
+      sc_batch, 
+      signature, 
+      method, 
+      bulk_matrix, 
+      bulk_name, 
+      bulk_norm, 
+      ncores, 
+      res_path_normal,
+      rmbatch_S_mode = s_mode
+    )  
+>>>>>>> ca4950813ab8ec52b5e43257975facb4947ad167
 
     true_fractions <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0('simulation_facs.rds')))
 
@@ -106,9 +144,3 @@ for(r in 1:replicates){
 saveRDS(results_list, file=paste0(res_path, "/deconvolution.rds")) 
 
 }
-
-
-
-
-
-

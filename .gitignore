@@ -12,3 +12,4 @@ pipeline/nextflow_norm.config
 reports_traces/
 work/
 .RData
+results/*

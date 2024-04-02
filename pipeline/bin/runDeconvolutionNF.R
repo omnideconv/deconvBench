@@ -78,19 +78,22 @@ if(method=="autogenes"){
 }
 
 # set cibersortx batch correction options
-datasets_technologies <- read.table(paste0(baseDir, '/sc_datasets_technologies.csv'), sep = ',', header = TRUE)
-cur_tech <- datasets_technologies[datasets_technologies$technology == args$sc_name, 2]
+if(method=='cibersortx'){
+  datasets_technologies <- read.table(paste0(baseDir, '/sc_datasets_technologies.csv'), sep = ',', header = TRUE)
+  cur_tech <- datasets_technologies[datasets_technologies$sc_dataset == args$sc_name, 2]
 
-if(grepl("simulation" , bulk_name)){
-    s_mode <- FALSE
-    b_mode <- FALSE
-} else if(cur_tech!='10X'){
-    s_mode <- FALSE
-    b_mode <- TRUE
-} else {
-    s_mode <- TRUE
-    b_mode <- FALSE
+  if(grepl("simulation" , bulk_name)){
+      s_mode <- FALSE
+      b_mode <- FALSE
+  } else if(cur_tech!='10X'){
+      s_mode <- FALSE
+      b_mode <- TRUE
+  } else {
+      s_mode <- TRUE
+      b_mode <- FALSE
+  }
 }
+
 
 
 ###############################

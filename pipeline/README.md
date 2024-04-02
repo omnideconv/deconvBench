@@ -284,7 +284,7 @@ The pipeline expects the input data to be in a specific format. The following se
 
 
 
-## Data Normalizations
+## Data Normalizations 
 
 Each deconvolution method has a recommended set of normalization procedures, both for the scRNA-seq and bulk RNA-seq samples. Possible options currently are `counts` (un-normalized), `tpm` and `cpm`. The specific values for each method are stored in the `optimal_normalization.csv` file, and at time of publication look like this:
 
@@ -298,3 +298,16 @@ Each deconvolution method has a recommended set of normalization procedures, bot
 |music|counts|tpm|
 |scaden|counts|tpm|
 |scdc|counts|tpm|
+
+
+## Additional Information
+
+Method-specific minor points:
+
+### CIBERSORTx batch correction
+
+CIBERSORTx offers two batch correction modes, S-mode and B-mode, which should be used in different settings. The usecase depends upon the input dataset characteristics, both from the bulk and single-cell dataset. 
+If the bulk dataset has been simulated from the same single-cell dataset that will be used as reference, no batch correction should be used. If the bulk dataset originates from real samples, the batch correction depends on the technology of the single-cell dataset: In 10X-based dataset, S-mode should be used, in all other cases B-mode should be used.
+In *deconvBench* we handle these options only in the main workflow, as all other worklfows only work with simulated data and we adapted them according to our specific datasets. The technology type of the single-cell dataset has to be added in the `pipeline/sc_datasets_technologies.csv` file, the correct naming convention for 10X-type datasets is simply `10X`, as given in the example.
+
+**Disclamer:** During our benchmarking procedure, we were not able to use the B-mode from CIBERSORTx in its provided Docker container, as this ended with an error message that we could not influence. We therefore only used the S-mode in all these cases.

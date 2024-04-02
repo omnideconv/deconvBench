@@ -215,15 +215,13 @@ signature_workflow_general <- function(sc_matrix, annotations, annotation_catego
       single_cell_object = sc_matrix,
       cell_type_annotations = annotations,
       batch_ids = sc_batch,
-      markers = NULL,
-      verbose = TRUE,
-      ncores = ncores
+      verbose = TRUE
     )$basis
     
   } else if(method == "scaden"){
     unlink(tmp_dir_path, recursive=TRUE)
     if(!dir.exists(paste0(tmp_dir_path))){
-      dir.create(tmp_dir_path)
+      dir.create(tmp_dir_path, recursive=TRUE)
     }
     signature <- omnideconv::build_model_scaden(
       sc_matrix,
@@ -381,7 +379,7 @@ deconvolution_workflow_general <- function(sc_matrix, annotations, annotation_ca
       cell_type_annotations = annotations,
       batch_ids = sc_batch,
       verbose = TRUE,
-    )$Est.prop.weighted
+    )
 
     if ("prop.est.mvw" %in% names(deconvolution)) {
       deconvolution <- deconvolution$prop.est.mvw

@@ -5,7 +5,7 @@ A detailed description of the parameters and workflows follows below.
 
 ## Dependencies
 
-All method-related dependencies are installed in a inlcuded Docker image, that you can either build yourself using the Dockerfile in the directory above (`docker/`) or pull it directly from [Dockerhub](https://hub.docker.com/repository/docker/alexd13/omnideconv_benchmark/general).
+All method-related dependencies are installed in a inlcuded Docker image, that you can either build yourself using the Dockerfile in the directory above (`docker/`) or pull it directly from [Dockerhub](https://hub.docker.com/repository/docker/alexd13/omnideconv_benchmark/general). 
 *Note:* We currently only provide a Docker image for Linux based systems, Mac and Windows are not supported. User working on those operating systems have to install omnideconv manually.
 
 In addition, to run the pipeline you need an installation of [nextflow](https://www.nextflow.io/). 

@@ -336,26 +336,34 @@ deconvolution_workflow_general <- function(sc_matrix, annotations, annotation_ca
     
   } else if(method=="dwls") {
     
-    deconvolution <- NULL
-    tryCatch(    
-      deconvolution <<- omnideconv::deconvolute_dwls(
+    deconvolution <- omnideconv::deconvolute_dwls(
         bulk_gene_expression = bulk_matrix, 
         signature = signature, 
         dwls_submethod = 'DampenedWLS',
         verbose = TRUE
-      ), error = function(e){
-        # DWLS can crash if there are not enough cells in the dataset or the cells are not differential enough between celltypes
-        print(e[['message']])
-        d <- matrix(
-          rep(1, ncol(bulk_matrix) * ncol(signature)),
-          nrow = ncol(bulk_matrix),
-          ncol = ncol(signature)
-        )
-        deconvolution <<- data.frame(d)
-        colnames(deconvolution) <<- as.character(colnames(signature))
-        rownames(deconvolution) <<- as.character(colnames(bulk_matrix))
-      }
-    )
+      )
+
+    #deconvolution <- NULL
+    #tryCatch(    
+    #  deconvolution <<- omnideconv::deconvolute_dwls(
+    #    bulk_gene_expression = bulk_matrix, 
+    #    signature = signature, 
+    #    dwls_submethod = 'DampenedWLS',
+    #    verbose = TRUE
+    #  ), error = function(e){
+    #    # DWLS can crash if there are not enough cells in the dataset or the cells are not differential enough between celltypes
+    #    print(e[['message']])
+    #    d <- matrix(
+    #      rep(1, ncol(bulk_matrix) * ncol(signature)),
+    #      nrow = ncol(bulk_matrix),
+    #      ncol = ncol(signature)
+    #    )
+    #    deconvolution <<- data.frame(d)
+    #    colnames(deconvolution) <<- as.character(colnames(signature))
+    #    rownames(deconvolution) <<- as.character(colnames(bulk_matrix))
+    #  }
+    #)
+    print(deconvolution)
 
   } else if (method == "music"){
     deconvolution <- omnideconv::deconvolute_music(

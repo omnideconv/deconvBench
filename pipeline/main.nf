@@ -408,7 +408,7 @@ workflow simulation_impact_technology {
                                                params.method_list)
 
   deconvolution_real = ANALYSIS_BULK_MIRRORDB(params.simulation_sc_dataset,
-                                              params.bulk_impact_technology
+                                              params.bulk_impact_technology,
                                               params.data_dir_bulk, 
                                               params.method_list)                                                                                      
 }

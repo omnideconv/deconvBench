@@ -33,15 +33,15 @@ method_palette <- c('autogenes'="#66C2A5",
 spillover.deconv.results <- list.files('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_spillover/', full.names=F, recursive=T)
 
 metadata.table <- spillover.deconv.results %>%
-  tibble(path = ., 
+  tibble(path = .,
          celltype = gsub('deconvolution_spillover_|.rds', '', map_vec(., function(x) strsplit(x, split = '/')[[1]][2])),
          metadata = map_vec(., function(x) strsplit(x, split = '/')[[1]][1])) %>%
   mutate(metadata = gsub("_spillover_sim", "", metadata)) %>%
   separate(metadata, c("method", "datset", "dataset_rep"), sep="_")
 
-celltypes <- c('B_cells', 'mDC', 'Monocytes', 'NK_cells', 'pDC', 'T_cells_CD4_conv', 
+celltypes <- c('B_cells', 'mDC', 'Monocytes', 'NK_cells', 'pDC', 'T_cells_CD4_conv',
                'T_cells_CD8', 'Tregs', 'Macrophages', 'Stromal_cells', 'ILC',
-               'Platelet', 'Plasma_cells') 
+               'Platelet', 'Plasma_cells')
 
 metadata.table <- metadata.table[metadata.table$celltype %in% celltypes, ]
 metadata.table$celltype <- gsub('_', ' ', metadata.table$celltype)
@@ -68,10 +68,10 @@ for(i in 1:nrow(metadata.table)){
   data <- rbind(data, result)
 }
 
-# Figure 4C
+# Figure 5B
 ###############################################################
 
-data <- arrange(data, dataset, method)  
+data <- arrange(data, dataset, method)
 
 celltypes_ordered_similarity <- c('Tregs', 'T cells CD4 conv', 'T cells CD8', 'ILC', 'Plasma cells', 'NK cells',
                                   'B cells', 'Monocytes', 'mDC', 'pDC', 'Platelet')
@@ -96,8 +96,8 @@ signal_plot <- ggplot(signals, aes(x=true_celltype, y=signal_ratio, fill=true_ce
   geom_hline(yintercept=0.5, linetype='dashed') +
   scale_fill_manual(values = cell_palette, name="true celltype") +
   theme(legend.position = "hide") +
-  scale_x_discrete(limits=celltypes_ordered_similarity) 
-ggsave('./visualizations_final/fig_4/Fig_4C.pdf', width = 6, height = 18)
+  scale_x_discrete(limits=celltypes_ordered_similarity)
+ggsave('./visualizations_final/fig_5/Fig_5B.pdf', width = 6, height = 18)
 
 
 # Figure S7
@@ -123,10 +123,10 @@ ggplot(sum.predictions, aes(x=true_celltype, y=predicted_celltype, fill=estimate
   ylab('Predicted celltype') +
   scale_x_discrete(limits=celltypes_ordered_similarity) +
   scale_y_discrete(limits=celltypes_ordered_similarity)
-  
+
 ggsave('./visualizations_final/fig_S7/Fig_S7.pdf', width = 11, height = 9)
 
-# Figure 4D
+# Figure 5C
 ###############################################################
 
 ### code adopted from immunedeconv benchmarking / spillover analysis
@@ -140,18 +140,18 @@ resultDfIn = data[data$dataset=='hao-complete', ]
 overviewTable = data[data$dataset=='hao-complete', ]
 par(mar=rep(2, 4))
 circos.par(cell.padding = rep(2, 4))
-pdf('./visualizations_final/fig_4/fig_4D.pdf', width = 22, height = 4)
-layout(t(matrix(seq(1, length(unique(overviewTable$dataset)) * length(unique(overviewTable$method))), 
+pdf('./visualizations/fig_5/fig_5C.pdf', width = 22, height = 4)
+layout(t(matrix(seq(1, length(unique(overviewTable$dataset)) * length(unique(overviewTable$method))),
                 length(unique(overviewTable$method)),
                 1)))
 
 for(dataset in unique(data$dataset)){
-    
+
   for(method in unique(data$method)){
     resultDf <- data
     migration = resultDf %>%
         filter(method == !!method, dataset == !!dataset) %>%
-        group_by(method, true_celltype, celltype) %>% 
+        group_by(method, true_celltype, celltype) %>%
         dplyr::summarise(estimate = mean(predicted_value)) %>%
         ungroup()
     migration_mat = migration %>%
@@ -177,12 +177,12 @@ for(dataset in unique(data$dataset)){
       for(si in get.all.sector.index()) {
         xlim = get.cell.meta.data("xlim", sector.index = si, track.index = 1)
         ylim = get.cell.meta.data("ylim", sector.index = si, track.index = 1)
-        circos.text(mean(xlim), mean(ylim), si, sector.index = si, track.index = 1, 
+        circos.text(mean(xlim), mean(ylim), si, sector.index = si, track.index = 1,
                     facing = "bending.inside", niceFacing = TRUE, col = "white")
       }
       text(0, 0, method, cex = 1.8)
       text(0, -0.2, as.character(round(filter(noise_ratio, method == !!method) %>% pull(noise_ratio), 2)), cex=1.8)
-    
+
     }
   }
 dev.off()

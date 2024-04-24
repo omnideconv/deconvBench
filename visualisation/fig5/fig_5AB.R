@@ -11,11 +11,11 @@ bulk_norm <- c('tpm', rep('counts', 2), rep('tpm',5))
 missing.cell.types.deconv.results <- list.files('/vol/omnideconv_results/results_missing_cell_types', full.names=F, recursive=T)
 
 metadata.table <- missing.cell.types.deconv.results %>%
-  tibble(path = ., 
+  tibble(path = .,
          method = map_vec(., function(x) strsplit(x, split = '/')[[1]][1]),
          metadata = map_vec(., function(x) strsplit(x, split = '/')[[1]][2])) %>%
   mutate(metadata = gsub("no_", "", metadata)) %>%
-  mutate(sc_dataset = unlist(lapply(metadata, function(x) stri_split_fixed(x, pattern='_', n=3)[[1]][1])), 
+  mutate(sc_dataset = unlist(lapply(metadata, function(x) stri_split_fixed(x, pattern='_', n=3)[[1]][1])),
          bulk_dataset = unlist(lapply(metadata, function(x) stri_split_fixed(x, pattern='_', n=3)[[1]][2])),
          missing_celltype = unlist(lapply(metadata, function(x) stri_split_fixed(x, pattern='_', n=3)[[1]][3])))
 
@@ -31,14 +31,14 @@ for(i in 1:nrow(metadata.table)){
   result <- readRDS(paste0('/vol/omnideconv_results/results_missing_cell_types/', metadata.table$path[i])) %>%
     .$deconv.result %>%
     as.data.frame()
-  
+
   result <- result %>%
     tibble::rownames_to_column(., var='sample') %>%
     gather(., key='celltype', value = 'predicted_value', -'sample') %>%
     mutate(., celltype = gsub("xxxx", " ", celltype)) %>%
     mutate(., missing_celltype = metadata.table$missing_celltype[i]) %>%
     mutate(., method = metadata.table$method[i]) %>%
-    mutate(., bulk_dataset = metadata.table$bulk_dataset[i]) 
+    mutate(., bulk_dataset = metadata.table$bulk_dataset[i])
   data <- rbind(data, result)
 }
 
@@ -47,19 +47,19 @@ for(i in 1:nrow(metadata.table)){
   corr.result <- readRDS(paste0('/vol/omnideconv_results/results_missing_cell_types/', metadata.table$path[i])) %>%
     .$cor_cell_type %>%
     as.data.frame()
-  
+
   rmse.result <- readRDS(paste0('/vol/omnideconv_results/results_missing_cell_types/', metadata.table$path[i])) %>%
     .$rmse_cell_type %>%
     as.data.frame()
-  
+
   corr.result <- corr.result %>%
     mutate(., cell_type = gsub("xxxx", " ", cell_type)) %>%
     mutate(., missing_celltype = metadata.table$missing_celltype[i]) %>%
     mutate(., method = metadata.table$method[i]) %>%
     mutate(., bulk_dataset = metadata.table$bulk_dataset[i]) %>%
     select(., -c('pval'))
-  
-  
+
+
   rmse.result <- rmse.result %>%
     mutate(., cell_type = gsub("xxxx", " ", cell_type)) %>%
     mutate(., missing_celltype = metadata.table$missing_celltype[i]) %>%
@@ -76,21 +76,20 @@ metrics.data$missing_celltype[metrics.data$missing_celltype == 'all-cells'] <- '
 celltypes_ordered_similarity <- c('Tregs', 'T cells CD4 conv', 'T cells CD8', 'ILC', 'Plasma cells', 'NK cells',
                                   'B cells', 'Monocytes', 'mDC', 'pDC', 'Platelet')
 
-################################################################################
+
 # Difference of RMSEs (final figure)
-################################################################################
 
 metrics.all.celltypes <- metrics.data[metrics.data$missing_celltype == 'None', ]
 metrics.missing.celltypes <- metrics.data[metrics.data$missing_celltype != 'None', ]
 
-metrics.all.celltypes$RMSE_all_celltypes <- metrics.all.celltypes$RMSE 
+metrics.all.celltypes$RMSE_all_celltypes <- metrics.all.celltypes$RMSE
 metrics.all.celltypes[, c('RMSE', 'cor', 'missing_celltype')] <- NULL
 
 
 metrics.missing.celltypes$RMSE_defective <- metrics.missing.celltypes$RMSE
 metrics.missing.celltypes[, c('RMSE', 'cor')] <- NULL
 
-metrics.plot <- left_join(metrics.missing.celltypes, 
+metrics.plot <- left_join(metrics.missing.celltypes,
                           metrics.all.celltypes, multiple = 'all') %>%
   mutate(abs_diff_rmse = RMSE_defective - RMSE_all_celltypes)
 
@@ -117,8 +116,5 @@ hoek.plot <- ggplot(metrics.plot[metrics.plot$bulk_dataset=='hoek', ], aes(x=mis
   labs(y="Predicted cell type\n", x="Missing cell type", title = 'Hoek dataset')
 
 
-
-ggarrange(finotello.plot, hoek.plot, nrow=2, labels = c('A', 'B'))
-
-ggsave('./visualizations_final/fig_4/fig_4AB.pdf', dpi=350, width=12, height=18)
-
+ggsave(finotello.plot, './visualization/fig_5/fig_5A.pdf', dpi=350, width=12, height=12)
+ggsave(finotello.plot, './visualization/supplement/fig_s7.pdf', dpi=350, width=12, height=12)

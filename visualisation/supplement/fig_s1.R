@@ -2,6 +2,7 @@ library(Seurat)
 library(tidyverse)
 library(data.table)
 library(cowplot)
+library(scattermore)
 
 plot_single_cell <- function(obj, colors, pointsize=0, pixels=c(512,512)){
   meta_df <- obj@meta.data
@@ -196,6 +197,34 @@ tm_palette <- c('B cells'='#999933',
                 'Tregs'='#88CCEE'
                 )
 
+#### Wu ####
+
+wu_full <- readRDS('/nfs/data/omnideconv_benchmarking_clean/data/singleCell/wu/matrix_counts.rds')
+wu_ct <- readRDS('/nfs/data/omnideconv_benchmarking_clean/data/singleCell/wu/celltype_annotations_coarse.rds')
+wu_batch <- readRDS('/nfs/data/omnideconv_benchmarking_clean/data/singleCell/wu/batch.rds')
+
+meta_df <- data.frame('cell_type' = wu_ct,
+                      'batch' = wu_batch,
+                      'barcode' = colnames(wu_full),
+                      row.names = colnames(wu_full))
+wu <- CreateSeuratObject(wu_full, project='Wu', meta.data = meta_df)
+wu <- SCTransform(wu) %>%
+  RunPCA(npcs = 20, features = VariableFeatures(wu)) %>%
+  RunUMAP(reduction = "pca", dims = 1:20) 
+saveRDS(wu, '/nfs/data/omnideconv_benchmarking_clean/data/singleCell/wu/seurat_obj.rds')
+wu <- readRDS('/nfs/data/omnideconv_benchmarking_clean/data/singleCell/wu/seurat_obj.rds')
+
+wu_palette <- c('B cells'='#999933',
+                'CAFs' = '#333333',
+                'Cancer Epithelial' = 'black',
+                'Endothelial' = '#c12c2c',
+                'Myeloid' = '#AA4499',
+                'Normal Epithelial' = '#c1772c',
+                'Plasmablasts' = '#969489',
+                'PVL' = '#c2c0b3',
+                'T-cells' = '#18A749'
+)
+
 
 #### full plot ####
 
@@ -203,17 +232,20 @@ plots.hao <- plot_single_cell(hao, hao_palette, pointsize = 1, pixels = c(1024, 
 plots.maynard <- plot_single_cell(maynard, maynard_palette, pointsize = 1.5)
 plots.lambrechts <- plot_single_cell(lambrechts, lambrechts_palette, pointsize = 1.5)
 plots.tm <- plot_single_cell(tm, tm_palette, pointsize = 2)
+plots.wu <- plot_single_cell(wu, wu_palette, pointsize = 1.5)
 
 fig_s1 <- plot_grid(
   plots.hao,
   plots.maynard,
   plots.lambrechts,
   plots.tm,
+  plots.wu,
   align = 'h', 
-  labels = c('A','B','C','D'),
+  labels = c('A','B','C','D','E'),
   label_size = 15, 
   hjust = -1,
   nrow = 4, ncol = 1
 )
 
-ggsave(plot = fig_s1, filename = 'visualisation/fig_s1/fig_s1.pdf', height = 17, width = 14)
+ggsave(plot = fig_s1, filename = 'visualisation/plots/fig_s1/fig_s1.pdf', height = 21, width = 14)
+ggsave(plot = plots.wu, filename = 'visualisation/plots/fig_s1/fig_s1_wu.pdf', height = 4.5, width = 14)

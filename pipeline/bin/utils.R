@@ -97,7 +97,8 @@ char2seed <- function(x){
 }
 
 # Function to subset a dataset
-subset_cells <- function(cell_matrix, annotations, batch_ids, num_cells, seed, coarse_annotations = NULL, fine_annotations = NULL){
+subset_cells <- function(cell_matrix, annotations, batch_ids, num_cells, 
+                         seed, coarse_annotations = NULL, fine_annotations = NULL){
   
   require(tidyverse)
 
@@ -164,7 +165,8 @@ subset_cells <- function(cell_matrix, annotations, batch_ids, num_cells, seed, c
 }
 
 # This function contains all the necessary steps to adapt omnideconv to the benchmarking workflow
-signature_workflow_general <- function(sc_matrix, annotations, annotation_category, sc_ds, sc_norm, sc_batch, method, bulk_matrix, bulk_name, bulk_norm, ncores, res_path, spillover = FALSE){
+signature_workflow_general <- function(sc_matrix, annotations, annotation_category, sc_ds, sc_norm, sc_batch, 
+                                       method, bulk_matrix, bulk_name, bulk_norm, ncores, res_path){
   
   # path to temporary directory that is inside results directory of one unique result 
   tmp_dir_path <- paste0(res_path, '/tmp/')
@@ -178,11 +180,11 @@ signature_workflow_general <- function(sc_matrix, annotations, annotation_catego
     # --> created fixed input and output directories!
     cx_input <- paste0(tmp_dir_path,'_input')
     if(!dir.exists(paste0(cx_input))){
-      dir.create(cx_input)
+      dir.create(cx_input, recursive=TRUE)
     }
     cx_output <- paste0(tmp_dir_path,'_output')
     if(!dir.exists(paste0(cx_output))){
-      dir.create(cx_output)
+      dir.create(cx_output, recursive=TRUE)
     }
 
     signature <- omnideconv::build_model_cibersortx(
@@ -213,15 +215,13 @@ signature_workflow_general <- function(sc_matrix, annotations, annotation_catego
       single_cell_object = sc_matrix,
       cell_type_annotations = annotations,
       batch_ids = sc_batch,
-      markers = NULL,
-      verbose = TRUE,
-      ncores = ncores
+      verbose = TRUE
     )$basis
     
   } else if(method == "scaden"){
     unlink(tmp_dir_path, recursive=TRUE)
     if(!dir.exists(paste0(tmp_dir_path))){
-      dir.create(tmp_dir_path)
+      dir.create(tmp_dir_path, recursive=TRUE)
     }
     signature <- omnideconv::build_model_scaden(
       sc_matrix,
@@ -246,7 +246,9 @@ signature_workflow_general <- function(sc_matrix, annotations, annotation_catego
 }
 
 # This function contains all the necessary steps to adapt omnideconv to the benchmarking workflow
-deconvolution_workflow_general <- function(sc_matrix, annotations, annotation_category, sc_ds, sc_norm, sc_batch, signature, method, bulk_matrix, bulk_name, bulk_norm, ncores, res_path){
+deconvolution_workflow_general <- function(sc_matrix, annotations, annotation_category, sc_ds, sc_norm, sc_batch, 
+                                           signature, method, bulk_matrix, bulk_name, bulk_norm, ncores, res_path,
+                                           rmbatch_B_mode = FALSE, rmbatch_S_mode = FALSE){
   
   # path to temporary directory that is inside results directory of one unique result 
   tmp_dir_path <- paste0(res_path, '/tmp/')
@@ -309,11 +311,11 @@ deconvolution_workflow_general <- function(sc_matrix, annotations, annotation_ca
     }
 
     # batch correction options for cibersortx
-    rmbatch_B_mode <- FALSE
-    rmbatch_S_mode <- TRUE
-    if(grepl("simulation" , bulk_name)){
-      rmbatch_S_mode <- FALSE
-    }
+    #rmbatch_B_mode <- FALSE
+    #rmbatch_S_mode <- TRUE
+    #if(grepl("simulation" , bulk_name)){
+    #  rmbatch_S_mode <- FALSE
+    #}
     
     deconvolution <- omnideconv::deconvolute_cibersortx(
       single_cell_object = sc_matrix,
@@ -332,26 +334,34 @@ deconvolution_workflow_general <- function(sc_matrix, annotations, annotation_ca
     
   } else if(method=="dwls") {
     
-    deconvolution <- NULL
-    tryCatch(    
-      deconvolution <<- omnideconv::deconvolute_dwls(
+    deconvolution <- omnideconv::deconvolute_dwls(
         bulk_gene_expression = bulk_matrix, 
         signature = signature, 
         dwls_submethod = 'DampenedWLS',
         verbose = TRUE
-      ), error = function(e){
-        # DWLS can crash if there are not enough cells in the dataset or the cells are not differential enough between celltypes
-        print(e[['message']])
-        d <- matrix(
-          rep(1, ncol(bulk_matrix) * ncol(signature)),
-          nrow = ncol(bulk_matrix),
-          ncol = ncol(signature)
-        )
-        deconvolution <<- data.frame(d)
-        colnames(deconvolution) <<- as.character(colnames(signature))
-        rownames(deconvolution) <<- as.character(colnames(bulk_matrix))
-      }
-    )
+      )
+
+    #deconvolution <- NULL
+    #tryCatch(    
+    #  deconvolution <<- omnideconv::deconvolute_dwls(
+    #    bulk_gene_expression = bulk_matrix, 
+    #    signature = signature, 
+    #    dwls_submethod = 'DampenedWLS',
+    #    verbose = TRUE
+    #  ), error = function(e){
+    #    # DWLS can crash if there are not enough cells in the dataset or the cells are not differential enough between celltypes
+    #    print(e[['message']])
+    #    d <- matrix(
+    #      rep(1, ncol(bulk_matrix) * ncol(signature)),
+    #      nrow = ncol(bulk_matrix),
+    #      ncol = ncol(signature)
+    #    )
+    #    deconvolution <<- data.frame(d)
+    #    colnames(deconvolution) <<- as.character(colnames(signature))
+    #    rownames(deconvolution) <<- as.character(colnames(bulk_matrix))
+    #  }
+    #)
+    print(deconvolution)
 
   } else if (method == "music"){
     deconvolution <- omnideconv::deconvolute_music(
@@ -369,7 +379,7 @@ deconvolution_workflow_general <- function(sc_matrix, annotations, annotation_ca
       cell_type_annotations = annotations,
       batch_ids = sc_batch,
       verbose = TRUE,
-    )$Est.prop.weighted
+    )
 
     if ("prop.est.mvw" %in% names(deconvolution)) {
       deconvolution <- deconvolution$prop.est.mvw

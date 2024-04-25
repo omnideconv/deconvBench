@@ -2,12 +2,13 @@
 
 print("Starting analysis script [impact cell resolution] ...")
 
+library(docopt)
+library(Biobase)
 library(omnideconv)
 reticulate::use_miniconda(condaenv = "r-omnideconv", required = TRUE)
-source('/nfs/home/students/adietrich/omnideconv/benchmark/pipeline/bin/utils.R')
 
 "Usage:
-  analysisNF_impact_cell_resolution.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <cell_types_fine> <replicates> <results_dir> <ncores>
+  analysisNF_impact_cell_resolution.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <cell_types_fine> <replicates> <results_dir> <ncores> <baseDir>
 Options:
 <sc_name> name of sc datasets
 <sc_path> path to sc dataset
@@ -17,7 +18,8 @@ Options:
 <cell_types_fine> cell types used in the simulation
 <replicates> number of replicates
 <results_dir> results (base) directory
-<ncores> number of cores to use for method (if available)" -> doc
+<ncores> number of cores to use for method (if available)
+<baseDir> nextflow base directory" -> doc
 
 args <- docopt::docopt(doc)
 
@@ -29,8 +31,10 @@ method <- args$deconv_method
 res_base_path <- args$results_dir
 ncores <- as.numeric(args$ncores) # in case a method can use multiple cores
 replicates <- as.numeric(args$replicates)
+baseDir <- args$baseDir
 
-method_normalizations <- read.table('/nfs/home/students/adietrich/omnideconv/benchmark/pipeline/optimal_normalizations.csv', sep = ',', header = TRUE)
+source(paste0(baseDir, '/bin/utils.R'))
+method_normalizations <- read.table(paste0(baseDir, '/optimal_normalizations.csv'), sep = ',', header = TRUE)
 sc_norm <- method_normalizations[method_normalizations$method == method, 2]
 bulk_norm <- method_normalizations[method_normalizations$method == method, 3]
 
@@ -71,7 +75,7 @@ dir.create(res_path_normal, recursive = TRUE, showWarnings = TRUE)
 dir.create(res_path_coarse, recursive = TRUE, showWarnings = TRUE)
 dir.create(res_path_fine, recursive = TRUE, showWarnings = TRUE)
 
-subset_list <- subset_cells(sc_matrix, sc_celltype_annotations, sc_batch, 300, 22, 
+subset_list <- subset_cells(sc_matrix, sc_celltype_annotations, sc_batch, 500, 22, 
                             sc_celltype_annotations_coarse, 
                             sc_celltype_annotations_fine)
 

@@ -5,9 +5,13 @@ docker/work/
 pipeline/.nextflow/
 pipeline/.nextlow.log*
 pipeline/*.Rproj
+pipeline/nextflow_norm.config
 *.Rproj
 .Rproj.user
 .Rhistory
 reports_traces/
 work/
 visualization/plots
+.RData
+results/*
+

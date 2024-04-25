@@ -4,10 +4,9 @@ print("Starting signature building script ...")
 
 library(omnideconv)
 reticulate::use_miniconda(condaenv = "r-omnideconv", required = TRUE)
-source('/nfs/home/students/adietrich/omnideconv/benchmark/pipeline/bin/utils.R')
 
 "Usage:
-  computeSignaturesNF.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <results_dir> <run_preprocessing> <replicate> <subset_value> <ncores> 
+  computeSignaturesNF.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <results_dir> <run_preprocessing> <replicate> <subset_value> <ncores> <baseDir> 
 Options:
 <sc_name> name of sc datasets
 <sc_path> path to sc dataset
@@ -18,7 +17,9 @@ Options:
 <run_preprocessing> if pre-processing has been done
 <replicate> value of replicate number
 <subset_value> if < 1: fraction of cell type; if > 1: number of cells per cell type
-<ncores> number of cores to use for method (if available)" -> doc
+<ncores> number of cores to use for method (if available)
+<baseDir> nextflow base directory" -> doc
+
 
 args <- docopt::docopt(doc)
 
@@ -29,9 +30,12 @@ bulk_name <- args$bulk_name
 bulk_path <- args$bulk_path
 method <- args$deconv_method
 res_base_path <- args$results_dir
+baseDir <- args$baseDir
+
+source(paste0(baseDir, '/bin/utils.R'))
+method_normalizations <- read.table(paste0(baseDir, '/optimal_normalizations.csv'), sep = ',', header = TRUE)
 
 # find method-specific normalizations for sc and bulk
-method_normalizations <- read.table('/nfs/home/students/adietrich/omnideconv/benchmark/pipeline/optimal_normalizations.csv', sep = ',', header = TRUE)
 sc_norm <- method_normalizations[method_normalizations$method == method, 2]
 bulk_norm <- method_normalizations[method_normalizations$method == method, 3]
 print(paste0('Method: ', method, '; sc-norm: ', sc_norm, '; bulk-norm: ', bulk_norm))
@@ -44,6 +48,7 @@ if(args$run_preprocessing == 'true'){
 }else{
   subset_value <- 0
   replicate <- 0
+  sc_dataset <- args$sc_name
 }
 
 # read scRNA-seq count matrix

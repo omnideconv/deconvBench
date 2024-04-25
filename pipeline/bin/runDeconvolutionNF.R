@@ -4,10 +4,9 @@ print("Starting deconvolution script ...")
 
 library(omnideconv)
 reticulate::use_miniconda(condaenv = "r-omnideconv", required = TRUE)
-source('/nfs/home/students/adietrich/omnideconv/benchmark/pipeline/bin/utils.R')
 
 "Usage:
-  runDeconvolutionNF.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <results_dir> <run_preprocessing> <replicate> <subset_value> <species> <ncores> 
+  runDeconvolutionNF.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <results_dir> <run_preprocessing> <replicate> <subset_value> <species> <ncores> <baseDir>
 Options:
 <sc_name> name of sc datasets
 <sc_path> path to sc dataset
@@ -19,7 +18,8 @@ Options:
 <replicate> value of replicate number
 <subset_value> if < 1: fraction of cell type; if > 1: number of cells per cell type
 <species> type of species
-<ncores> number of cores to use for method (if available)" -> doc
+<ncores> number of cores to use for method (if available)
+<baseDir> nextflow base directory" -> doc
 
 args <- docopt::docopt(doc)
 
@@ -30,9 +30,10 @@ bulk_name <- args$bulk_name
 bulk_path <- args$bulk_path
 method <- args$deconv_method
 res_base_path <- args$results_dir
+baseDir <- args$baseDir
 
-# find method-specific normalizations for sc and bulk
-method_normalizations <- read.table('/nfs/home/students/adietrich/omnideconv/benchmark/pipeline/optimal_normalizations.csv', sep = ',', header = TRUE)
+source(paste0(baseDir, '/bin/utils.R'))
+method_normalizations <- read.table(paste0(baseDir, '/optimal_normalizations.csv'), sep = ',', header = TRUE)
 sc_norm <- method_normalizations[method_normalizations$method == method, 2]
 bulk_norm <- method_normalizations[method_normalizations$method == method, 3]
 print(paste0('Method: ', method, '; sc-norm: ', sc_norm, '; bulk-norm: ', bulk_norm))
@@ -76,6 +77,25 @@ if(method=="autogenes"){
   sc_celltype_annotations <- escapeCelltypesAutogenes(sc_celltype_annotations)
 }
 
+# set cibersortx batch correction options
+if(method=='cibersortx'){
+  datasets_technologies <- read.table(paste0(baseDir, '/sc_datasets_technologies.csv'), sep = ',', header = TRUE)
+  cur_tech <- datasets_technologies[datasets_technologies$sc_dataset == args$sc_name, 2]
+
+  if(grepl("simulation" , bulk_name)){
+      s_mode <- FALSE
+      b_mode <- FALSE
+  } else if(cur_tech!='10X'){
+      s_mode <- FALSE
+      b_mode <- TRUE
+  } else {
+      s_mode <- TRUE
+      b_mode <- FALSE
+  }
+}
+
+
+
 ###############################
 #### Perform devonvolution ####
 ###############################
@@ -95,7 +115,9 @@ runtime <- system.time({
     bulk_name, 
     bulk_norm, 
     ncores, 
-    res_path
+    res_path,
+    rmbatch_S_mode = s_mode,
+    rmbatch_B_mode = b_mode
   )
 
 })

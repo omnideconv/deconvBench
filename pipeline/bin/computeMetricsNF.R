@@ -3,11 +3,10 @@
 print("Starting metric calculation ...")
 
 library(tidyverse)
-source('/nfs/home/students/adietrich/omnideconv/benchmark/pipeline/bin/utils.R')
 
 
 "Usage:
-  computeMetricsNF.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <replicate> <subset_value> <results_dir>
+  computeMetricsNF.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <replicate> <subset_value> <results_dir> <baseDir>
 Options:
 <sc_name> name of sc datasets
 <sc_path> path to sc dataset
@@ -16,7 +15,9 @@ Options:
 <deconv_method>  deconv method
 <subset_value> if < 1: fraction of cell type; if > 1: number of cells per cell type
 <replicate> value of replicate number
-<results_dir> results (base) directory" -> doc
+<results_dir> results (base) directory
+<baseDir> nextflow base directory" -> doc
+
 
 args <- docopt::docopt(doc)
 
@@ -30,9 +31,10 @@ method <- args$deconv_method
 res_base_path <- args$results_dir
 subset_value <- as.numeric(args$subset_value)
 replicate <- as.numeric(args$replicate)
+baseDir <- args$baseDir
 
-# find method-specific normalizations for sc and bulk
-method_normalizations <- read.table('/nfs/home/students/adietrich/omnideconv/benchmark/pipeline/optimal_normalizations.csv', sep = ',', header = TRUE)
+source(paste0(baseDir, '/bin/utils.R'))
+method_normalizations <- read.table(paste0(baseDir, '/optimal_normalizations.csv'), sep = ',', header = TRUE)
 sc_norm <- method_normalizations[method_normalizations$method == method, 2]
 bulk_norm <- method_normalizations[method_normalizations$method == method, 3]
 print(paste0('Method: ', method, '; sc-norm: ', sc_norm, '; bulk-norm: ', bulk_norm))

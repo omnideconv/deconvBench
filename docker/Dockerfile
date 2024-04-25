@@ -66,7 +66,7 @@ RUN R -e "install.packages(c('pak','pkgdepends','devtools'), repos='https://clou
 RUN R -e "pak::pkg_install(c('remotes','harmony','terra'))"
 RUN echo  "GITHUB_PAT=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" >> /root/.Renviron
 RUN R -e "remotes::install_github('omnideconv/omnideconv@benchmark', dependencies = TRUE, auth_token='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')"
-RUN R -e "remotes::install_version('NMF', '0.26', repos='https://cloud.r-project.org')"
+#RUN R -e "remotes::install_version('NMF', '0.27', repos='https://cloud.r-project.org')"
 
 
 # set systems variable RETICULATE_PYTHON to new conda env, so that omnideconv will use it

@@ -73,6 +73,18 @@ for(i in 1:nrow(metadata.table)){
 
 data <- arrange(data, dataset, method)
 
+data <- data %>%
+  mutate(method = recode(method,
+                         'autogenes'='AutoGeneS',
+                         'bayesprism'='BayesPrism',
+                         'bisque'='Bisque',
+                         'cibersortx'='CIBERSORTx',
+                         'dwls'='DWLS',
+                         'music'='MuSiC',
+                         'scaden'='Scaden',
+                         'scdc'='SCDC'))
+
+
 celltypes_ordered_similarity <- c('Tregs', 'T cells CD4 conv', 'T cells CD8', 'ILC', 'Plasma cells', 'NK cells',
                                   'B cells', 'Monocytes', 'mDC', 'pDC', 'Platelet')
 

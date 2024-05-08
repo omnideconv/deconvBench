@@ -70,6 +70,29 @@ for(i in 1:nrow(metadata.table)){
   metrics.data <- rbind(metrics.data, corr.result)
 }
 
+data <- data %>%
+  mutate(method = recode(method,
+                         'autogenes' = 'AutoGeneS',
+                         'bayesprism' = 'BayesPrism',
+                         'bisque' = 'Bisque',
+                         'cibersortx' = 'CIBERSORTx',
+                         'dwls' = 'DWLS',
+                         'music' = 'MuSiC',
+                         'scaden' = 'Scaden',
+                         'scdc' = 'SCDC'))
+
+metrics.data <- metrics.data %>%
+  mutate(method = recode(method,
+                         'autogenes' = 'AutoGeneS',
+                         'bayesprism' = 'BayesPrism',
+                         'bisque' = 'Bisque',
+                         'cibersortx' = 'CIBERSORTx',
+                         'dwls' = 'DWLS',
+                         'music' = 'MuSiC',
+                         'scaden' = 'Scaden',
+                         'scdc' = 'SCDC'))
+
+
 data$missing_celltype[data$missing_celltype == 'all-cells'] <- 'None'
 metrics.data$missing_celltype[metrics.data$missing_celltype == 'all-cells'] <- 'None'
 

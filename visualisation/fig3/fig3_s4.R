@@ -1,4 +1,4 @@
-source("visualizations/helper_functions.R")
+source("visualisation/helper_functions.R")
 library(tidyverse)
 library(data.table)
 library(cowplot)
@@ -13,7 +13,7 @@ method_parameter_df$method_norm_combi <- paste0(method_parameter_df$method, meth
 sc_ds <- 'hao-complete'
 
 #### performance metrics ####
-performance_df <- get_all_performance_metrics('/vol/omnideconv_results/results_downsample/', ct_values, 'hao-complete', method_parameter_df)
+performance_df <- get_all_performance_metrics('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_downsample/', ct_values, 'hao-complete', method_parameter_df)
 
 performance_df <- performance_df %>% 
   mutate(method = recode(method,
@@ -54,7 +54,7 @@ df.rmse <- df.rmse %>%
 #### Fig 3a ####
 
 df.hoek <- df.rmse %>% subset(bulk_ds %in% c('Hoek','HoekSim'))
-df.hoek$bulk_ds <- factor(df.hoek$bulk_ds, levels = c('HoekSim','Hoek'))
+df.hoek$bulk_ds <- factor(df.hoek$bulk_ds, levels = c('Hoek','HoekSim'))
 
 tmp <- ggplot(df.hoek)+
   geom_line(aes(x=ct, y=RMSE, group=method, color=method), alpha=.8)+
@@ -69,6 +69,8 @@ tmp <- ggplot(df.hoek)+
   scale_fill_brewer(palette = 'Set2')+
   theme(axis.text.x = element_text(angle=90),
         strip.background = element_rect(fill = 'white'))
+
+ggsave(filename = 'visualisation/fig3/fig_3a.pdf', tmp, width = 10, height = 5)
 
 fig_3a <- plot_grid(
   tmp + theme(legend.position="none"),
@@ -272,7 +274,7 @@ fig_s4a <- ggplot(df.fino)+
 
 #### Fig S4b ####
 
-fractions_df <- get_fractions('/vol/omnideconv_results/results_downsample/', ct_values, 'hao-complete', method_parameter_df)
+fractions_df <- get_fractions('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_downsample/', ct_values, 'hao-complete', method_parameter_df)
 fractions_df <- fractions_df %>% 
   mutate(method = recode(method,
                          'autogenes'='AutoGeneS',
@@ -330,5 +332,5 @@ fig_s4 <- plot_grid(
   rel_heights = c(.05, .7, 1)
 )
 
-ggsave(filename = 'visualizations_final/supplement/fig_s4.pdf', fig_s4, width = 12, height = 10)
+ggsave(filename = 'visualisation/plots/fig_s4/fig_s4.pdf', plot = fig_s4, width = 12, height = 10)
 

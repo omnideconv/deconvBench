@@ -12,6 +12,9 @@ method_parameter_df <- data.frame(method=methods, sc_norm=sc_norm, bulk_norm=bul
 method_parameter_df$method_norm_combi <- paste0(method_parameter_df$method, method_parameter_df$sc_norm, method_parameter_df$bulk_norm)
 sc_ds <- 'hao-complete'
 
+method_palette <- palette.colors(palette = "Okabe-Ito")[1:8]
+names(method_palette) <- c('AutoGeneS','BayesPrism','Bisque','CIBERSORTx','DWLS','MuSiC','Scaden','SCDC')
+
 #### performance metrics ####
 performance_df <- get_all_performance_metrics('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_downsample/', ct_values, 'hao-complete', method_parameter_df)
 
@@ -57,20 +60,21 @@ df.hoek <- df.rmse %>% subset(bulk_ds %in% c('Hoek','HoekSim'))
 df.hoek$bulk_ds <- factor(df.hoek$bulk_ds, levels = c('Hoek','HoekSim'))
 
 tmp <- ggplot(df.hoek)+
-  geom_line(aes(x=ct, y=RMSE, group=method, color=method), alpha=.8)+
-  geom_point(aes(x=ct, y=RMSE, group=method, color=method))+
-  geom_point(data = df.hoek %>% subset(ct == 'full'), mapping = aes(x=ct, y=RMSE, group=method), color='black')+
   geom_ribbon(aes(x=ct, y=RMSE, group=method, fill=method, ymin=`iqr.25%`, ymax=`iqr.75%`), alpha=.2)+
+  geom_line(aes(x=ct, y=RMSE, group=method, color=method), alpha=.8)+
+  geom_point(aes(x=ct, y=RMSE, color=method,  group=method, shape=method), size=2, stroke=.6)+
+  geom_point(data = df.hoek %>% subset(ct == 'full'), mapping = aes(x=ct, y=RMSE, group=method), color='black')+
   facet_grid(bulk_ds~cell_type, scales='free_x')+
   theme_bw()+
   ylab('RMSE with ground truth')+
   xlab('number of single cells per cell type')+
-  scale_color_brewer(palette = 'Set2')+
-  scale_fill_brewer(palette = 'Set2')+
+  scale_color_manual(values = method_palette)+
+  scale_shape_manual(values = c(0,1,2,3,4,5,6,7))+
+  scale_fill_manual(values = method_palette)+
   theme(axis.text.x = element_text(angle=90),
         strip.background = element_rect(fill = 'white'))
 
-ggsave(filename = 'visualisation/fig3/fig_3a.pdf', tmp, width = 10, height = 5)
+ggsave(filename = 'visualizations_final/fig3/fig_3a.pdf', tmp, width = 10, height = 5)
 
 fig_3a <- plot_grid(
   tmp + theme(legend.position="none"),

@@ -9,16 +9,16 @@ bulk_norm <- c('tpm', rep('counts', 2), rep('tpm',5))
 method_parameter_df <- data.frame(method=methods, sc_norm=sc_norm, bulk_norm=bulk_norm)
 method_parameter_df$method_norm_combi <- paste0(method_parameter_df$method, method_parameter_df$sc_norm, method_parameter_df$bulk_norm)
 
-fractions_df_mouse <- get_fractions('/vol/omnideconv_results/results_mouse/', '0', 'tabula-muris', method_parameter_df)
+fractions_df_mouse <- get_fractions('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_mouse/', '0', 'tabula-muris', method_parameter_df)
 fractions_df_mouse$org <- 'mm'
-fractions_df_hao <- get_all_fractions('/vol/omnideconv_results/results_run/', '0', 'hao-sampled-3', method_parameter_df)
+fractions_df_hao <- get_all_fractions('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_main/', '0', 'hao-sampled-3', method_parameter_df)
 fractions_df_hao$org <- 'hs'
 fractions_df <- rbind(fractions_df_hao, fractions_df_mouse)
 fractions_df <- subset(fractions_df, method_norm_combi %in% method_parameter_df$method_norm_combi)
 
-performance_df_mouse <- get_performance_metrics('/vol/omnideconv_results/results_mouse/', '0', 'tabula-muris', method_parameter_df)
+performance_df_mouse <- get_performance_metrics('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_mouse/', '0', 'tabula-muris', method_parameter_df)
 performance_df_mouse$org <- 'mm'
-performance_df_hao <- get_all_performance_metrics('/vol/omnideconv_results/results_run/', '0', 'hao-sampled-3', method_parameter_df)
+performance_df_hao <- get_all_performance_metrics('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_main/', '0', 'hao-sampled-3', method_parameter_df)
 performance_df_hao$org <- 'hs'
 performance_df <- rbind(performance_df_hao, performance_df_mouse)
 performance_df <- subset(performance_df, method_norm_combi %in% method_parameter_df$method_norm_combi)
@@ -36,6 +36,9 @@ color_palette <- c('B cells'='#999933',
                    'T cells CD4 conv'='#117733',
                    'T cells CD8'='#44AA99',
                    'Tregs'='#88CCEE')
+
+method_palette <- palette.colors(palette = "Okabe-Ito")[1:8]
+names(method_palette) <- c('AutoGeneS','BayesPrism','Bisque','CIBERSORTx','DWLS','MuSiC','Scaden','SCDC')
 
 df.both$cell_type <- as.factor(df.both$cell_type)
 fractions_df$cell_type <- as.factor(fractions_df$celltype)
@@ -126,9 +129,10 @@ fig_2c <- df.both %>% subset(cell_type != 'all' & bulk_ds %in% c('Hoek','HoekSim
   geom_hline(yintercept = 0, color='#444444', linetype='dashed')+
   geom_hline(yintercept = 0.5, color='#444444', linetype='dashed')+
   geom_hline(yintercept = 1, color='#444444', linetype='dashed')+
-  geom_point(aes(color=method), size=2.5)+
+  geom_point(aes(color=method, shape=method), size=2.5, stroke=1)+
   facet_grid(bulk_ds~cell_type)+
-  scale_color_brewer(palette = 'Set2')+
+  scale_color_manual(values = method_palette)+
+  scale_shape_manual(values = c(0,1,2,3,4,5,6,7))+
   theme_bw()+
   ylab('Pearson Correlation Coefficient')+
   theme(legend.position = 'top',
@@ -222,9 +226,10 @@ fig_s3 <- df.both %>% subset(cell_type != 'all' & bulk_ds %in% c('Finotello','Fi
   geom_hline(yintercept = 0, color='#444444', linetype='dashed')+
   geom_hline(yintercept = 0.5, color='#444444', linetype='dashed')+
   geom_hline(yintercept = 1, color='#444444', linetype='dashed')+
-  geom_point(aes(color=method), size=2.5)+
+  geom_point(aes(color=method, shape=method), size=2.5, stroke=1)+
   facet_grid(bulk_ds~cell_type)+
-  scale_color_brewer(palette = 'Set2')+
+  scale_color_manual(values = method_palette)+
+  scale_shape_manual(values = c(0,1,2,3,4,5,6,7))+
   theme_bw()+
   ylab('Pearson Correlation Coefficient')+
   theme(legend.position = 'top',

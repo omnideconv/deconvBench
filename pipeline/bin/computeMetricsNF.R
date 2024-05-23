@@ -47,7 +47,7 @@ res_path <- paste0(res_base_path, '/', method, "_", sc_dataset, "_", sc_norm, "_
 deconvolution <- readRDS(paste0(res_path, '/deconvolution.rds'))
 
 # sum up fractions of T cell subtypes in this dataset
-if(args$bulk_name=='hoek' | args$bulk_name=='hoek-simulation'){
+if(args$bulk_name=='hoek' | args$bulk_name=='hoek-simulation' | args$bulk_name=='hoek-simulation-nobias'){
   deconvolution <- as.data.frame(deconvolution)
   deconvolution$`T cell` <- deconvolution$`T cells CD4 conv` + deconvolution$`T cells CD8` + deconvolution$`Tregs`
 }

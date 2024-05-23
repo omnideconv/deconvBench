@@ -124,7 +124,7 @@ plot_df_runtime <- plot_df_runtime %>%
                          'scaden'='Scaden',
                          'scdc'='SCDC'))
 
-fig_3b <- ggplot(plot_df_runtime, aes(x=n_cells, y=elapsed, group=method))+
+fig_3b <- ggplot(plot_df_runtime, aes(x=n_cells, y=elapsed_minutes, group=method))+
     geom_line(aes(color=method))+
     geom_point(data = plot_df_runtime %>% subset(ct_fraction == 'full'), color='black', size=2, stroke=1)+
     geom_point(aes(color=method), size=1.5, stroke=.6)+
@@ -137,7 +137,7 @@ fig_3b <- ggplot(plot_df_runtime, aes(x=n_cells, y=elapsed, group=method))+
     scale_shape_manual(values = c(0,1,2,3,4,5,6,7))+
     theme(axis.text.x = element_text(angle=90, hjust=1, vjust = .5),
           strip.background = element_rect(fill = 'white'))+
-    coord_trans(x='log')+
+    coord_trans(x='log1p',y='log1p')+
     scale_x_continuous(breaks = c(55, 275, 550, 1100, 5000, 153000))
 
 #### Fig 3c ####
@@ -254,7 +254,7 @@ fig_3c <- ggplot(plot_df_memory, aes(x=n_cells, y=peak_vmem, group=method))+
   scale_shape_manual(values = c(0,1,2,3,4,5,6,7))+
   theme(axis.text.x = element_text(angle=90, hjust=1, vjust = .5),
         strip.background = element_rect(fill = 'white'))+
-  coord_trans(x='log')+
+  coord_trans(x='log1p',y='log1p')+
   scale_x_continuous(breaks = c(55, 275, 550, 1100, 5000, 153000))
 
 

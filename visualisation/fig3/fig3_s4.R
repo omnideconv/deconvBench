@@ -59,25 +59,26 @@ df.rmse <- df.rmse %>%
 df.hoek <- df.rmse %>% subset(bulk_ds %in% c('Hoek','HoekSim'))
 df.hoek$bulk_ds <- factor(df.hoek$bulk_ds, levels = c('Hoek','HoekSim'))
 
-tmp <- ggplot(df.hoek)+
-  geom_ribbon(aes(x=ct, y=RMSE, group=method, fill=method, ymin=`iqr.25%`, ymax=`iqr.75%`), alpha=.2)+
-  geom_line(aes(x=ct, y=RMSE, group=method, color=method), alpha=.8)+
-  geom_point(aes(x=ct, y=RMSE, color=method,  group=method, shape=method), size=2, stroke=.6)+
-  geom_point(data = df.hoek %>% subset(ct == 'full'), mapping = aes(x=ct, y=RMSE, group=method), color='black')+
+tmp <- ggplot(df.hoek, aes(x=ct, y=RMSE, group=method))+
+  geom_ribbon(aes(fill=method, ymin=`iqr.25%`, ymax=`iqr.75%`), alpha=.2)+
+  geom_line(aes(color=method), alpha=.8)+
+  geom_point(data = df.hoek %>% subset(ct == 'full'), size=2, stroke=1)+
+  geom_point(aes(color=method), size=1.5, stroke=.6)+
   facet_grid(bulk_ds~cell_type, scales='free_x')+
   theme_bw()+
   ylab('RMSE with ground truth')+
   xlab('number of single cells per cell type')+
   scale_color_manual(values = method_palette)+
-  scale_shape_manual(values = c(0,1,2,3,4,5,6,7))+
   scale_fill_manual(values = method_palette)+
-  theme(axis.text.x = element_text(angle=90),
-        strip.background = element_rect(fill = 'white'))
+  theme(axis.text.x = element_text(angle=90, hjust=1, vjust = .5),
+        strip.background = element_rect(fill = 'white'))+
+  theme(legend.position = "bottom")+
+  guides(color = guide_legend(nrow = 1, override.aes = list(size=3))) 
 
-ggsave(filename = 'visualizations_final/fig3/fig_3a.pdf', tmp, width = 10, height = 5)
+ggsave(filename = 'visualizations_final/fig3/fig_3a.pdf', tmp, width = 10, height = 4.5)
 
 fig_3a <- plot_grid(
-  tmp + theme(legend.position="none"),
+  tmp,
   align = 'h',
   labels = c("a"), 
   label_size = 15, 
@@ -85,16 +86,13 @@ fig_3a <- plot_grid(
   nrow = 1, ncol = 1
 )
 
-legend.supp <- get_legend(
-  tmp + 
-    guides(color = guide_legend(nrow = 1, override.aes = list(size=2))) +
-    theme(legend.position = "top")
-)
-
 #### Fig 3b ####
 
-runtimes_df <- get_runtimes(ct_values, sc_ds, methods)
-runtimes_df[which(method %in% c('bayesprism','bisque','music','autogenes') & process == 'SIGNATURE'),'elapsed'] <- 0
+runtimes_df <- get_runtimes('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_downsample/', 
+                            '/nfs/data/omnideconv_benchmarking_clean/data/singleCell/',
+                            '/nfs/data/omnideconv_benchmarking_clean/preprocess/',
+                            ct_values, sc_ds, methods)
+runtimes_df[which(runtimes_df$method %in% c('bayesprism','bisque','music','autogenes') & runtimes_df$process == 'SIGNATURE'),'elapsed'] <- 0
 
 combined_runtimes <- runtimes_df[,sum(elapsed),by=c('method','replicate','ct_fraction','sc_ds','cs_norm','bulk_ds','bulk_norm','n_cells')]
 colnames(combined_runtimes)[which(colnames(combined_runtimes) == 'V1')] <- 'elapsed'
@@ -103,7 +101,7 @@ runtime_df <- rbind(runtimes_df, combined_runtimes, fill=TRUE)
 
 runtime_df$elapsed <- runtime_df$elapsed
 runtime_df[which(elapsed == -Inf),'elapsed'] <- 0
-runtime_df$n_cells <- log(as.numeric(runtime_df$n_cells))
+runtime_df$n_cells <- as.numeric(runtime_df$n_cells)
 #runtime_df$ct_fraction <- log(as.numeric(runtime_df$ct_fraction))
 
 plot_df_runtime <- data_summary(runtime_df, 'elapsed', c('n_cells','process','method','bulk_ds','ct_fraction'))
@@ -115,29 +113,41 @@ plot_df_runtime$ct_fraction <- factor(plot_df_runtime$ct_fraction, levels = c('5
 plot_df_runtime$elapsed_minutes <- plot_df_runtime$elapsed / 60
 plot_df_runtime <- plot_df_runtime %>% subset(bulk_ds %in% c('hoek') & has_signature)
 
-fig_3b <- ggplot(plot_df_runtime, aes(x=ct_fraction, y=elapsed_minutes, group=method))+
-  geom_line(aes(color=method))+
-  geom_point(aes(color=method))+
-  geom_point(data = plot_df_runtime %>% subset(ct_fraction == 'full'), color='black')+
-  facet_grid(~process)+
-  theme_bw()+
-  ylab('elapsed time (min)')+
-  xlab('number of single cells per cell type')+
-  scale_color_brewer(palette = 'Set2')+
-  scale_fill_brewer(palette = 'Set2')+
-  theme(axis.text.x = element_text(angle=90),
-        strip.background = element_rect(fill = 'white'))+
-  coord_trans(y='log')+
-  scale_y_continuous(breaks = c(.5,1,2,5,10,25,50))
+plot_df_runtime <- plot_df_runtime %>% 
+  mutate(method = recode(method,
+                         'autogenes'='AutoGeneS',
+                         'bayesprism'='BayesPrism',
+                         'bisque'='Bisque',
+                         'cibersortx'='CIBERSORTx',
+                         'dwls'='DWLS',
+                         'music'='MuSiC',
+                         'scaden'='Scaden',
+                         'scdc'='SCDC'))
+
+fig_3b <- ggplot(plot_df_runtime, aes(x=n_cells, y=elapsed, group=method))+
+    geom_line(aes(color=method))+
+    geom_point(data = plot_df_runtime %>% subset(ct_fraction == 'full'), color='black', size=2, stroke=1)+
+    geom_point(aes(color=method), size=1.5, stroke=.6)+
+    facet_wrap(~process)+
+    #geom_ribbon(aes(fill=method, ymin=peak_vmem-sd, ymax=peak_vmem+sd), alpha=.2)+
+    theme_bw()+
+    ylab('elapsed time (min)')+
+    xlab('total number of single cells')+
+    scale_color_manual(values = method_palette)+
+    scale_shape_manual(values = c(0,1,2,3,4,5,6,7))+
+    theme(axis.text.x = element_text(angle=90, hjust=1, vjust = .5),
+          strip.background = element_rect(fill = 'white'))+
+    coord_trans(x='log')+
+    scale_x_continuous(breaks = c(55, 275, 550, 1100, 5000, 153000))
 
 #### Fig 3c ####
 
-df1 <- fread('~/memory_traces/trace_music_dwls_bayesprism_bisque.txt',fill=T, na.strings = c(""))
-df2 <- fread('~/memory_traces/trace_autogenes.txt',fill=T, na.strings = c(""))
-df3 <- fread('~/memory_traces/trace_scaden.txt',fill=T, na.strings = c(""))
-df4 <- fread('~/memory_traces/trace_scdc.txt',fill=T, na.strings = c(""))
-df5 <- fread('~/memory_traces/trace_autogenes_music_scdc_fullHao.txt',fill=T, na.strings = c(""))
-df6 <- fread('~/memory_traces/trace_bayesprism_fullHao.txt',fill=T, na.strings = c(""))
+df1 <- fread('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/memory_traces/trace_music_dwls_bayesprism_bisque.txt',fill=T, na.strings = c(""))
+df2 <- fread('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/memory_traces/trace_autogenes.txt',fill=T, na.strings = c(""))
+df3 <- fread('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/memory_traces/trace_scaden.txt',fill=T, na.strings = c(""))
+df4 <- fread('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/memory_traces/trace_scdc.txt',fill=T, na.strings = c(""))
+df5 <- fread('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/memory_traces/trace_autogenes_music_scdc_fullHao.txt',fill=T, na.strings = c(""))
+df6 <- fread('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/memory_traces/trace_bayesprism_fullHao.txt',fill=T, na.strings = c(""))
 df <- rbindlist(list(df1,df2,df3,df4,df5,df6))
 
 df <- df[-which(df$task_id == '\t'),]
@@ -173,10 +183,11 @@ df_comb$peak_vmem <- unlist(lapply(df_comb$peak_vmem, function(i){
   }
 }))
 
+
 n_cells_df <- rbindlist(lapply(1:nrow(df_comb), function(i){
   ct <- as.numeric(df_comb[i,'ct'])
   rep <- as.numeric(df_comb[i,'rep'])
-  path <- paste0('/vol/omnideconv_results/results_downsample/',
+  path <- paste0('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_downsample/',
                  df_comb[i,'method'],
                  '_hao-complete_',
                  df_comb[i,'sc_norm'],'_',
@@ -184,9 +195,11 @@ n_cells_df <- rbindlist(lapply(1:nrow(df_comb), function(i){
                  df_comb[i,'bulk_norm'],'_',
                  'ct', ct, '_rep', rep)
   if(ct == 0){
-    sc_data_dir <- paste0('/vol/omnideconv_input/omnideconv_data/singleCell/', 'hao-complete')
+    sc_data_dir <- paste0('/nfs/data/omnideconv_benchmarking_clean/data/singleCell/', 'hao-complete')
+  }else if (as.character(ct-1) %in% c('5','25','50','100','500')){
+    sc_data_dir <- paste0('/nfs/data/omnideconv_benchmarking_clean/preprocess/hao-complete_counts_perc',ct-1,'_rep',rep)
   }else{
-    sc_data_dir <- paste0('/vol/omnideconv_input/preprocess/hao-complete_counts_perc',ct-1,'_rep',rep)
+    return()
   }
   
   cell_anno <- readRDS(paste0(sc_data_dir,'/celltype_annotations.rds'))
@@ -200,7 +213,7 @@ n_cells_df <- rbindlist(lapply(1:nrow(df_comb), function(i){
 df_comb <- unique(join(n_cells_df[,c('ct','n_cells')], df_comb, by='ct'))
 df_comb$peak_vmem <- df_comb$peak_vmem
 df_comb$rep <- as.numeric(df_comb$rep)
-df_comb$n_cells <- log(as.numeric(df_comb$n_cells))
+df_comb$n_cells <- as.numeric(df_comb$n_cells)
 df_comb[which(method %in% c('bayesprism','bisque','music','autogenes') & process == 'SIGNATURE'),'peak_vmem'] <- 0
 
 plot_df_memory <- data_summary(df_comb, 'peak_vmem', c('ct','n_cells','process','method','bulk_ds'))
@@ -212,25 +225,37 @@ plot_df_memory$ct <- factor(plot_df_memory$ct, levels = c('5','10','25','50','75
 plot_df_memory <- plot_df_memory %>% subset(bulk_ds %in% c('finotello') &
                                               ct %in% c('5','25','50','100','500','full') &
                                               has_signature)
-cx_tmp_df <- data.frame(5,0,'DECONVOLUTION','cibersortx','finotello',NA,NA,NA,NA,FALSE)
+cx_tmp_df <- data.frame(5,55,'DECONVOLUTION','cibersortx','finotello',NA,NA,NA,FALSE)
 colnames(cx_tmp_df) <- colnames(plot_df_memory)
 plot_df_memory <- rbind(plot_df_memory, cx_tmp_df)
 
-fig_3c <- ggplot(plot_df_memory, aes(x=ct, y=peak_vmem, group=method))+
-  geom_line(aes( color=method))+
-  geom_point(aes( color=method))+
-  geom_point(data = plot_df_memory %>% subset(ct == 'full'), color='black')+
+plot_df_memory <- plot_df_memory %>% 
+  mutate(method = recode(method,
+                         'autogenes'='AutoGeneS',
+                         'bayesprism'='BayesPrism',
+                         'bisque'='Bisque',
+                         'cibersortx'='CIBERSORTx',
+                         'dwls'='DWLS',
+                         'music'='MuSiC',
+                         'scaden'='Scaden',
+                         'scdc'='SCDC'))
+
+
+fig_3c <- ggplot(plot_df_memory, aes(x=n_cells, y=peak_vmem, group=method))+
+  geom_line(aes(color=method))+
+  geom_point(data = plot_df_memory %>% subset(ct == 'full'), color='black', size=2, stroke=1)+
+  geom_point(aes(color=method), size=1.5, stroke=.6)+
   facet_wrap(~process)+
   #geom_ribbon(aes(fill=method, ymin=peak_vmem-sd, ymax=peak_vmem+sd), alpha=.2)+
   theme_bw()+
   ylab('peak virtual memory (GB)')+
-  xlab('number of single cells per cell type')+
-  scale_color_brewer(palette = 'Set2')+
-  scale_fill_brewer(palette = 'Set2')+
-  theme(axis.text.x = element_text(angle=90),
+  xlab('total number of single cells')+
+  scale_color_manual(values = method_palette)+
+  scale_shape_manual(values = c(0,1,2,3,4,5,6,7))+
+  theme(axis.text.x = element_text(angle=90, hjust=1, vjust = .5),
         strip.background = element_rect(fill = 'white'))+
-  coord_trans(y='log')+
-  scale_y_continuous(breaks = c(5,10,25,50,100,150,200))
+  coord_trans(x='log')+
+  scale_x_continuous(breaks = c(55, 275, 550, 1100, 5000, 153000))
 
 
 #### Fig 3 ####
@@ -246,11 +271,10 @@ fig_3bc <- plot_grid(
 )
 
 fig_3 <- plot_grid(
-  legend.supp, 
   fig_3a, 
   fig_3bc, 
-  nrow = 3, 
-  rel_heights = c(.05, 1, .5)
+  nrow = 2, 
+  rel_heights = c(1, .5)
 )
 
 ggsave(filename = 'visualizations_final/fig3/fig_3.pdf', fig_3, width = 12, height = 10)
@@ -270,8 +294,8 @@ fig_s4a <- ggplot(df.fino)+
   theme_bw()+
   ylab('RMSE with ground truth')+
   xlab('number of single cells per cell type')+
-  scale_color_brewer(palette = 'Set2')+
-  scale_fill_brewer(palette = 'Set2')+
+  scale_color_manual(values = method_palette)+
+  scale_fill_manual(values = method_palette)+
   theme(axis.text.x = element_text(angle=90),
         strip.background = element_rect(fill = 'white'))
 
@@ -311,8 +335,8 @@ fig_s4b <- ggplot(fractions.summary)+
   theme_bw()+
   ylab('predicted fraction - true fraction')+
   xlab('number of single cells per cell type')+
-  scale_color_brewer(palette = 'Set2')+
-  scale_fill_brewer(palette = 'Set2')+
+  scale_color_manual(values = method_palette)+
+  scale_fill_manual(values = method_palette)+
   theme(axis.text.x = element_text(angle=90),
         strip.background = element_rect(fill = 'white'),
         legend.position = "top")
@@ -320,21 +344,15 @@ fig_s4b <- ggplot(fractions.summary)+
 
 #### Fig S4 ####
 
-legend.supp <- get_legend(
-  fig_s4b + 
-    guides(color = guide_legend(nrow = 1, override.aes = list(size=2))) +
-    theme(legend.position = "top")
-)
-
 fig_s4 <- plot_grid(
-  legend.supp, 
-  fig_s4a + theme(legend.position="none"),
+  fig_s4a + theme(legend.position="top"),
   fig_s4b + theme(legend.position="none"),
-  labels = c("","a","b"), 
+  labels = c("a","b"), 
   label_size = 15, 
-  nrow = 3, 
-  rel_heights = c(.05, .7, 1)
+  nrow = 2, 
+  rel_heights = c(.7, 1)
 )
 
-ggsave(filename = 'visualisation/plots/fig_s4/fig_s4.pdf', plot = fig_s4, width = 12, height = 10)
+ggsave(filename = 'visualizations_final/supplement/fig_s4.pdf', plot = fig_s4, width = 12, height = 10)
+ggsave(filename = 'visualizations_final/supplement/fig_s4.png', plot = fig_s4, width = 12, height = 10)
 

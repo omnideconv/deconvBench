@@ -143,9 +143,9 @@ get_all_performance_metrics <- function(output_dir, ct_values, query_sc, method_
   return(rbindlist(res))
 }
 
-get_runtimes <- function(ct_values, query_sc, methods){
+get_runtimes <- function(output_dir, sc_dir, preprocess_dir, ct_values, query_sc, methods){
   res <- lapply(ct_values, function(i) {
-    l <- list.files('/vol/omnideconv_results/results_downsample/', pattern=paste0('*ct',i,'_'))
+    l <- list.files(output_dir, pattern=paste0('*ct',i,'_'))
     
     ct_res <- lapply(l, function(f){
       xl <- strsplit(f, '_')[[1]]
@@ -154,13 +154,13 @@ get_runtimes <- function(ct_values, query_sc, methods){
       ct <- as.character(gsub('ct','',xl[6]))
       rep <- as.character(gsub('rep','',xl[7]))
       if(i == 0){
-        sc_data_dir <- paste0('/vol/omnideconv_input/omnideconv_data/singleCell/', query_sc)
+        sc_data_dir <- paste0(sc_dir, query_sc)
       }else{
-        sc_data_dir <- paste0('/vol/omnideconv_input/preprocess/',query_sc,'_counts_perc',ct,'_rep',rep)
+        sc_data_dir <- paste0(preprocess_dir, query_sc,'_counts_perc',ct,'_rep',rep)
       }
       
       if(method %in% methods & sc_ds == query_sc & ct %in% ct_values){
-        results_file <- paste0('/vol/omnideconv_results/results_downsample/',f,'/results_metric.rds')
+        results_file <- paste0(output_dir,f,'/results_metric.rds')
         cell_anno <- readRDS(paste0(sc_data_dir,'/celltype_annotations.rds'))
         n_cells <- length(cell_anno)
         if(file.exists(results_file)){

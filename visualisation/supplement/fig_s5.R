@@ -104,8 +104,7 @@ fig_s5a <- ggplot(df2, aes(x=method, y=base_dataset, fill=RMSE_prop))+
   scale_fill_gradient2(mid = "white", high = "#8a7495", low="#7f9574") +
   xlab('')+ylab('')+theme_minimal()
 
-ggsave(filename = 'visualisation/plots/fig_s5/fig_s5a.pdf', fig_s5a, height=4, width = 6)
-ggsave(filename = 'visualisation/plots/fig_s5/fig_s5a.png', fig_s5a, height=4, width = 6)
+ggsave(filename = 'visualizations_final/supplement/fig_s5a.pdf', fig_s5a, height=4, width = 6)
 
 
 #### plot figure S5b ####
@@ -159,5 +158,5 @@ fig_s5b <- ggplot(result, aes(x=cell_type, y=method, fill=med_deltabias))+
   theme(axis.text.x = element_text(angle = 45, hjust = 1))+
   coord_flip()
 
-ggsave(filename = 'visualisation/plots/fig_s5/fig_s5b.pdf', plot = fig_s5b, height=6, width = 7)
-ggsave(filename = 'visualisation/plots/fig_s5/fig_s5b.png', plot = fig_s5b, height=6, width = 7)
+ggsave(filename = 'visualizations_final/supplement/fig_s5b.pdf', plot = fig_s5b, height=6, width = 7)
+ggsave(filename = 'visualizations_final/supplement/fig_s5b.png', plot = fig_s5b, height=6, width = 7)

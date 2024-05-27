@@ -15,11 +15,11 @@ RUN apt-get update -y && apt-get --no-install-recommends --fix-broken install -y
     gdebi \
     curl
 
-# install R 4.2.3 https://docs.posit.co/resources/install-r/
-RUN curl -O https://cdn.rstudio.com/r/ubuntu-2004/pkgs/r-4.2.3_1_amd64.deb
-RUN gdebi r-4.2.3_1_amd64.deb -n
-RUN ln -s /opt/R/4.2.3/bin/R /usr/bin/R
-RUN ln -s /opt/R/4.2.3/bin/Rscript /usr/bin/Rscript
+# install R 4.4.0 https://docs.posit.co/resources/install-r/
+RUN curl -O https://cdn.rstudio.com/r/ubuntu-2004/pkgs/r-4.4.0_1_amd64.deb
+RUN gdebi r-4.4.0_1_amd64.deb -n
+RUN ln -s /opt/R/4.4.0/bin/R /usr/bin/R
+RUN ln -s /opt/R/4.4.0/bin/Rscript /usr/bin/Rscript
 
 # install miniconda into /root/miniconda3
 RUN wget \
@@ -64,8 +64,9 @@ RUN apt-get update -y && apt-get --no-install-recommends --fix-broken install -y
 
 RUN R -e "install.packages(c('pak','pkgdepends','devtools'), repos='https://cloud.r-project.org')"
 RUN R -e "pak::pkg_install(c('remotes','harmony','terra'))"
-RUN echo  "GITHUB_PAT=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" >> /root/.Renviron
-RUN R -e "remotes::install_github('omnideconv/omnideconv@benchmark', dependencies = TRUE, auth_token='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')"
+RUN echo  "GITHUB_PAT=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" >> /root/.Renviron
+RUN R -e "remotes::install_github('omnideconv/omnideconv@benchmark', dependencies = TRUE, auth_token='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')"
+RUN R -e "pak::pkg_install('omnideconv/SCDC')"
 #RUN R -e "remotes::install_version('NMF', '0.27', repos='https://cloud.r-project.org')"
 
 

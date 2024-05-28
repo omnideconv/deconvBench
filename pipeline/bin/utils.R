@@ -223,11 +223,17 @@ signature_workflow_general <- function(sc_matrix, annotations, annotation_catego
     if(!dir.exists(paste0(tmp_dir_path))){
       dir.create(tmp_dir_path, recursive=TRUE)
     }
+    # create output directories for scaden models, otherwise scaden might have permission issues when creating them
+    dir.create(paste0(res_path, '/m256'), recursive=T)
+    dir.create(paste0(res_path, '/m512'), recursive=T)
+    dir.create(paste0(res_path, '/m1024'), recursive=T)
+
     signature <- omnideconv::build_model_scaden(
       sc_matrix,
       annotations,
       bulk_matrix,
       temp_dir = tmp_dir_path,
+      model_path = res_path,
       verbose = TRUE
     )
 

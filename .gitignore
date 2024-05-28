@@ -11,5 +11,7 @@ pipeline/nextflow_norm.config
 .Rhistory
 reports_traces/
 work/
+visualization/plots
 .RData
 results/*
+

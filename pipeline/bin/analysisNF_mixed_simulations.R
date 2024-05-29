@@ -87,7 +87,8 @@ signature <- signature_workflow_general(
   bulk_name, 
   bulk_norm, 
   ncores, 
-  res_path_normal
+  res_path_normal,
+    baseDir=baseDir
 )
 
 # If the datasets for pseudobulk simulation and signature building are not the same, 
@@ -121,7 +122,8 @@ for(r in 1:replicates){
       bulk_norm, 
       ncores, 
       res_path_normal,
-      rmbatch_S_mode = s_mode
+      rmbatch_S_mode = s_mode,
+    baseDir=baseDir
     )  
 
     true_fractions <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0('simulation_facs.rds')))

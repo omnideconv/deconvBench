@@ -87,7 +87,8 @@ runtime <- system.time({
     bulk_name, 
     bulk_norm, 
     ncores, 
-    res_path
+    res_path,
+    baseDir=baseDir
   )
 
 })

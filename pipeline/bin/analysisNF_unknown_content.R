@@ -96,7 +96,8 @@ signature <- signature_workflow_general(
   bulk_name, 
   bulk_norm, 
   ncores, 
-  res_path_normal
+  res_path_normal, 
+  baseDir=baseDir
 )
 
 for(cur_cell_fraction in fractions_unknown){
@@ -121,7 +122,8 @@ for(cur_cell_fraction in fractions_unknown){
       bulk_name, 
       bulk_norm, 
       ncores, 
-      res_path_normal
+      res_path_normal,
+      baseDir=baseDir
     )  
 
     results_list = list(

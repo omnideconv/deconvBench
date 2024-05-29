@@ -166,7 +166,7 @@ subset_cells <- function(cell_matrix, annotations, batch_ids, num_cells,
 
 # This function contains all the necessary steps to adapt omnideconv to the benchmarking workflow
 signature_workflow_general <- function(sc_matrix, annotations, annotation_category, sc_ds, sc_norm, sc_batch, 
-                                       method, bulk_matrix, bulk_name, bulk_norm, ncores, res_path){
+                                       method, bulk_matrix, bulk_name, bulk_norm, ncores, res_path, baseDir=NULL){
   
   # path to temporary directory that is inside results directory of one unique result 
   tmp_dir_path <- paste0(res_path, '/tmp/')
@@ -174,8 +174,7 @@ signature_workflow_general <- function(sc_matrix, annotations, annotation_catego
   # Signature building part
   # Dependent on which method we have 
   if (method == "cibersortx") {
-    omnideconv::set_cibersortx_credentials("lorenzo.merotto@studenti.unipd.it",
-                                          " 721a387e91c495174066462484674cb8") 
+    read_cibersortx_credentials(paste0(baseDir, '/cibersortx_credentials.csv'))
     # CibersortX does not work with tmp directories in a Docker in Docker setup
     # --> created fixed input and output directories!
     cx_input <- paste0(tmp_dir_path,'_input')
@@ -251,10 +250,18 @@ signature_workflow_general <- function(sc_matrix, annotations, annotation_catego
   
 }
 
+# read the CX credentials and supply them to omnideonv
+read_cibersortx_credentials <- function(credentials_file){
+  cred <- read.csv(credentials_file)
+
+  omnideconv::set_cibersortx_credentials(cred$email,
+                                         cred$token)  
+}
+
 # This function contains all the necessary steps to adapt omnideconv to the benchmarking workflow
 deconvolution_workflow_general <- function(sc_matrix, annotations, annotation_category, sc_ds, sc_norm, sc_batch, 
                                            signature, method, bulk_matrix, bulk_name, bulk_norm, ncores, res_path,
-                                           rmbatch_B_mode = FALSE, rmbatch_S_mode = FALSE){
+                                           rmbatch_B_mode = FALSE, rmbatch_S_mode = FALSE, baseDir=NULL){
   
   # path to temporary directory that is inside results directory of one unique result 
   tmp_dir_path <- paste0(res_path, '/tmp/')
@@ -303,8 +310,7 @@ deconvolution_workflow_general <- function(sc_matrix, annotations, annotation_ca
     
   } else if (method=="cibersortx"){
 
-    omnideconv::set_cibersortx_credentials("lorenzo.merotto@studenti.unipd.it",
-                                          " 721a387e91c495174066462484674cb8")  
+    read_cibersortx_credentials(paste0(baseDir, '/cibersortx_credentials.csv')) 
     # CibersortX does not work with tmp directories in a Docker in Docker setup
     # --> created fixed input and output directories!
     cx_input <- paste0(tmp_dir_path,'_input')

@@ -89,7 +89,8 @@ signature <- signature_workflow_general(
   bulk_name, 
   bulk_norm, 
   ncores, 
-  res_path_normal
+  res_path_normal,
+    baseDir=baseDir
 )
 
 print('Signature built')
@@ -111,7 +112,8 @@ deconvolution <- deconvolution_workflow_general(
   bulk_norm, 
   ncores, 
   res_path_normal,
-  rmbatch_S_mode = TRUE
+  rmbatch_S_mode = TRUE,
+    baseDir=baseDir
 )
 
 colnames(deconvolution) <- gsub("xxxx", " ", colnames(deconvolution))

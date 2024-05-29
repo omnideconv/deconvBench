@@ -100,7 +100,8 @@ signature <- signature_workflow_general(
   bulk_name, 
   bulk_norm, 
   ncores, 
-  res_path_normal
+  res_path_normal,
+    baseDir=baseDir
 )
 
 for(r in 1:replicates){
@@ -124,7 +125,8 @@ for(r in 1:replicates){
     bulk_name, 
     bulk_norm, 
     ncores, 
-    res_path_normal
+    res_path_normal,
+    baseDir=baseDir
   )
 
   true_fractions <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0(bulk_name, '_normal_annot_facs.rds')))
@@ -156,7 +158,8 @@ signature_coarse <- signature_workflow_general(
   bulk_name, 
   bulk_norm, 
   ncores, 
-  res_path_coarse
+  res_path_coarse,
+    baseDir=baseDir
 )                                               
 
 for(r in 1:replicates){
@@ -180,7 +183,8 @@ for(r in 1:replicates){
     bulk_name, 
     bulk_norm, 
     ncores, 
-    res_path_coarse
+    res_path_coarse,
+    baseDir=baseDir
   )
 
   true_fractions <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0(bulk_name, '_coarse_annot_facs.rds')))
@@ -214,7 +218,8 @@ signature_fine <- signature_workflow_general(
   bulk_name, 
   bulk_norm, 
   ncores, 
-  res_path_fine
+  res_path_fine,
+  baseDir=baseDir
 ) 
 
 for(r in 1:replicates){
@@ -238,7 +243,8 @@ for(r in 1:replicates){
     bulk_name, 
     bulk_norm, 
     ncores, 
-    res_path_fine
+    res_path_fine,
+    baseDir=baseDir
   )
 
   true_fractions <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0(bulk_name, '_fine_annot_facs.rds')))

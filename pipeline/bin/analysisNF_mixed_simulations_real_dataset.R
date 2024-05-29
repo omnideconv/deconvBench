@@ -5,6 +5,7 @@ print("Starting analysis script [mixed deconvolution of real dataset] ...")
 library(docopt)
 library(Biobase)
 library(omnideconv)
+library(tidyverse)
 reticulate::use_miniconda(condaenv = "r-omnideconv", required = TRUE)
 
 "Usage:

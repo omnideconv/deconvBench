@@ -5,6 +5,7 @@ print("Starting analysis script [missing cell type] ...")
 library(docopt)
 library(Biobase)
 library(omnideconv)
+library(tidyverse)
 reticulate::use_miniconda(condaenv = "r-omnideconv", required = TRUE)
 
 "Usage:

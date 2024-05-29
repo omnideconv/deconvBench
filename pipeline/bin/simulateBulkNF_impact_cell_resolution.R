@@ -68,6 +68,32 @@ simbu_ds_normal <- SimBu::dataset(
   name = sc_ds
 )
 
+# This function and the excel file will be needed for the reannotation of the ground truth fractions
+reannotate_facs <- function(facs.table, annotation, new.annotation.level){
+  
+  facs.table <- as.data.frame(facs.table)
+  annotation <- annotation[which(annotation$Fine %in% colnames(facs.table)), ]
+  cell_types <- unique(annotation[[new.annotation.level]])
+  for(c in cell_types){
+    # These are the fine cell types
+    cur.cell.types <- annotation[which(annotation[[new.annotation.level]] == c), 1]
+    
+    if(length(cur.cell.types) > 1){
+      facs.table[c] <- rowSums(facs.table[, c(cur.cell.types)])
+      facs.table[, c(cur.cell.types)] <- NULL
+    }
+  }
+  facs.table
+}
+
+reannotate_cell_types <- function(celltypes_fine, annotation, new.annotation.level){
+  
+  annotation <- annotation[which(annotation$Fine %in% celltypes_fine), ]
+  cell_types <- unique(annotation[[new.annotation.level]])
+
+  cell_types
+}
+
 table.annotations <- read.table(paste0(sc_dir, '/cell_type_mappings.csv'), header = T, sep=',')
 
 

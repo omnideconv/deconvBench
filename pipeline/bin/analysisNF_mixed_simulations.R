@@ -5,6 +5,7 @@ print("Starting analysis script [mixed deconvolution of simulated dataset] ...")
 library(docopt)
 library(Biobase)
 library(omnideconv)
+library(tidyverse)
 reticulate::use_miniconda(condaenv = "r-omnideconv", required = TRUE)
 
 "Usage:
@@ -86,7 +87,8 @@ signature <- signature_workflow_general(
   bulk_name, 
   bulk_norm, 
   ncores, 
-  res_path_normal
+  res_path_normal,
+    baseDir=baseDir
 )
 
 # If the datasets for pseudobulk simulation and signature building are not the same, 
@@ -105,12 +107,6 @@ for(r in 1:replicates){
     bulk_matrix <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0('simulation_', bulk_norm, '.rds')))
     bulk_matrix <- as.matrix(bulk_matrix)
 
-<<<<<<< HEAD
-    deconvolution <- deconvolution_workflow_general(sc_matrix, sc_celltype_annotations, 
-                                                    'normal', sc_dataset, sc_norm, sc_batch, signature, 
-                                                    method, bulk_matrix, bulk_name, bulk_norm, ncores, res_path_normal,
-                                                    rmbatch_S_mode = smode)
-=======
     # Deconvolution
     deconvolution <- deconvolution_workflow_general(
       sc_matrix, 
@@ -126,9 +122,9 @@ for(r in 1:replicates){
       bulk_norm, 
       ncores, 
       res_path_normal,
-      rmbatch_S_mode = s_mode
+      rmbatch_S_mode = s_mode,
+    baseDir=baseDir
     )  
->>>>>>> ca4950813ab8ec52b5e43257975facb4947ad167
 
     true_fractions <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0('simulation_facs.rds')))
 

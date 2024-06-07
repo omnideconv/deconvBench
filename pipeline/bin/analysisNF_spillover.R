@@ -5,6 +5,7 @@ print("Starting analysis script [spillover analysis] ...")
 library(docopt)
 library(Biobase)
 library(omnideconv)
+library(tidyverse)
 reticulate::use_miniconda(condaenv = "r-omnideconv", required = TRUE)
 
 "Usage:
@@ -84,7 +85,8 @@ signature <- signature_workflow_general(
   bulk_name, 
   bulk_norm, 
   ncores, 
-  res_path_normal
+  res_path_normal,
+    baseDir=baseDir
 )
 
 # Deconvolution
@@ -109,7 +111,8 @@ for(cur_cell_type in cell_types_simulation){
     bulk_name, 
     bulk_norm, 
     ncores, 
-    res_path_normal
+    res_path_normal,
+    baseDir=baseDir
   )
   
   results_list = list(

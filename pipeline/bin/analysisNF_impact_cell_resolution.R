@@ -5,6 +5,7 @@ print("Starting analysis script [impact cell resolution] ...")
 library(docopt)
 library(Biobase)
 library(omnideconv)
+library(tidyverse)
 reticulate::use_miniconda(condaenv = "r-omnideconv", required = TRUE)
 
 "Usage:
@@ -75,7 +76,7 @@ dir.create(res_path_normal, recursive = TRUE, showWarnings = TRUE)
 dir.create(res_path_coarse, recursive = TRUE, showWarnings = TRUE)
 dir.create(res_path_fine, recursive = TRUE, showWarnings = TRUE)
 
-subset_list <- subset_cells(sc_matrix, sc_celltype_annotations, sc_batch, 500, 22, 
+subset_list <- subset_cells(sc_matrix, sc_celltype_annotations, sc_batch, 1000, 22, 
                             sc_celltype_annotations_coarse, 
                             sc_celltype_annotations_fine)
 

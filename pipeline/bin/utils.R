@@ -401,7 +401,7 @@ deconvolution_workflow_general <- function(sc_matrix, annotations, annotation_ca
       signature = signature,
       temp_dir = tmp_dir_path
     )
-    unlink(tmp_dir_path, recursive=TRUE)
+    #unlink(tmp_dir_path, recursive=TRUE)
 
   } else {
     message('Selected method is not supported in the benchmark. Please check again.')

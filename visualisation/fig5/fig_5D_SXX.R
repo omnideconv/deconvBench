@@ -152,7 +152,7 @@ corr.ribbon <- ggplot(correlation.results.summary, aes(x=as.character(unknown_fr
   xlab('Unknown cell fraction') +
   ylab('Pearson correlation') +
   labs(title='Correlation trend with increasing tumor fraction')
-ggsave(corr.ribbon, "./visualizations/fig_5/fig_5D.pdf", width=13, height = 8)
+ggsave(corr.ribbon, "./visualizations/fig_5/fig_5D.pdf", dpi = 350,width=13, height = 8)
 
 rmse.ribbon <- ggplot(rmse.results.summary, aes(x=as.character(unknown_fraction), y=rmse, group=celltype))+
   geom_point(aes(color=celltype))+
@@ -171,7 +171,7 @@ rmse.ribbon <- ggplot(rmse.results.summary, aes(x=as.character(unknown_fraction)
   xlab('Unknown cell fraction') +
   ylab('RMSE') +
   labs(title='RMSE trend with increasing tumor fraction')
-ggsave(rmse.ribbon, "./visualizations/fig_5/fig_SXX.pdf", width=13, height = 8)
+ggsave(rmse.ribbon, "./visualization/supplement/fig_SXX.pdf", dpi = 350, width=13, height = 8)
 
 
 

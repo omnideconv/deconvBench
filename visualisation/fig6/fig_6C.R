@@ -135,4 +135,4 @@ vanderbilt.plot <- correlation.results[correlation.results$celltype!='all', ] %>
   theme(axis.title.x = element_text(vjust = -2), legend.position = 'hide') +
   rotate_x_text(angle=60)
 
-ggsave('./visualisation/fig_6/Fig_6C.pdf', dpi=350, width=2, height=9)
+ggsave('./visualisation/fig_6/fig_6C.pdf', dpi = 350, width=2, height=9)

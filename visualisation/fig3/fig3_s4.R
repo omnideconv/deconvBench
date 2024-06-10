@@ -15,7 +15,7 @@ sc_ds <- 'hao-complete'
 #### performance metrics ####
 performance_df <- get_all_performance_metrics('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_downsample/', ct_values, 'hao-complete', method_parameter_df)
 
-performance_df <- performance_df %>% 
+performance_df <- performance_df %>%
   mutate(method = recode(method,
                          'autogenes'='AutoGeneS',
                          'bayesprism'='BayesPrism',
@@ -75,14 +75,14 @@ ggsave(filename = 'visualisation/fig3/fig_3a.pdf', tmp, width = 10, height = 5)
 fig_3a <- plot_grid(
   tmp + theme(legend.position="none"),
   align = 'h',
-  labels = c("a"), 
-  label_size = 15, 
+  labels = c("a"),
+  label_size = 15,
   hjust = -1,
   nrow = 1, ncol = 1
 )
 
 legend.supp <- get_legend(
-  tmp + 
+  tmp +
     guides(color = guide_legend(nrow = 1, override.aes = list(size=2))) +
     theme(legend.position = "top")
 )
@@ -184,10 +184,10 @@ n_cells_df <- rbindlist(lapply(1:nrow(df_comb), function(i){
   }else{
     sc_data_dir <- paste0('/vol/omnideconv_input/preprocess/hao-complete_counts_perc',ct-1,'_rep',rep)
   }
-  
+
   cell_anno <- readRDS(paste0(sc_data_dir,'/celltype_annotations.rds'))
   n_cells <- length(cell_anno)
-  
+
   return(list('ct' = as.character(ct),
               'rep' = as.character(rep),
               'n_cells' = n_cells))
@@ -235,21 +235,21 @@ fig_3bc <- plot_grid(
   fig_3b + theme(legend.position="none"),
   fig_3c + theme(legend.position="none"),
   align = 'h',
-  labels = c("b", "c"), 
-  label_size = 15, 
+  labels = c("b", "c"),
+  label_size = 15,
   hjust = -1,
   nrow = 1, ncol = 2
 )
 
 fig_3 <- plot_grid(
-  legend.supp, 
-  fig_3a, 
-  fig_3bc, 
-  nrow = 3, 
+  legend.supp,
+  fig_3a,
+  fig_3bc,
+  nrow = 3,
   rel_heights = c(.05, 1, .5)
 )
 
-ggsave(filename = 'visualizations_final/fig3/fig_3.pdf', fig_3, width = 12, height = 10)
+ggsave(filename = 'visualizations_final/fig3/fig_3.pdf', fig_3, dpi = 350, width = 12, height = 10)
 
 
 #### Fig S4a ####
@@ -275,7 +275,7 @@ fig_s4a <- ggplot(df.fino)+
 #### Fig S4b ####
 
 fractions_df <- get_fractions('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_downsample/', ct_values, 'hao-complete', method_parameter_df)
-fractions_df <- fractions_df %>% 
+fractions_df <- fractions_df %>%
   mutate(method = recode(method,
                          'autogenes'='AutoGeneS',
                          'bayesprism'='BayesPrism',
@@ -317,20 +317,20 @@ fig_s4b <- ggplot(fractions.summary)+
 #### Fig S4 ####
 
 legend.supp <- get_legend(
-  fig_s4b + 
+  fig_s4b +
     guides(color = guide_legend(nrow = 1, override.aes = list(size=2))) +
     theme(legend.position = "top")
 )
 
 fig_s4 <- plot_grid(
-  legend.supp, 
+  legend.supp,
   fig_s4a + theme(legend.position="none"),
   fig_s4b + theme(legend.position="none"),
-  labels = c("","a","b"), 
-  label_size = 15, 
-  nrow = 3, 
+  labels = c("","a","b"),
+  label_size = 15,
+  nrow = 3,
   rel_heights = c(.05, .7, 1)
 )
 
-ggsave(filename = 'visualisation/plots/fig_s4/fig_s4.pdf', plot = fig_s4, width = 12, height = 10)
+ggsave(filename = 'visualisation/plots/fig_s4/fig_s4.pdf', plot = fig_s4, dpi = 350, width = 12, height = 10)
 

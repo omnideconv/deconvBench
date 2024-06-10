@@ -68,7 +68,7 @@ for(i in 1:nrow(metadata.table)){
   data <- rbind(data, result)
 }
 
-# Figure 5B
+# figure 5B
 ###############################################################
 
 data <- arrange(data, dataset, method)
@@ -109,10 +109,10 @@ signal_plot <- ggplot(signals, aes(x=true_celltype, y=signal_ratio, fill=true_ce
   scale_fill_manual(values = cell_palette, name="true celltype") +
   theme(legend.position = "hide") +
   scale_x_discrete(limits=celltypes_ordered_similarity)
-ggsave('./visualizations_final/fig_5/Fig_5B.pdf', width = 6, height = 18)
+ggsave('./visualization/fig_5/fig_5B.pdf', dpi = 350,width = 6, height = 18)
 
 
-# Figure S7
+# figure s8
 ###############################################################
 
 sum.predictions = data[data$dataset == 'hao-complete', ] %>%
@@ -136,9 +136,9 @@ ggplot(sum.predictions, aes(x=true_celltype, y=predicted_celltype, fill=estimate
   scale_x_discrete(limits=celltypes_ordered_similarity) +
   scale_y_discrete(limits=celltypes_ordered_similarity)
 
-ggsave('./visualizations_final/fig_S7/Fig_S7.pdf', width = 11, height = 9)
+ggsave('./visualization/supplement/fig_S8.pdf', dpi = 350, width = 11, height = 9)
 
-# Figure 5C
+# figure 5C
 ###############################################################
 
 ### code adopted from immunedeconv benchmarking / spillover analysis

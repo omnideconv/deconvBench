@@ -239,7 +239,7 @@ p <- ggplot(df)+
                                 'Macrophages-Monocytes' = 18,
                                 'T and NK cells' = 17))+
   scale_color_manual(values = custom_pallete)
-ggsave(plot = p, filename = 'visualisation/plots/fig4.pdf', width = 9, height = 10)
+ggsave(plot = p, filename = './visualization/fig_4/fig_4.pdf', dpi = 350, width = 9, height = 10)
 
 
 ###############################################################################
@@ -437,4 +437,4 @@ p <- ggplot(df)+
   rotate_x_text(angle=60)+
   xlab('RMSE')+ylab('Pearson Correlation')+
   scale_color_manual(values = custom_pallete)
-ggsave(plot = p, filename = 'visualisation/plots/figs6.pdf', width = 8, height = 10)
+ggsave(plot = p, filename = './visualization/supplement/fig_s6.pdf', dpi = 350, width = 8, height = 10)

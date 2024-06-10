@@ -139,5 +139,5 @@ hoek.plot <- ggplot(metrics.plot[metrics.plot$bulk_dataset=='hoek', ], aes(x=mis
   labs(y="Predicted cell type\n", x="Missing cell type", title = 'Hoek dataset')
 
 
-ggsave(finotello.plot, './visualization/fig_5/fig_5A.pdf', dpi=350, width=12, height=12)
-ggsave(finotello.plot, './visualization/supplement/fig_s7.pdf', dpi=350, width=12, height=12)
+ggsave(finotello.plot, './visualization/fig_5/fig_5A.pdf', dpi = 350, width=12, height=12)
+ggsave(hoek.plot, './visualization/supplement/fig_S7.pdf', dpi = 350, width=12, height=12)

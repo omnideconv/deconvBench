@@ -123,7 +123,7 @@ lambrechts.plot <- ggplot(correlation.results[correlation.results$dataset_pseudo
   theme(axis.title.x = element_text(vjust = -2), legend.position = 'hide') +
   rotate_x_text(angle=60)
 
-ggsave(lambrechts.plot, './visualisation/fig_6/Fig_6A.pdf', dpi=350, width=10, height=5)
+ggsave(lambrechts.plot, './visualisation/fig_6/fig_6A.pdf', dpi = 350, width=10, height=5)
 
 maynard.plot <- ggplot(correlation.results[correlation.results$dataset_pseudobulk == 'maynard', ],
                        aes(x=celltype, y=method, fill=corr)) +
@@ -148,4 +148,4 @@ ggarrange(lambrechts.plot,
           maynard.plot,
           nrow = 3, heights = c(7, 0.2, 7))
 
-ggsave(maynard.plot, './visualisation/fig_6/Fig_6B.pdf', dpi=350, width=10, height=5)
+ggsave(maynard.plot, './visualisation/fig_6/fig_6B.pdf', dpi = 350, width=10, height=5)

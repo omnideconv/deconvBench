@@ -1,7 +1,7 @@
 get_performance_metrics <- function(output_dir, ct_values, query_sc, method_parameter_df){
   res <- lapply(ct_values, function(i) {
     l <- list.files(output_dir, pattern=paste0('*ct',i,'_'))
-    
+
     ct_res <- lapply(l, function(f){
       if(grepl('vanderbilt_lung', f)){
         # need to replace the '_' in bulk ds name with '-' so that indexing is still correct
@@ -14,10 +14,10 @@ get_performance_metrics <- function(output_dir, ct_values, query_sc, method_para
       sc_ds <- xl[2]
       sc_norm <- xl[3]
       ct <- as.character(gsub('ct','',xl[6]))
-      
+
       if(method %in% method_parameter_df$method & sc_ds == query_sc & ct %in% ct_values){
         query_sc_norm <- method_parameter_df[which(method_parameter_df$method == method),'sc_norm']
-        
+
         if(sc_norm == query_sc_norm){
           results_file <- paste0(output_dir,f,'/results_metric.rds')
           if(file.exists(results_file)){
@@ -32,13 +32,13 @@ get_performance_metrics <- function(output_dir, ct_values, query_sc, method_para
             df$ct <- ct
             df$replicate <- as.character(gsub('rep','',xl[7]))
             df$method_norm_combi <- paste0(method, sc_norm, df$bulk_norm)
-            
+
             df
           }
         }
       }
     })
-    
+
     df <- rbindlist(ct_res)
   })
   return(rbindlist(res))
@@ -47,7 +47,7 @@ get_performance_metrics <- function(output_dir, ct_values, query_sc, method_para
 get_performance_metrics_per_sample <- function(output_dir, ct_values, query_sc, method_parameter_df){
   res <- lapply(ct_values, function(i) {
     l <- list.files(output_dir, pattern=paste0('*ct',i,'_'))
-    
+
     ct_res <- lapply(l, function(f){
       if(grepl('vanderbilt_lung', f)){
         # need to replace the '_' in bulk ds name with '-' so that indexing is still correct
@@ -60,10 +60,10 @@ get_performance_metrics_per_sample <- function(output_dir, ct_values, query_sc, 
       sc_ds <- xl[2]
       sc_norm <- xl[3]
       ct <- as.character(gsub('ct','',xl[6]))
-      
+
       if(method %in% method_parameter_df$method & sc_ds == query_sc & ct %in% ct_values){
         query_sc_norm <- method_parameter_df[which(method_parameter_df$method == method),'sc_norm']
-        
+
         if(sc_norm == query_sc_norm){
           results_file <- paste0(output_dir,f,'/results_metric.rds')
           if(file.exists(results_file)){
@@ -78,13 +78,13 @@ get_performance_metrics_per_sample <- function(output_dir, ct_values, query_sc, 
             df$ct <- ct
             df$replicate <- as.character(gsub('rep','',xl[7]))
             df$method_norm_combi <- paste0(method, sc_norm, df$bulk_norm)
-            
+
             df
           }
         }
       }
     })
-    
+
     df <- rbindlist(ct_res)
   })
   return(rbindlist(res))
@@ -93,7 +93,7 @@ get_performance_metrics_per_sample <- function(output_dir, ct_values, query_sc, 
 get_all_performance_metrics <- function(output_dir, ct_values, query_sc, method_parameter_df){
   res <- lapply(ct_values, function(i) {
     l <- list.files(output_dir, pattern=paste0('*ct',i,'_'))
-    
+
     ct_res <- lapply(l, function(f){
       if(grepl('vanderbilt_lung', f)){
         # need to replace the '_' in bulk ds name with '-' so that indexing is still correct
@@ -102,17 +102,17 @@ get_all_performance_metrics <- function(output_dir, ct_values, query_sc, method_
       }else{
         xl <- strsplit(f, '_')[[1]]
       }
-      
+
       method <- xl[1]
       sc_ds <- xl[2]
       sc_norm <- xl[3]
       ct <- as.character(gsub('ct','',xl[6]))
-      
+
       if(method %in% method_parameter_df$method & sc_ds == query_sc & ct %in% ct_values){
         query_sc_norm_vect <- as.vector(unlist(method_parameter_df[which(method_parameter_df$method == method),'sc_norm']))
-        
+
         cur.dataframe <- data.frame()
-        
+
         for(query_sc_norm in query_sc_norm_vect){
           if(sc_norm == query_sc_norm){
             results_file <- paste0(output_dir,f,'/results_metric.rds')
@@ -128,16 +128,16 @@ get_all_performance_metrics <- function(output_dir, ct_values, query_sc, method_
               df$ct <- ct
               df$replicate <- as.character(gsub('rep','',xl[7]))
               df$method_norm_combi <- paste0(method, sc_norm, df$bulk_norm)
-              
+
               cur.dataframe<-rbind(cur.dataframe, df)
             }
           }
         }
-        
+
         cur.dataframe
       }
     })
-    
+
     df <- rbindlist(ct_res)
   })
   return(rbindlist(res))
@@ -146,7 +146,7 @@ get_all_performance_metrics <- function(output_dir, ct_values, query_sc, method_
 get_runtimes <- function(ct_values, query_sc, methods){
   res <- lapply(ct_values, function(i) {
     l <- list.files('/vol/omnideconv_results/results_downsample/', pattern=paste0('*ct',i,'_'))
-    
+
     ct_res <- lapply(l, function(f){
       xl <- strsplit(f, '_')[[1]]
       method <- xl[1]
@@ -158,7 +158,7 @@ get_runtimes <- function(ct_values, query_sc, methods){
       }else{
         sc_data_dir <- paste0('/vol/omnideconv_input/preprocess/',query_sc,'_counts_perc',ct,'_rep',rep)
       }
-      
+
       if(method %in% methods & sc_ds == query_sc & ct %in% ct_values){
         results_file <- paste0('/vol/omnideconv_results/results_downsample/',f,'/results_metric.rds')
         cell_anno <- readRDS(paste0(sc_data_dir,'/celltype_annotations.rds'))
@@ -166,12 +166,12 @@ get_runtimes <- function(ct_values, query_sc, methods){
         if(file.exists(results_file)){
           x <- readRDS(results_file)
           df <- x[['runtimes']]
-          df$n_cells <- n_cells 
+          df$n_cells <- n_cells
           df
         }
       }
     })
-    
+
     df <- rbindlist(ct_res)
   })
   df <- rbindlist(res)
@@ -182,7 +182,7 @@ get_runtimes <- function(ct_values, query_sc, methods){
 get_fractions <- function(output_dir, ct_values, query_sc, method_parameter_df){
   res <- lapply(ct_values, function(i) {
     l <- list.files(output_dir, pattern=paste0('*ct',i,'_'))
-    
+
     ct_res <- lapply(l, function(f){
       if(grepl('vanderbilt_lung', f)){
         # need to replace the '_' in bulk ds name with '-' so that indexing is still correct
@@ -197,10 +197,10 @@ get_fractions <- function(output_dir, ct_values, query_sc, method_parameter_df){
       ct <- as.character(gsub('ct','',xl[6]))
       if (method %in% method_parameter_df$method & sc_ds == query_sc & ct %in% ct_values){
         query_sc_norm <- method_parameter_df[which(method_parameter_df$method == method),'sc_norm']
-        
+
         if(sc_norm == query_sc_norm){
           results_file <- paste0(output_dir,f,'/results_metric.rds')
-          
+
           if(file.exists(results_file)){
             res <- readRDS(results_file)
             df_deconv <- melt(as.data.table(res$deconv.results, keep.rownames = T), id.vars = 1)
@@ -216,13 +216,13 @@ get_fractions <- function(output_dir, ct_values, query_sc, method_parameter_df){
             df$ct <- ct
             df$replicate <- as.character(gsub('rep','',xl[7]))
             df$method_norm_combi <- paste0(method, sc_norm, df$bulk_norm)
-            
+
             df
-          } 
+          }
         }
       }
     })
-    
+
     df <- rbindlist(ct_res)
   })
   return(rbindlist(res))
@@ -231,7 +231,7 @@ get_fractions <- function(output_dir, ct_values, query_sc, method_parameter_df){
 get_all_fractions <- function(output_dir, ct_values, query_sc, method_parameter_df){
   res <- lapply(ct_values, function(i) {
     l <- list.files(output_dir, pattern=paste0('*ct',i,'_'))
-    
+
     ct_res <- lapply(l, function(f){
       if(grepl('vanderbilt_lung', f)){
         # need to replace the '_' in bulk ds name with '-' so that indexing is still correct
@@ -246,15 +246,15 @@ get_all_fractions <- function(output_dir, ct_values, query_sc, method_parameter_
       ct <- as.character(gsub('ct','',xl[6]))
       if (method %in% method_parameter_df$method & sc_ds == query_sc & ct %in% ct_values){
         query_sc_norm_vect <- as.vector(unlist(method_parameter_df[which(method_parameter_df$method == method),'sc_norm']))
-        
+
         cur.dataframe <- data.frame()
-        
+
         for(query_sc_norm in query_sc_norm_vect){
-          
-          
+
+
           if(sc_norm == query_sc_norm){
             results_file <- paste0(output_dir,f,'/results_metric.rds')
-            
+
             if(file.exists(results_file)){
               res <- readRDS(results_file)
               df_deconv <- melt(as.data.table(res$deconv.results, keep.rownames = T), id.vars = 1)
@@ -270,15 +270,15 @@ get_all_fractions <- function(output_dir, ct_values, query_sc, method_parameter_
               df$ct <- ct
               df$replicate <- as.character(gsub('rep','',xl[7]))
               df$method_norm_combi <- paste0(method, sc_norm, df$bulk_norm)
-              
+
               cur.dataframe<-rbind(cur.dataframe, df)
-            } 
+            }
           }
         }
         cur.dataframe
       }
     })
-    
+
     df <- rbindlist(ct_res)
   })
   return(rbindlist(res))
@@ -312,8 +312,8 @@ delta_correlation <- function(df){
       }else{
         delta_correlation_i <- NA
       }
-      
-    } 
+
+    }
     return(delta_correlation_i)
   }))
 }
@@ -345,17 +345,17 @@ plot_runtime <- function(runtimes_df, bulk_ds_name, log=FALSE){
   colnames(combined_runtimes)[which(colnames(combined_runtimes) == 'V1')] <- 'elapsed'
   combined_runtimes$process <- 'COMBINED'
   runtime_df <- rbind(runtimes_df, combined_runtimes, fill=TRUE)
-  
+
   if(log){
     runtime_df$elapsed <- log(runtime_df$elapsed)
     runtime_df[which(elapsed == -Inf),'elapsed'] <- 0
     runtime_df$n_cells <- log(as.numeric(runtime_df$n_cells))
   }
-  
+
   df <- data_summary(subset(runtime_df, bulk_ds == bulk_ds_name), 'elapsed', c('n_cells','process','method'))
   df$process <- factor(df$process, levels = c('SIGNATURE','DECONVOLUTION','COMBINED'))
   #df$n_cells <- factor(df$n_cells, levels = c(n_cells))
-  
+
   ggplot(df, aes(x=n_cells, y=elapsed, group=method, color=method))+
     geom_point(alpha=.7)+
     geom_line(alpha=.7)+
@@ -368,11 +368,11 @@ plot_runtime <- function(runtimes_df, bulk_ds_name, log=FALSE){
 }
 
 plot_performance_replicates <- function(performance_df, bulk_ds_name, score, method_parameter_df){
-  
+
   df <- data_summary(subset(performance_df, bulk_ds == bulk_ds_name & method_norm_combi %in% method_parameter_df$method_norm_combi), score, c('ct','cell_type','method'))
   colnames(df)[which(colnames(df) == score)] <- 'score'
   df$ct <- factor(df$ct, levels = ct_values)
-  
+
   ggplot()+
     #geom_rect(data=df, aes(ymin=-Inf,ymax=0,xmin=-Inf,xmax=Inf), alpha=.01, fill='#CCD6DB')+
     #geom_rect(data=df, aes(ymin=0,ymax=0.5,xmin=-Inf,xmax=Inf), alpha=.01, fill='#e5eaed')+
@@ -388,15 +388,15 @@ plot_performance_replicates <- function(performance_df, bulk_ds_name, score, met
 }
 
 plot_performance_replicates_scatter <- function(performance_df, bulk_ds_name, method_parameter_df){
-  
+
   df_cor <- data_summary(subset(performance_df, bulk_ds == bulk_ds_name & method_norm_combi %in% method_parameter_df$method_norm_combi), 'cor', c('ct','cell_type','method'))
   colnames(df_cor)[which(colnames(df_cor) == 'sd')] <- 'sd.cor'
   df_rmse <- data_summary(subset(performance_df, bulk_ds == bulk_ds_name & method_norm_combi %in% method_parameter_df$method_norm_combi), 'RMSE', c('ct','cell_type','method'))
   colnames(df_rmse)[which(colnames(df_rmse) == 'sd')] <- 'sd.rmse'
-  
+
   df <- cbind(df_cor, df_rmse[,c('RMSE','sd.rmse')])
   df$ct <- factor(df$ct, levels = ct_values)
-  
+
   ggplot(df, aes(x=cor, y=RMSE, color=cell_type, group=cell_type))+
     geom_point()+
     #geom_line()+
@@ -411,7 +411,7 @@ plot_performance_heatmap <- function(performance_df, bulk_ds_name, score, method
   df <- data_summary(subset(performance_df, bulk_ds == bulk_ds_name & method_norm_combi %in% method_parameter_df$method_norm_combi), score, c('ct','cell_type','method'))
   colnames(df)[which(colnames(df) == score)] <- 'score'
   df$ct <- factor(df$ct, levels = ct_values)
-  
+
   ggplot(df, aes(x=method, y=ct, fill=score))+
     geom_tile()+
     facet_wrap(~cell_type)+
@@ -429,7 +429,7 @@ plot_fractions <- function(fractions_df, bulk_name, sample_name=0){
     df <- data_summary(subset(fractions_df, bulk_ds == bulk_ds_name & rn == sample_name), 'value', c('ct','variable','method'))
   }
   df$ct <- factor(df$ct, levels = ct_values)
-  
+
   ggplot(df, aes(x=ct, y=value, group=method, color=method))+
     geom_point()+
     geom_line()+
@@ -446,7 +446,7 @@ plot_scatter_replicates <- function(fractions_df, bulk_ds_name, method_parameter
   df <- subset(fractions_df, method == m & bulk_ds == bulk_ds_name & method_norm_combi %in% method_parameter_df$method_norm_combi)
   df_summary <- data_summary(df, 'fraction.estimate', c('ct','celltype','sample','fraction.true'))
   df_summary$ct <- factor(df_summary$ct, levels = ct_values)
-  
+
   ggplot(df_summary, aes(x=fraction.true, y=fraction.estimate))+
     geom_point(aes(color=celltype))+
     facet_wrap(~ct)+
@@ -466,10 +466,10 @@ plot_scatter <- function(fractions_df, bulk_ds_name, bulk_norm, m=NULL){
   }else{
     df <- subset(fractions_df, bulk_ds == bulk_ds_name & bulk_norm == bulk_norm & method %in% m)
   }
-  
+
   df$fraction.estimate[which(is.na(df$fraction.estimate))] <- 0
   df$fraction.true[which(is.na(df$fraction.true))] <- 0
-  
+
   ggplot(df)+
     geom_point(aes(x=fraction.true, y=fraction.estimate, color=method))+
     facet_wrap(~celltype, scales='free')+
@@ -483,6 +483,78 @@ plot_distance_from_identity <- function(fractions_df, bulk_name, m){
   df$distance_from_identity <- df$fraction.true - df$fraction.estimate
   df_summary <- data_summary(df, 'distance_from_identity', c('ct','celltype','sample'))
   df_summary$ct <- factor(df_summary$ct, levels = ct_values)
-  
-  
+
+
+}
+
+
+# General functions
+reannotate_facs_new <- function(facs.table, annotation, new.annotation.level){
+
+  facs.table <- as.data.frame(facs.table)
+  annotation <- annotation[which(annotation$fine %in% colnames(facs.table)), ]
+  cell_types <- unique(annotation[[new.annotation.level]])
+  for(c in cell_types){
+    # These are the fine cell types
+    cur.cell.types <- annotation[which(annotation[[new.annotation.level]] == c), 1]
+
+    if(length(cur.cell.types) > 1){
+      facs.table[c] <- rowSums(facs.table[, c(cur.cell.types)])
+      facs.table[, c(cur.cell.types)] <- NULL
+    } else if(length(cur.cell.types) == 1) {
+      if(c != cur.cell.types){
+        facs.table[c] <- facs.table[cur.cell.types]
+        facs.table[cur.cell.types] <- NULL
+      }
+    }
+  }
+  facs.table
+}
+
+process_resolution_results <- function(res, method, resolution, replicate, predicted = TRUE){
+
+  res <- res %>%
+    tibble::rownames_to_column(., var='sample') %>%
+    gather(., key='celltype', value = 'predicted_value', -'sample') %>%
+    #mutate(., celltype = gsub("xxxx", " ", celltype)) %>%
+    mutate(., method = method) %>%
+    mutate(., resolution = resolution) %>%
+    mutate(., replicate = replicate)
+
+  if(!predicted){
+    colnames(res)[colnames(res) == 'predicted_value'] <- 'true_value'
+  }
+
+  res
+}
+
+
+cleanCelltypesAutogenes <- function(celltype){
+  celltype <- gsub("21b2c6e87f8711ec9bf265fb9bf6ab9c", "\\+", celltype)
+  celltype <- gsub("21b2c7567f8711ec9bf265fb9bf6ab9a", "-", celltype)
+  celltype <- gsub("21b2c7567f8711ec9bf265fb9bf6ab9f", "\\(", celltype)
+  celltype <- gsub("21b2c7567f8711ec9bf265fb9bf6ab9g", ")", celltype)
+  return(gsub("xxxx", " ", celltype))
+}
+
+reannotate_facs <- function(facs.table, annotation, new.annotation.level){
+
+  facs.table <- as.data.frame(facs.table)
+  annotation <- annotation[which(annotation$fine %in% colnames(facs.table)), ]
+  cell_types <- unique(annotation[[new.annotation.level]])
+  for(c in cell_types){
+    # These are the fine cell types
+    cur.cell.types <- annotation[which(annotation[[new.annotation.level]] == c), 1]
+
+    if(length(cur.cell.types) > 1){
+      facs.table[c] <- rowSums(facs.table[, c(cur.cell.types)])
+      facs.table[, c(cur.cell.types)] <- NULL
+    } else if(length(cur.cell.types) == 1) {
+      if(c != cur.cell.types){
+        facs.table[c] <- facs.table[cur.cell.types]
+        facs.table[cur.cell.types] <- NULL
+      }
+    }
+  }
+  facs.table
 }

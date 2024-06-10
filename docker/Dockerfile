@@ -59,8 +59,8 @@ RUN apt-get update -y && apt-get --no-install-recommends --fix-broken install -y
 
 RUN R -e "install.packages(c('pak','pkgdepends','devtools'), repos='https://cloud.r-project.org')"
 RUN R -e "pak::pkg_install(c('remotes','harmony','terra'))"
-RUN echo  "GITHUB_PAT=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" >> /root/.Renviron
-RUN R -e "remotes::install_github('omnideconv/omnideconv@benchmark', dependencies = TRUE, auth_token='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') "
+RUN echo  "GITHUB_PAT=FILL_MANUALLY" >> /root/.Renviron
+RUN R -e "remotes::install_github('omnideconv/omnideconv@benchmark', dependencies = TRUE, auth_token='FILL_MANUALLY') "
 RUN R -e "pak::pkg_install('omnideconv/SCDC')"
 #RUN R -e "remotes::install_version('NMF', '0.27', repos='https://cloud.r-project.org')"
 

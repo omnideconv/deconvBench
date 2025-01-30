@@ -19,11 +19,13 @@ In addition, to run the pipeline you need an installation of [nextflow](https://
 
 ## Quickstart
 
-If you want to deconvolve two bulk RNA-seq datasets (`bulk1` and `bulk2`) using one scRNA-seq dataset (`sc1`) and compute quality metrics for four selected deconvolution methods (`AutoGeneS`,`DWLS`,`MuSiC` and `Scaden`), you can start the pipeline like this, inside the current directory:
+If you want to deconvolve two bulk RNA-seq datasets (`bulk1` and `bulk2`) using one scRNA-seq dataset (`sc1`) and compute quality metrics for four selected deconvolution methods (`AutoGeneS`,`DWLS`,`MuSiC` and `Scaden`), you can start the pipeline like this:
 
 ```
-nextflow -C nextflow.config run main.nf -profile docker
+nextflow -C pipeline/nextflow.config run pipeline/main.nf -profile docker
 ```
+
+Note that Nextflow can only 'see' files that are located in the file-tree structure 'below' your current directory where you start the pipeline. We recommend to add a `data/` directory next to the `pipeline/` directory and place all your input files (and a results folder) inside it. Then you start the pipeline from inside the `deconvBench/` parent directory using the command shown above.
 
 The `nextflow.config` file can then look something like this:
 

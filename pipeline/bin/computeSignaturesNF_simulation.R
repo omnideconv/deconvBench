@@ -5,7 +5,7 @@ print("Started signature building script ...")
 library(docopt)
 library(Biobase)
 library(omnideconv)
-reticulate::use_miniconda(condaenv = "r-omnideconv", required = TRUE)
+reticulate::use_condaenv(condaenv = "r-omnideconv", required = TRUE)
 
 #Sys.setenv("LD_LIBRARY_PATH"="/nfs/home/extern/l.merotto/.conda/envs/benchmark_env/x86_64-conda-linux-gnu/lib")
 

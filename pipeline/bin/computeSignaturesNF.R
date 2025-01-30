@@ -3,7 +3,7 @@
 print("Starting signature building script ...")
 
 library(omnideconv)
-reticulate::use_miniconda(condaenv = "r-omnideconv", required = TRUE)
+reticulate::use_condaenv(condaenv = "r-omnideconv", required = TRUE)
 
 "Usage:
   computeSignaturesNF.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <results_dir> <run_preprocessing> <replicate> <subset_value> <ncores> <baseDir> 

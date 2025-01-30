@@ -8,6 +8,13 @@ A detailed description of the parameters and workflows follows below.
 All method-related dependencies are installed in a inlcuded Docker image, that you can either build yourself using the Dockerfile in the directory above (`docker/`) or pull it directly from [Dockerhub](https://hub.docker.com/repository/docker/alexd13/omnideconv_benchmark/general). 
 *Note:* We currently only provide a Docker image for Linux based systems, MacOS and Windows are not supported. User working on those operating systems have to install omnideconv manually.
 
+In case you are working on a setup that does not allow the use of Docker, you can also easily switch to Apptainer (assuming its already installed) by translating the Docker image to an Apptainer image like this:
+```
+docker pull alexd13/omnideconv_benchmark:latest
+apptainer build /location/of/new/image/omnideconv_benchmark.sif docker-daemon://alexd13/omnideconv_benchmark:latest
+```
+Then simply adapt the path in the nextflow.config file at the Apptainer profile to the one specified above (i.e. `/location/of/new/image/omnideconv_benchmark.sif`) and use the 'apptainer' profile when running the pipeline.
+
 In addition, to run the pipeline you need an installation of [nextflow](https://www.nextflow.io/). 
 
 ## Quickstart

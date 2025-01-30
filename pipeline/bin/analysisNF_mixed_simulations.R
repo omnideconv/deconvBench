@@ -6,7 +6,7 @@ library(docopt)
 library(Biobase)
 library(omnideconv)
 library(tidyverse)
-reticulate::use_miniconda(condaenv = "r-omnideconv", required = TRUE)
+reticulate::use_condaenv(condaenv = "r-omnideconv", required = TRUE)
 
 "Usage:
   nalysisNF_mixed_simulations.R <sc_name> <sc_path> <bulk_name> <bulk_path> <preprocess_dir> <replicates> <deconv_method> <results_dir> <ncores> <baseDir>

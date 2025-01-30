@@ -6,7 +6,7 @@ library(docopt)
 library(Biobase)
 library(omnideconv)
 library(tidyverse)
-reticulate::use_miniconda(condaenv = "r-omnideconv", required = TRUE)
+reticulate::use_condaenv(condaenv = "r-omnideconv", required = TRUE)
 
 "Usage:
   analysisNF_missing_cell_type.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <missing_cell_type> <results_dir> <ncores> <baseDir>

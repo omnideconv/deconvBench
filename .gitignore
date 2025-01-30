@@ -5,6 +5,8 @@ docker/work/
 pipeline/.nextflow/
 pipeline/.nextlow.log*
 pipeline/*.Rproj
+pipeline/data/results/*
+pipeline/data/preprocess/*
 pipeline/nextflow_norm.config
 *.Rproj
 .Rproj.user

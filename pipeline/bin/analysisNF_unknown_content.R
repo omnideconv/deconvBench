@@ -6,7 +6,7 @@ library(docopt)
 library(Biobase)
 library(omnideconv)
 library(tidyverse)
-reticulate::use_miniconda(condaenv = "r-omnideconv", required = TRUE)
+reticulate::use_condaenv(condaenv = "r-omnideconv", required = TRUE)
 
 "Usage:
   analysisNF_unknown_content.R <sc_name> <sc_path> <bulk_name> <bulk_path> <replicate> <deconv_method> <fraction_unknown_cells> <cell_types> <unknown_cell_type> <results_dir> <ncores> <baseDir>

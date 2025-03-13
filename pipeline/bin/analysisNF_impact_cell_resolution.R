@@ -6,7 +6,7 @@ library(docopt)
 library(Biobase)
 library(omnideconv)
 library(tidyverse)
-reticulate::use_miniconda(condaenv = "r-omnideconv", required = TRUE)
+reticulate::use_condaenv(condaenv = "r-omnideconv", required = TRUE)
 
 "Usage:
   analysisNF_impact_cell_resolution.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <cell_types_fine> <replicates> <results_dir> <ncores> <baseDir>

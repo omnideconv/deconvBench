@@ -13,5 +13,5 @@ reports_traces/
 work/
 visualization/plots
 .RData
-results/*
+data/results/*
 

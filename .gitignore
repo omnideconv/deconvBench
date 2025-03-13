@@ -3,6 +3,7 @@ docker/.nextflow/
 docker/.nextflow.log*
 docker/work/
 pipeline/.nextflow/
+pipeline/work
 pipeline/.nextlow.log*
 pipeline/*.Rproj
 pipeline/nextflow_norm.config

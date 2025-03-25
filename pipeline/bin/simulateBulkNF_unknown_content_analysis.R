@@ -75,7 +75,7 @@ for (cur_cell_fraction in fractions_unknown){
 
     simulated_bulk <- SimBu::simulate_bulk(
       data =  simbu_ds,
-      whitelist = cell_types_simulation,
+      whitelist = ,
       scenario = 'weighted',
       weighted_cell_type = unknown_cell_type,
       weighted_amount = cur_cell_fraction,

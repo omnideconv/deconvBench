@@ -1,4 +1,4 @@
-#!/usr/local/bin/Rscript
+#!/usr/bin/Rscript
 
 print("Started signature building script ...")
 

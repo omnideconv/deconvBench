@@ -5,7 +5,8 @@ print("Starting analysis script [mixed deconvolution of real dataset] ...")
 library(docopt)
 library(Biobase)
 library(omnideconv)
-reticulate::use_miniconda(condaenv = "r-omnideconv", required = TRUE)
+library(tidyverse)
+reticulate::use_condaenv(condaenv = "r-omnideconv", required = TRUE)
 
 "Usage:
   analysisNF_mixed_simulations_real_dataset.R <sc_name> <sc_path> <bulk_name> <bulk_path> <preprocess_dir> <deconv_method> <results_dir> <ncores> <baseDir>
@@ -85,7 +86,8 @@ signature <- signature_workflow_general(
   bulk_name, 
   bulk_norm, 
   ncores, 
-  res_path_normal
+  res_path_normal,
+    baseDir=baseDir
 )
 
 # If we are deconvolving bulk data with a 10x dataset, we use the s mode
@@ -117,7 +119,8 @@ deconvolution <- deconvolution_workflow_general(
   ncores, 
   res_path_normal,
   rmbatch_S_mode = s_mode,
-  rmbatch_B_mode = b_mode
+  rmbatch_B_mode = b_mode,
+    baseDir=baseDir
 ) 
 
 true_fractions <- readRDS(file.path(bulk_path, bulk_name, paste0(bulk_name, '_facs.rds')))

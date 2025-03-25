@@ -5,7 +5,8 @@ print("Starting analysis script [missing cell type] ...")
 library(docopt)
 library(Biobase)
 library(omnideconv)
-reticulate::use_miniconda(condaenv = "r-omnideconv", required = TRUE)
+library(tidyverse)
+reticulate::use_condaenv(condaenv = "r-omnideconv", required = TRUE)
 
 "Usage:
   analysisNF_missing_cell_type.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <missing_cell_type> <results_dir> <ncores> <baseDir>
@@ -88,7 +89,8 @@ signature <- signature_workflow_general(
   bulk_name, 
   bulk_norm, 
   ncores, 
-  res_path_normal
+  res_path_normal,
+    baseDir=baseDir
 )
 
 print('Signature built')
@@ -110,7 +112,8 @@ deconvolution <- deconvolution_workflow_general(
   bulk_norm, 
   ncores, 
   res_path_normal,
-  rmbatch_S_mode = TRUE
+  rmbatch_S_mode = TRUE,
+    baseDir=baseDir
 )
 
 colnames(deconvolution) <- gsub("xxxx", " ", colnames(deconvolution))

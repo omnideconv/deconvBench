@@ -3,7 +3,7 @@
 print("Starting deconvolution script ...")
 
 library(omnideconv)
-reticulate::use_miniconda(condaenv = "r-omnideconv", required = TRUE)
+reticulate::use_condaenv(condaenv = "r-omnideconv", required = TRUE)
 
 "Usage:
   runDeconvolutionNF.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <results_dir> <run_preprocessing> <replicate> <subset_value> <species> <ncores> <baseDir>
@@ -117,7 +117,8 @@ runtime <- system.time({
     ncores, 
     res_path,
     rmbatch_S_mode = s_mode,
-    rmbatch_B_mode = b_mode
+    rmbatch_B_mode = b_mode,
+    baseDir=baseDir
   )
 
 })

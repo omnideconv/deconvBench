@@ -5,7 +5,8 @@ print("Starting analysis script [impact cell resolution] ...")
 library(docopt)
 library(Biobase)
 library(omnideconv)
-reticulate::use_miniconda(condaenv = "r-omnideconv", required = TRUE)
+library(tidyverse)
+reticulate::use_condaenv(condaenv = "r-omnideconv", required = TRUE)
 
 "Usage:
   analysisNF_impact_cell_resolution.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <cell_types_fine> <replicates> <results_dir> <ncores> <baseDir>
@@ -75,7 +76,7 @@ dir.create(res_path_normal, recursive = TRUE, showWarnings = TRUE)
 dir.create(res_path_coarse, recursive = TRUE, showWarnings = TRUE)
 dir.create(res_path_fine, recursive = TRUE, showWarnings = TRUE)
 
-subset_list <- subset_cells(sc_matrix, sc_celltype_annotations, sc_batch, 500, 22, 
+subset_list <- subset_cells(sc_matrix, sc_celltype_annotations, sc_batch, 1000, 22, 
                             sc_celltype_annotations_coarse, 
                             sc_celltype_annotations_fine)
 
@@ -99,7 +100,8 @@ signature <- signature_workflow_general(
   bulk_name, 
   bulk_norm, 
   ncores, 
-  res_path_normal
+  res_path_normal,
+    baseDir=baseDir
 )
 
 for(r in 1:replicates){
@@ -123,7 +125,8 @@ for(r in 1:replicates){
     bulk_name, 
     bulk_norm, 
     ncores, 
-    res_path_normal
+    res_path_normal,
+    baseDir=baseDir
   )
 
   true_fractions <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0(bulk_name, '_normal_annot_facs.rds')))
@@ -155,7 +158,8 @@ signature_coarse <- signature_workflow_general(
   bulk_name, 
   bulk_norm, 
   ncores, 
-  res_path_coarse
+  res_path_coarse,
+    baseDir=baseDir
 )                                               
 
 for(r in 1:replicates){
@@ -179,7 +183,8 @@ for(r in 1:replicates){
     bulk_name, 
     bulk_norm, 
     ncores, 
-    res_path_coarse
+    res_path_coarse,
+    baseDir=baseDir
   )
 
   true_fractions <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0(bulk_name, '_coarse_annot_facs.rds')))
@@ -213,7 +218,8 @@ signature_fine <- signature_workflow_general(
   bulk_name, 
   bulk_norm, 
   ncores, 
-  res_path_fine
+  res_path_fine,
+  baseDir=baseDir
 ) 
 
 for(r in 1:replicates){
@@ -237,7 +243,8 @@ for(r in 1:replicates){
     bulk_name, 
     bulk_norm, 
     ncores, 
-    res_path_fine
+    res_path_fine,
+    baseDir=baseDir
   )
 
   true_fractions <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0(bulk_name, '_fine_annot_facs.rds')))

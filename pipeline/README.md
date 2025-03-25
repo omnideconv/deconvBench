@@ -6,17 +6,26 @@ A detailed description of the parameters and workflows follows below.
 ## Dependencies
 
 All method-related dependencies are installed in a inlcuded Docker image, that you can either build yourself using the Dockerfile in the directory above (`docker/`) or pull it directly from [Dockerhub](https://hub.docker.com/repository/docker/alexd13/omnideconv_benchmark/general). 
-*Note:* We currently only provide a Docker image for Linux based systems, Mac and Windows are not supported. User working on those operating systems have to install omnideconv manually.
+*Note:* We currently only provide a Docker image for Linux based systems, MacOS and Windows are not supported. User working on those operating systems have to install omnideconv manually.
+
+In case you are working on a setup that does not allow the use of Docker, you can also easily switch to Apptainer (assuming its already installed) by translating the Docker image to an Apptainer image like this:
+```
+docker pull alexd13/omnideconv_benchmark:latest
+apptainer build /location/of/new/image/omnideconv_benchmark.sif docker-daemon://alexd13/omnideconv_benchmark:latest
+```
+Then simply adapt the path in the nextflow.config file at the Apptainer profile to the one specified above (i.e. `/location/of/new/image/omnideconv_benchmark.sif`) and use the 'apptainer' profile when running the pipeline.
 
 In addition, to run the pipeline you need an installation of [nextflow](https://www.nextflow.io/). 
 
 ## Quickstart
 
-If you want to deconvolve two bulk RNA-seq datasets (`bulk1` and `bulk2`) using one scRNA-seq dataset (`sc1`) and compute quality metrics for four selected deconvolution methods (`AutoGeneS`,`DWLS`,`MuSiC` and `Scaden`), you can start the pipeline like this, inside the current directory:
+If you want to deconvolve two bulk RNA-seq datasets (`bulk1` and `bulk2`) using one scRNA-seq dataset (`sc1`) and compute quality metrics for four selected deconvolution methods (`AutoGeneS`,`DWLS`,`MuSiC` and `Scaden`), you can start the pipeline like this:
 
 ```
-nextflow -C nextflow.config run main.nf -profile docker
+nextflow -C pipeline/nextflow.config run pipeline/main.nf -profile docker
 ```
+
+Note that Nextflow can only 'see' files that are located in the file-tree structure 'below' your current directory where you start the pipeline. We recommend to add a `data/` directory next to the `pipeline/` directory and place all your input files (and a results folder) inside it. Then you start the pipeline from inside the `deconvBench/` parent directory using the command shown above.
 
 The `nextflow.config` file can then look something like this:
 
@@ -306,7 +315,13 @@ Each deconvolution method has a recommended set of normalization procedures, bot
 
 Method-specific minor points:
 
-### CIBERSORTx batch correction
+### CIBERSORTx 
+
+#### Credentials
+
+CIBERSORTx requires users to use a token, that can be obtained from their website (https://cibersortx.stanford.edu/). In order to run CIBERSORTx with deconvBench, you need to enter your email and this token into the `cibersortx_credentials.csv` file, which will be read once CIBERSORTx is started.
+
+#### Batch Correction
 
 CIBERSORTx offers two batch correction modes, S-mode and B-mode, which should be used in different settings. The usecase depends upon the input dataset characteristics, both from the bulk and single-cell dataset. 
 If the bulk dataset has been simulated from the same single-cell dataset that will be used as reference, no batch correction should be used. If the bulk dataset originates from real samples, the batch correction depends on the technology of the single-cell dataset: In 10X-based dataset, S-mode should be used, in all other cases B-mode should be used.

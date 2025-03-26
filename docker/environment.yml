@@ -82,7 +82,7 @@ dependencies:
     - requests-oauthlib==1.3.1
     - rich==13.3.5
     - rsa==4.9
-    - scaden==git+https://github.com/omnideconv/scaden.git
+    - git+https://github.com/omnideconv/scaden.git
     - scanpy==1.9.8
     - scikit-learn==1.2.2
     - scipy==1.10.1

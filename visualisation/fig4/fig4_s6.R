@@ -1,7 +1,7 @@
 library(tidyverse)
 library(dplyr)
 library(ggpubr)
-library(scCustomize)
+#library(scCustomize)
 
 methods <- c('autogenes','bayesprism','bisque','cibersortx','dwls','music','scaden','scdc')
 sc_norm <- c('cpm', rep('counts', 2),'cpm',rep('counts',4))
@@ -210,7 +210,7 @@ ggsave(plot = p, filename = 'visualisation/plots/fig4.pdf', width = 9, height = 
 
 data <- NULL
 
-table.annotations <- read.table(paste0('/nfs/data/omnideconv_benchmarking_clean/data/singleCell/wu/', '/cell_type_mappings.csv'), header = T, sep=',')
+table.annotations <- read.table(paste0('/nfs/data/omnideconv_benchmarking_clean/data/singleCell/wu', '/cell_type_mappings.csv'), header = T, sep=',')
 table.annotations$group_coarse <- table.annotations$Coarse
 table.annotations <- gather(table.annotations, key='res', value='celltype', -group_coarse)
 table.annotations$res <- NULL

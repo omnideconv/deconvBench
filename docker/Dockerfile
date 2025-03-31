@@ -59,9 +59,10 @@ RUN apt-get update -y && apt-get --no-install-recommends --fix-broken install -y
 
 RUN R -e "install.packages(c('pak','pkgdepends','devtools'), repos='https://cloud.r-project.org')"
 RUN R -e "pak::pkg_install(c('remotes','harmony','terra'))"
-RUN echo  "GITHUB_PAT=FILL_MANUALLY" >> /root/.Renviron
-RUN R -e "remotes::install_github('omnideconv/omnideconv@benchmark', dependencies = TRUE, auth_token='FILL_MANUALLY') "
+RUN echo  "GITHUB_PAT=GITHUB_PAT" >> /root/.Renviron
+RUN R -e "remotes::install_github('omnideconv/omnideconv@benchmark', dependencies = TRUE, auth_token='GITHUB_PAT') "
 RUN R -e "pak::pkg_install('omnideconv/SCDC')"
+RUN R -e "pak::pkg_install('omnideconv/BayesPrism')"
 #RUN R -e "remotes::install_version('NMF', '0.27', repos='https://cloud.r-project.org')"
 
 
@@ -85,3 +86,25 @@ RUN apt-get install -y --no-install-recommends \
     docker-ce \
     docker-ce-cli \
     containerd.io
+
+# install apptainer as alternative to docker
+
+# Install Go (required for building Apptainer)
+RUN wget https://go.dev/dl/go1.21.5.linux-amd64.tar.gz && \
+    tar -C /usr/local -xzf go1.21.5.linux-amd64.tar.gz && \
+    rm go1.21.5.linux-amd64.tar.gz
+
+ENV PATH="/usr/local/go/bin:$PATH"
+
+# Download and build Apptainer
+RUN git clone --branch v1.2.4 https://github.com/apptainer/apptainer.git /usr/local/src/apptainer && \
+    cd /usr/local/src/apptainer && \
+    ./mconfig --with-suid && \
+    make -C builddir && \
+    make -C builddir install && \
+    rm -rf /usr/local/src/apptainer
+
+# Verify installation
+RUN apptainer --version
+
+RUN apt-get install -y squashfs-tools fuse3

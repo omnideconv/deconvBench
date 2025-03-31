@@ -10,8 +10,7 @@ reEscapeCelltypesAutogenes <- function(celltype){
   return(gsub("xxxx", " ", celltype))
 }
 
-compute_metrics <- function(ref_facs, deconvolution, metric = c('cor', 'rmse'),
-                            comparison = c('sample', 'cell_type')){
+compute_metrics <- function(ref_facs, deconvolution, metric = c('cor', 'rmse', 'mae', 'mape'), comparison = c('sample', 'cell_type')){
   
   compute_rmse <- function(x, y, zscored = FALSE, weighted = FALSE){
     if(zscored == TRUE){
@@ -27,8 +26,16 @@ compute_metrics <- function(ref_facs, deconvolution, metric = c('cor', 'rmse'),
     if(weighted == TRUE){rmse <- rmse/max(y)}
     return(rmse)
   }
+
+  compute_mae <- function(x, y){
+    mae <- mean(abs(x - y))
+    return(mae)
+  }
   
-  
+  compute_mape <- function(x, y){
+    mape <- mean(abs(x - y)/x)
+    return(mape)
+  }  
   
   deconvolution <- as.data.frame(deconvolution) %>%
     rownames_to_column(., 'sample') %>%
@@ -73,6 +80,20 @@ compute_metrics <- function(ref_facs, deconvolution, metric = c('cor', 'rmse'),
     
     colnames(rmse_all_elements)[1] <- comparison
     res_metric <- rbind(res_metric, rmse_all_elements)
+
+  } else if(metric == 'mae'){
+    res_metric <- results_df %>%
+      group_by(!!! syms(comparison)) %>%
+      dplyr::summarize(MAP = compute_mae(estimated_frac, true_frac))
+
+  } else if(metric == 'mape'){
+    res_metric <- results_df %>%
+      group_by(!!! syms(comparison)) %>%
+      dplyr::summarize(MAPE = compute_mape(estimated_frac, true_frac))
+
+  } else {
+    message('Selected metric is not supported in the benchmark. Please check again.')
+    stop()
   }
   
   return(res_metric)
@@ -223,9 +244,9 @@ signature_workflow_general <- function(sc_matrix, annotations, annotation_catego
       dir.create(tmp_dir_path, recursive=TRUE)
     }
     # create output directories for scaden models, otherwise scaden might have permission issues when creating them
-    dir.create(paste0(res_path, '/model/m256'), recursive=T)
-    dir.create(paste0(res_path, '/model/m512'), recursive=T)
-    dir.create(paste0(res_path, '/model/m1024'), recursive=T)
+    #dir.create(paste0(res_path, '/model/m256'), recursive=T)
+    #dir.create(paste0(res_path, '/model/m512'), recursive=T)
+    #dir.create(paste0(res_path, '/model/m1024'), recursive=T)
 
     signature <- omnideconv::build_model_scaden(
       sc_matrix,
@@ -411,7 +432,8 @@ deconvolution_workflow_general <- function(sc_matrix, annotations, annotation_ca
     deconvolution <- omnideconv::deconvolute_scaden(
       bulk_gene_expression = bulk_matrix, 
       signature = signature,
-      temp_dir = tmp_dir_path
+      temp_dir = tmp_dir_path, 
+      verbose = TRUE
     )
     #unlink(tmp_dir_path, recursive=TRUE)
 

@@ -4,6 +4,8 @@ print("Starting signature building script ...")
 
 library(omnideconv)
 reticulate::use_condaenv(condaenv = "r-omnideconv", required = TRUE)
+sessionInfo()
+reticulate::py_config()
 
 "Usage:
   computeSignaturesNF.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <results_dir> <run_preprocessing> <replicate> <subset_value> <ncores> <baseDir> 
@@ -94,18 +96,18 @@ runtime <- system.time({
 })
 
 # remove old signatures for scaden
-if (method %in% c("scaden")) { 
-  # remove all pickle files in output directory with different name than current signature
-  old_signatures <- list.files(res_path, ".pickle", full.names = TRUE) 
-  if(length(old_signatures > 0)){
-    print('Found old signatures in output directory; they will be removed.')
-    sapply(old_signatures, file.remove)
-  }
-
-  #We copy the new signature to the results directory
-  file.copy(signature, res_path, recursive = TRUE)
-  signature <- list.files(res_path, ".pickle", full.names = TRUE) 
-}
+#if (method %in% c("scaden")) { 
+#  # remove all pickle files in output directory with different name than current signature
+#  old_signatures <- list.files(res_path, ".pickle", full.names = TRUE) 
+#  if(length(old_signatures > 0)){
+#    print('Found old signatures in output directory; they will be removed.')
+#    sapply(old_signatures, file.remove)
+#  }
+#
+#  #We copy the new signature to the results directory
+#  file.copy(signature, res_path, recursive = TRUE)
+#  signature <- list.files(res_path, ".pickle", full.names = TRUE) 
+#}
 
 # save signature object
 saveRDS(signature, file=paste0(res_path, "/signature.rds"))
@@ -124,3 +126,5 @@ runtime_text <- data.frame(method,
                       runtime[['elapsed']])
 
 saveRDS(runtime_text, file = paste0(res_path, "/runtime_signature.rds"))
+sessionInfo()
+reticulate::py_config()

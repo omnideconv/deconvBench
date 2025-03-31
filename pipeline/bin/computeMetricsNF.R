@@ -61,6 +61,8 @@ results_metric <- list()
 
 results_metric$cor_cell_type <- compute_metrics(facs_data, deconvolution, 'cor', 'cell_type')
 results_metric$rmse_cell_type <- compute_metrics(facs_data, deconvolution, 'rmse', 'cell_type')
+results_metric$map_cell_type <- compute_metrics(facs_data, deconvolution, 'mae', 'cell_type')
+results_metric$mape_cell_type <- compute_metrics(facs_data, deconvolution, 'mape', 'cell_type')
 
 # this dataset has not enough cell-types to calculate sample-wise correlation
 if(args$bulk_name != 'vanderbilt_lung'){

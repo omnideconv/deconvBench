@@ -73,7 +73,22 @@ for(i in 1:nrow(metadata.table.lambrechts)){
     .$deconvolution %>%
     as.data.frame()
   colnames(result) <- gsub("xxxx", " ", colnames(result))
+  colnames(result) <- gsub("\\.", " ", colnames(result))
   colnames(result) <- gsub("21b2c7567f8711ec9bf265fb9bf6ab9a", "-", colnames(result))
+  
+  if(metadata.table.lambrechts$method[i] == 'scaden'){
+    
+    if(metadata.table.lambrechts$level[i] == 'fine'){
+      colnames(result) <- recode(colnames(result), 
+                                 'Monocytes non classical' = 'Monocytes non-classical',
+                                 'T cells NK like' = 'T cells NK-like',
+                                 'T cells CD4 non reg' = 'T cells CD4 non-reg')
+    } else if(metadata.table.lambrechts$level[i] == 'coarse'){
+      colnames(result) <- recode(colnames(result), 
+                                 'Macrophages Monocytes' = 'Macrophages-Monocytes')
+    }
+    
+  }
   
   true.fractions <- readRDS(paste0(result_path, metadata.table.lambrechts$path[i])) %>%
     .$true_cell_fractions %>%
@@ -162,21 +177,20 @@ corr.coarse.bind.2 <- unique(corr.coarse.bind.2)
 
 corr.coarse.bind.2 <- corr.coarse.bind.2 %>%
   mutate(celltype = recode(celltype,
-                           'Macrophages-Monocytes' = 'Mono/Macro',
-                           'Monocytes' = 'Mono',
-                           'Monocytes classical' = 'Mono cl',
-                           'Monocytes non-classical' = 'Mono ncl',
-                           'Macrophages' = 'Macro',
-                           'T cells CD8 activated' = 'CD8 act',
-                           'T cells CD8 naive' = 'CD8 naiv',
-                           'T cells CD8 terminally exhausted' = 'CD8 exh',
-                           'T cells NK-like' = 'NK T',
-                           'NK cells' = 'NK',
-                           'T cells CD8' = 'CD8 T',
-                           'T cells CD4' = 'CD4 T',
-                           'T cells CD4 non-reg' = 'CD4 non-reg'))
+                                      'Macrophages-Monocytes' = 'Mono/Macro',
+                                      'Monocytes' = 'Mono',
+                                      'Monocytes classical' = 'Mono class',
+                                      'Monocytes non-classical' = 'Mono non-class',
+                                      'Macrophages' = 'Macro',
+                                      'T cells CD8 activated' = 'T CD8 activated',
+                                      'T cells CD8 naive' = 'T CD8 naive',
+                                      'T cells CD8 terminally exhausted' = 'T CD8 exhausted',
+                                      'T cells NK-like' = 'T NK-like',
+                                      'T cells CD8' = 'T CD8',
+                                      'T cells CD4' = 'T CD4',
+                                      'T cells CD4 non-reg' = 'T CD4 non-reg'))
 
-custom_pallete <- scCustomize::DiscretePalette_scCustomize(num_colors = 21, palette = 'varibow')
+custom_pallete <- scCustomize::DiscretePalette_scCustomize(num_colors = 20, palette = 'varibow')
 
 df <- corr.coarse.bind.2%>% subset(celltype != 'all')
 df2 <- corr.coarse.bind.2%>% subset(celltype == 'all')
@@ -196,7 +210,8 @@ p <- ggplot(df)+
   rotate_x_text(angle=60)+
   xlab('RMSE')+ylab('Pearson Correlation')+
   scale_shape_manual(values = c('B cells' = 8, 
-                                'DCs' = 15, 
+                                'mDCs' = 15,
+                                'pDCs' = 7,
                                 'Macrophages-Monocytes' = 18,
                                 'T and NK cells' = 17))+
   scale_color_manual(values = custom_pallete)
@@ -278,7 +293,7 @@ for(i in 1:nrow(metadata.table.wu)){
   colnames(true.fractions) <- gsub("xxxx", " ", colnames(true.fractions))
   colnames(true.fractions) <- gsub("21b2c7567f8711ec9bf265fb9bf6ab9a", "-", colnames(true.fractions))
   colnames(true.fractions) <- cleanCelltypesAutogenes(colnames(true.fractions))
-
+  
   if(metadata.table.wu$level[i] != 'fine'){
     true.fractions <- reannotate_facs_new(true.fractions, table.annotations, metadata.table.wu$level[i])
   }
@@ -292,7 +307,7 @@ for(i in 1:nrow(metadata.table.wu)){
   result <- left_join(result, true.fractions)
   
   data <- rbind(data, result)
-
+  
 }
 
 # fine resolution will not be used for Wu dataset
@@ -401,3 +416,4 @@ p <- ggplot(df)+
   xlab('RMSE')+ylab('Pearson Correlation')+
   scale_color_manual(values = custom_pallete)
 ggsave(plot = p, filename = 'visualisation/plots/figs6.pdf', width = 8, height = 10)
+

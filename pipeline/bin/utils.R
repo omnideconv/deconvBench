@@ -328,6 +328,21 @@ deconvolution_workflow_general <- function(sc_matrix, annotations, annotation_ca
       batch_ids = sc_batch,
       verbose = TRUE,
     )$bulk.props)
+
+  } else if (method=="cdseq"){
+
+    deconvolution_cdseq <- omnideconv::deconvolute_cdseq(
+      bulk_gene_expression = bulk_matrix, 
+      single_cell_object = sc_matrix, 
+      cell_type_annotations = annotations,
+      batch_ids = sc_batch,
+      block_number=10,
+      gene_subset_size=1000,
+      verbose = TRUE,
+    )
+    
+    deconvolution <- t(deconvolution_cdseq$cdseq_prop_merged)
+    print(deconvolution)
     
   } else if (method=="cibersortx"){
 

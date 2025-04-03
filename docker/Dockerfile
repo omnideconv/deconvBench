@@ -1,4 +1,4 @@
-FROM ubuntu:20.04
+FROM eddelbuettel/r2u:20.04
 
 LABEL description="Image for Omnideconv benchmarking pipeline"
 LABEL maintainer="Alexander Dietrich"
@@ -14,12 +14,6 @@ RUN apt-get update -y && apt-get --no-install-recommends --fix-broken install -y
     dirmngr \
     gdebi \
     curl
-
-# install R 4.4.0 https://docs.posit.co/resources/install-r/
-RUN curl -O https://cdn.rstudio.com/r/ubuntu-2004/pkgs/r-4.4.0_1_amd64.deb
-RUN gdebi r-4.4.0_1_amd64.deb -n
-RUN ln -s /opt/R/4.4.0/bin/R /usr/bin/R
-RUN ln -s /opt/R/4.4.0/bin/Rscript /usr/bin/Rscript
 
 # install miniconda into /root/miniconda3
 RUN wget \
@@ -42,8 +36,7 @@ ENV PATH="/root/.local/share/r-miniconda/envs/omnideconv/bin:${PATH}"
 ARG PATH="/root/.local/share/r-miniconda/envs/omnideconv/bin:${PATH}"
 
 # install omnideconv with all dependencies
-RUN apt-get update -y && apt-get --no-install-recommends --fix-broken install -y curl \
-    libcurl4-openssl-dev \
+RUN apt-get --no-install-recommends --fix-broken install -y libcurl4-openssl-dev \
     libxml2-dev \
     libfontconfig1-dev \
     libssl-dev \
@@ -57,12 +50,11 @@ RUN apt-get update -y && apt-get --no-install-recommends --fix-broken install -y
     cmake
 
 
-RUN R -e "install.packages(c('pak','pkgdepends','devtools'), repos='https://cloud.r-project.org')"
-RUN R -e "pak::pkg_install(c('remotes','harmony','terra'))"
-RUN echo  "GITHUB_PAT=GITHUB_PAT" >> /root/.Renviron
-RUN R -e "remotes::install_github('omnideconv/omnideconv@benchmark', dependencies = TRUE, auth_token='GITHUB_PAT') "
-RUN R -e "pak::pkg_install('omnideconv/SCDC')"
-RUN R -e "pak::pkg_install('omnideconv/BayesPrism')"
+RUN R -e "install.packages(c('pak','pkgdepends','devtools','remotes','harmony','terra','igraph', 'RSQLite'), repos='https://cloud.r-project.org')"
+RUN echo "GITHUB_PAT=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" >> /root/.Renviron
+RUN R -e "remotes::install_github('omnideconv/omnideconv@benchmark', dependencies = TRUE, auth_token='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' )"
+#RUN R -e "pak::pkg_install('omnideconv/SCDC')"
+#RUN R -e "pak::pkg_install('omnideconv/BayesPrism')"
 #RUN R -e "remotes::install_version('NMF', '0.27', repos='https://cloud.r-project.org')"
 
 
@@ -72,7 +64,6 @@ RUN R -e "reticulate::use_miniconda(condaenv = 'r-omnideconv', required = TRUE)"
 
 # install benchmarking related dependencies
 RUN R -e "install.packages(c('conflicted','docopt','readxl','tidyverse','profvis'), repos='https://cloud.r-project.org')"
-RUN R -e "install.packages(c('BiocManager'), repos='https://cloud.r-project.org')"
 RUN R -e "BiocManager::install('SimBu')"
 
 # install Docker, so that CibersortX can run
@@ -87,24 +78,4 @@ RUN apt-get install -y --no-install-recommends \
     docker-ce-cli \
     containerd.io
 
-# install apptainer as alternative to docker
 
-# Install Go (required for building Apptainer)
-RUN wget https://go.dev/dl/go1.21.5.linux-amd64.tar.gz && \
-    tar -C /usr/local -xzf go1.21.5.linux-amd64.tar.gz && \
-    rm go1.21.5.linux-amd64.tar.gz
-
-ENV PATH="/usr/local/go/bin:$PATH"
-
-# Download and build Apptainer
-RUN git clone --branch v1.2.4 https://github.com/apptainer/apptainer.git /usr/local/src/apptainer && \
-    cd /usr/local/src/apptainer && \
-    ./mconfig --with-suid && \
-    make -C builddir && \
-    make -C builddir install && \
-    rm -rf /usr/local/src/apptainer
-
-# Verify installation
-RUN apptainer --version
-
-RUN apt-get install -y squashfs-tools fuse3

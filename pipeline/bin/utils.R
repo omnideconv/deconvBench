@@ -217,6 +217,8 @@ signature_workflow_general <- function(sc_matrix, annotations, annotation_catego
     )
 
   } else if (method == "dwls") {
+
+    library(dplyr)
     
     signature <- omnideconv::build_model_dwls(
       single_cell_object = sc_matrix,

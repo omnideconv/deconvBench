@@ -4,6 +4,8 @@ print("Starting deconvolution script ...")
 
 library(omnideconv)
 reticulate::use_condaenv(condaenv = "r-omnideconv", required = TRUE)
+sessionInfo()
+reticulate::py_config()
 
 "Usage:
   runDeconvolutionNF.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <results_dir> <run_preprocessing> <replicate> <subset_value> <species> <ncores> <baseDir>

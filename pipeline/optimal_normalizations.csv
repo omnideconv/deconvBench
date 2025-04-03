@@ -2,7 +2,6 @@ method,sc_norm,bulk_norm
 autogenes,cpm,tpm
 bayesprism,counts,counts
 bisque,counts,counts
-bseqsc,counts,tpm
 cdseq,counts,counts
 cibersortx,cpm,tpm
 cpm,counts,counts

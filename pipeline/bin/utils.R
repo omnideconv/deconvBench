@@ -238,6 +238,14 @@ signature_workflow_general <- function(sc_matrix, annotations, annotation_catego
       verbose = TRUE
     )$basis
     
+  } else if (method == "momf") {
+    
+    signature <- omnideconv::build_model_momf(
+      sc_matrix,
+      annotations,
+      bulk_matrix
+    )
+    
   } else if(method == "scaden"){
     unlink(tmp_dir_path, recursive=TRUE)
     if(!dir.exists(paste0(tmp_dir_path))){
@@ -257,7 +265,7 @@ signature_workflow_general <- function(sc_matrix, annotations, annotation_catego
       verbose = TRUE
     )
 
-  }else if (method %in% c('autogenes', 'bayesprism', 'bisque', 'cdseq', 'cpm', 'music')){
+  } else if (method %in% c('autogenes', 'bayesprism', 'bisque', 'cdseq', 'cpm', 'music')){
     signature <- NULL
       
   } else {
@@ -420,8 +428,18 @@ deconvolution_workflow_general <- function(sc_matrix, annotations, annotation_ca
     #)
     print(deconvolution)
 
-  } else if (method == "music"){
-    deconvolution <- omnideconv::deconvolute_music(
+  } else if (method == "momf"){
+    deconvolution_momf <- omnideconv::deconvolute_momf(
+          bulk_matrix,
+          signature, 
+          sc_matrix, 
+          verbose = TRUE,
+        )
+    
+    deconvolution <- deconvolution_momf$cell.prop
+
+  }  else if (method == "music"){
+    deconvolution <- omnideconv::deconvolute_momf(
       bulk_gene_expression = bulk_matrix, 
       single_cell_object = sc_matrix, 
       cell_type_annotations = annotations,

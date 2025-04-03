@@ -51,8 +51,8 @@ RUN apt-get --no-install-recommends --fix-broken install -y libcurl4-openssl-dev
 
 
 RUN R -e "install.packages(c('pak','pkgdepends','devtools','remotes','harmony','terra','igraph', 'RSQLite'), repos='https://cloud.r-project.org')"
-RUN echo "GITHUB_PAT=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" >> /root/.Renviron
-RUN R -e "remotes::install_github('omnideconv/omnideconv@benchmark', dependencies = TRUE, auth_token='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' )"
+RUN echo "GITHUB_PAT=GITHUB_PAT" >> /root/.Renviron
+RUN R -e "remotes::install_github('omnideconv/omnideconv@benchmark', dependencies = TRUE, auth_token='GITHUB_PAT' )"
 #RUN R -e "pak::pkg_install('omnideconv/SCDC')"
 #RUN R -e "pak::pkg_install('omnideconv/BayesPrism')"
 #RUN R -e "remotes::install_version('NMF', '0.27', repos='https://cloud.r-project.org')"

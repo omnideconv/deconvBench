@@ -257,7 +257,7 @@ signature_workflow_general <- function(sc_matrix, annotations, annotation_catego
       verbose = TRUE
     )
 
-  }else if (method %in% c('autogenes', 'bayesprism', 'bisque', 'music')){
+  }else if (method %in% c('autogenes', 'bayesprism', 'bisque', 'cdseq', 'cpm', 'music')){
     signature <- NULL
       
   } else {
@@ -364,6 +364,15 @@ deconvolution_workflow_general <- function(sc_matrix, annotations, annotation_ca
     )
     unlink(cx_input, recursive=TRUE)
     unlink(cx_output, recursive=TRUE)
+    
+  } else if (method=="cpm"){
+
+    deconvolution <- omnideconv::deconvolute_cpm(
+      bulk_gene_expression = bulk_matrix, 
+      single_cell_object = sc_matrix, 
+      cell_type_annotations = annotations,
+      verbose = TRUE,
+    )$cellTypePredictions
     
   } else if(method=="dwls") {
     

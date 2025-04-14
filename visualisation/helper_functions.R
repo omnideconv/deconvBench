@@ -259,7 +259,7 @@ get_all_fractions <- function(output_dir, ct_values, query_sc, method_parameter_
               res <- readRDS(results_file)
               df_deconv <- melt(as.data.table(res$deconv.results, keep.rownames = T), id.vars = 1)
               colnames(df_deconv) <- c('sample','celltype','fraction')
-              df_true <- melt(as.data.table(res[[5]], keep.rownames = T), id.vars = 1)
+              df_true <- melt(as.data.table(res$facs_ground_truth, keep.rownames = T), id.vars = 1)
               colnames(df_true) <- c('celltype','sample','fraction')
               df <- merge(df_deconv, df_true, by=c('celltype','sample'), suffixes = c('.estimate','.true'))
               df$method <- method

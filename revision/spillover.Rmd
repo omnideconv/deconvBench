@@ -1,0 +1,152 @@
+---
+title: "Spillover"
+author: "Alexander Dietrich"
+date: "2025-04-08"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+```
+# prepare ground truth for pipeline
+```{r cars}
+hoek_purified <- readRDS('/nfs/data/omnideconv_benchmarking_clean/data/spillover/hoek_purified/hoek_purified_pure_cell_type.rds')
+hoek_purified$pure_cell_type <- recode(hoek_purified$pure_cell_type, 'T cells' = 'T cell')
+hoek_purified_facs <- table(hoek_purified$pure_cell_type, hoek_purified$sample)
+hoek_purified_facs <- matrix(hoek_purified_facs, ncol=ncol(hoek_purified_facs), dimnames=dimnames(hoek_purified_facs))
+saveRDS(hoek_purified_facs, '/nfs/data/omnideconv_benchmarking_clean/data/spillover/hoek_purified/hoek_purified_facs.rds')
+
+
+linsley_purified <- readRDS('/nfs/data/omnideconv_benchmarking_clean/data/spillover/linsley_purified/linsley_purified_pure_cell_type.rds')
+linsley_purified_facs <- table(linsley_purified$pure_cell_type, linsley_purified$sample)
+linsley_purified_facs <- matrix(linsley_purified_facs, ncol=ncol(linsley_purified_facs), dimnames=dimnames(linsley_purified_facs))
+saveRDS(linsley_purified_facs, '/nfs/data/omnideconv_benchmarking_clean/data/spillover/linsley_purified/linsley_purified_facs.rds')
+```
+
+# read results
+```{r pressure, echo=FALSE}
+output_dirs <- list.files('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_spillover_purified', full.names = T)
+
+res <- lapply(output_dirs, function(i){
+  metrics <- readRDS(paste0(i,'/results_metric.rds'))
+  
+  method <- unique(metrics$runtimes$method)
+  bulk_ds <- unique(metrics$runtimes$bulk_ds)
+    
+  deconv.results <- metrics$deconv.results |> 
+    as.data.frame() |> 
+    rownames_to_column(var='sample') |> 
+    pivot_longer(-sample, names_to = 'celltype', values_to = 'proportion.estimated') 
+  
+  if(bulk_ds == 'hoek_purified'){
+    # remove T subtypes, because their estimates have been summed up already in the pipeline
+    deconv.results <- deconv.results |> subset(!celltype %in% c('T cells CD4 conv','T cells CD8','Tregs'))
+  }
+  
+  gt <- metrics$facs_ground_truth |>
+    as.data.frame() |>
+    rownames_to_column(var='celltype') |>
+    pivot_longer(-celltype, names_to = 'sample', values_to = 'proportion.purified')
+  
+  df_long <- deconv.results |> 
+    left_join(gt, by = join_by(sample, celltype)) |>
+    mutate(proportion.purified = ifelse(is.na(proportion.purified), 0, proportion.purified),
+           method =method,
+           bulk_ds = bulk_ds) |>
+    group_by(sample) |>
+    mutate(purified_celltype = celltype[proportion.purified == 1][1]) |>
+    ungroup()
+  
+  return(df_long)
+})
+
+data <- bind_rows(res)
+```
+
+```{r}
+dataset <- 'linsley_purified'
+
+overviewTable = data |> subset(bulk_ds == dataset)
+par(mar=rep(2, 4))
+circos.par(cell.padding = rep(2, 4))
+pdf(paste0(dataset,'_spillover.pdf'), width = 22, height = 4)
+layout(t(matrix(seq(1, length(unique(overviewTable$bulk_ds)) * length(unique(overviewTable$method))),
+                length(unique(overviewTable$method)),
+                1)))
+
+
+for(m in unique(data$method)){
+  print(m)
+  resultDf <- data |> subset(purified_celltype != 'Neutrophils')
+  if(dataset == 'hoek_purified'){
+    resultDf <- resultDf |> subset(!celltype %in% c('T cells CD4 conv', 'T cells CD8', 'Tregs'))
+  }
+  migration <- resultDf %>%
+      filter(method == m, bulk_ds == dataset) %>%
+      group_by(method, purified_celltype, celltype) %>%
+      dplyr::summarise(estimate = mean(proportion.estimated)) %>%
+      ungroup()
+  migration_mat = migration %>%
+      select(-method) %>%
+      spread(celltype, estimate) %>%
+      as.data.frame() %>%
+      tibble::column_to_rownames("purified_celltype") %>%
+      as.matrix()
+  noise_ratio = migration %>%
+      mutate(type = ifelse(celltype == purified_celltype, "signal", "noise")) %>%
+      group_by(method, type) %>%
+      dplyr::summarise(estimate = sum(estimate)) %>%
+      spread(type, estimate) %>%
+      mutate(noise_ratio = noise/(signal+noise), signal_ratio = signal/(signal+noise)) %>%
+      ungroup()
+  par(cex = 0.9, mar = c(1, 1, 1, 1))
+  
+  border_mat = matrix(0, 
+                    nrow = nrow(migration_mat), 
+                    ncol = ncol(migration_mat), 
+                    dimnames = list(rownames(migration_mat), colnames(migration_mat)))
+  match_mat <- outer(rownames(border_mat), colnames(border_mat), FUN = "==")
+  border_mat[match_mat] <- 'black'
+  
+  chordDiagram(migration_mat, directional = -1, transparency = .2,
+              grid.col = colors, diffHeight = mm_h(3),
+              annotationTrack =  c("grid"), preAllocateTracks = list(track.height = 0.05),
+              link.border = border_mat, self.link = 2
+  )
+  
+  # rotate axis labels by 90 degrees
+  circos.trackPlotRegion(
+    track.index = 1,
+    panel.fun = function(x, y) {
+      sector_name <- get.cell.meta.data("sector.index")
+      xlim <- get.cell.meta.data("xlim")
+      ylim <- get.cell.meta.data("ylim")
+      circos.text(
+        x = mean(xlim),
+        y = ylim[1] + 0.1,
+        labels = sector_name,
+        facing = "clockwise",  # use "reverse.clockwise" for inward labels
+        niceFacing = FALSE,
+        adj = c(0, 0.5),
+        cex = 0.6
+      )
+    },
+    bg.border = NA
+  )
+  
+  circos.clear()
+  for(si in get.all.sector.index()) {
+    xlim = get.cell.meta.data("xlim", sector.index = si, track.index = 1)
+    ylim = get.cell.meta.data("ylim", sector.index = si, track.index = 1)
+    circos.text(mean(xlim), mean(ylim), si, sector.index = si, track.index = 1,
+                facing = "bending.inside", niceFacing = TRUE, col = "white")
+  }
+  text(0, 0, m, cex = 1.8)
+  text(0, -0.2, as.character(round(filter(noise_ratio, method == m) %>% pull(noise_ratio), 2)), cex=1.8)
+
+}
+dev.off()
+```
+
+
+

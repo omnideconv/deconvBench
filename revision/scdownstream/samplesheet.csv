@@ -1,0 +1,9 @@
+sample,filtered,symbol_col,label_col,unknown_label,min_genes,min_counts_cell
+Arunachalam,/nfs/data/omnideconv_benchmarking_clean/data/singleCellXGeneCensus/Arunachalam/anndata.h5ad,index,cell_type_coarse,NA,,
+BioResourceCollaboration,/nfs/data/omnideconv_benchmarking_clean/data/singleCellXGeneCensus/BioResourceCollaboration/anndata.h5ad,index,cell_type_coarse,NA,,
+DominguezConde,/nfs/data/omnideconv_benchmarking_clean/data/singleCellXGeneCensus/DominguezConde/anndata.h5ad,index,cell_type_coarse,NA,,
+Hao,/nfs/data/omnideconv_benchmarking_clean/data/singleCell/hao-complete/anndata.h5ad,index,cell_type_coarse,NA,,
+Heimlich,/nfs/data/omnideconv_benchmarking_clean/data/singleCellXGeneCensus/Heimlich/anndata.h5ad,index,cell_type_coarse,NA,,
+Lee,/nfs/data/omnideconv_benchmarking_clean/data/singleCellXGeneCensus/Lee/anndata.h5ad,index,cell_type_coarse,NA,,
+SchulteSchrepping,/nfs/data/omnideconv_benchmarking_clean/data/singleCellXGeneCensus/SchulteSchrepping/anndata.h5ad,index,cell_type_coarse,NA,,
+TabulaSapiens,/nfs/data/omnideconv_benchmarking_clean/data/singleCellXGeneCensus/TabulaSapiens/anndata.h5ad,index,cell_type_coarse,NA,,

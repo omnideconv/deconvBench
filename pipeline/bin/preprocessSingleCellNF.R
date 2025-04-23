@@ -67,25 +67,33 @@ seed <- as.integer((seed_sc_name + replicate + subset_value*1000) %% (2^31-1))
 print(seed)
 set.seed(seed)
 
+total_cells <- length(sc_celltype_annotations)
+min_n_cells <- 20 # fix the minimal number of cells per celltype. If less are available, all cells are selected
 
-if(subset_value < 1){
-  cells_to_sample <- round(n_cells_per_ct * subset_value)+1 # number of cells which will be sampled from each CT (pseudocount of 1, to not have 0 cells)
-}else{
-  cells_to_sample <- rep(subset_value, length(unique(sc_celltype_annotations)))
-  names(cells_to_sample) <- names(n_cells_per_ct)
-}
-print(cells_to_sample)
-cell_ids <- unlist(lapply(names(cells_to_sample), function(query_ct){
-    if(table(sc_celltype_annotations)[query_ct] < cells_to_sample[query_ct]) {
-        which(sc_celltype_annotations == query_ct) # take all cells if there are less than the subset value
-    } else {
-        sample(x = which(sc_celltype_annotations == query_ct), size = cells_to_sample[query_ct], replace = FALSE)
-    }    
-}))
+anno_tbl <- sc_celltype_annotations |>
+  as.tibble() |>
+  mutate(index = 1:length(sc_celltype_annotations)) |>
+  group_by(value)
 
-subset_matrix <- sc_matrix[,cell_ids]
-subset_annot <- sc_celltype_annotations[cell_ids]
-subset_batch <- sc_batch[cell_ids]
+celltype_counts <- anno_tbl %>%
+  dplyr::count(value, name = "n")
+
+anno_subset <- anno_tbl %>%
+  inner_join(celltype_counts, by = "value") %>%
+  group_by(value) %>%
+  group_modify(~ {
+    n_total <- nrow(.x)
+    target_n1 = round(n_total / total_cells * subset_value)
+    target_n2 = max(target_n1, min_n_cells)
+    target_n_final = min(target_n2, n_total)
+    slice_sample(.x, n = target_n_final, replace = FALSE)
+  }) %>%
+  ungroup()
+
+
+subset_matrix <- sc_matrix[,anno_subset$index]
+subset_annot <- sc_celltype_annotations[anno_subset$index]
+subset_batch <- sc_batch[anno_subset$index]
 
 
 dir.create(output_dir, recursive = T, showWarnings = TRUE)

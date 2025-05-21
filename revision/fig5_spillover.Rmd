@@ -7,6 +7,30 @@ output: html_document
 
 ```{r setup, include=FALSE}
 library(tidyverse)
+library(circlize)
+
+color_palette <- c('B cells'='#999933',
+                   'Macrophages'='#CC6677',
+                   'mDC'='#882255',
+                   'Monocytes'='#AA4499',
+                   'NK cells'='#DDCC77',
+                   'T cell'='#332288',
+                   'T cells'='#332288',
+                   'CD4 T cells'='#117733',
+                   'T cells CD4'='#117733',
+                   'CD8 T cells'='#44AA99',
+                   'T cells CD8'='#44AA99',
+                   'Tregs'='#88CCEE',
+                   'Lymphocytes' = '#6600CC',
+                   'pDC'='#8D4B00',
+                   'Neutrophils'='#FFFB6A',
+                   'Stromal cells' = '#288BA8',
+                   'Plasma cells'="#FFD92F",
+                   'ILC'="#66C2A5",
+                   'Platelet'="#B3B3B3")
+
+colors = color_palette
+names(colors) = names(color_palette)
 ```
 # prepare ground truth for pipeline
 ```{r cars}
@@ -51,25 +75,52 @@ res <- lapply(output_dirs, function(i){
   df_long <- deconv.results |> 
     left_join(gt, by = join_by(sample, celltype)) |>
     mutate(proportion.purified = ifelse(is.na(proportion.purified), 0, proportion.purified),
-           method =method,
-           bulk_ds = bulk_ds) |>
-    group_by(sample) |>
-    mutate(purified_celltype = celltype[proportion.purified == 1][1]) |>
-    ungroup()
+           method = method,
+           bulk_ds = bulk_ds) 
+  
+  df_purified_info <- df_long |> 
+    subset(proportion.purified == 1) |> 
+    mutate(purified_celltype = celltype) |>
+    select(purified_celltype, sample)
+  
+  df_long <- df_long |> left_join(df_purified_info, by = join_by(sample))
   
   return(df_long)
 })
 
 data <- bind_rows(res)
+
+data$celltype <- recode(data$celltype,
+                        'T cell' = 'T cells',
+                        'T cells CD4 conv' = 'CD4 T cells',
+                        'T cells CD4' = 'CD4 T cells',
+                        'T cells CD8' = 'CD8 T cells')
+
+data$purified_celltype <- recode(data$purified_celltype,
+                        'T cell' = 'T cells',
+                        'T cells CD4 conv' = 'CD4 T cells',
+                        'T cells CD4' = 'CD4 T cells',
+                        'T cells CD8' = 'CD8 T cells')
+
+data <- data |> 
+  mutate(method = recode(method,
+                         'autogenes'='AutoGeneS',
+                         'bayesprism'='BayesPrism',
+                         'bisque'='Bisque',
+                         'cibersortx'='CIBERSORTx',
+                         'dwls'='DWLS',
+                         'music'='MuSiC',
+                         'scaden'='Scaden',
+                         'scdc'='SCDC'))
 ```
 
 ```{r}
-dataset <- 'linsley_purified'
+dataset <- 'hoek_purified'
 
 overviewTable = data |> subset(bulk_ds == dataset)
 par(mar=rep(2, 4))
-circos.par(cell.padding = rep(2, 4))
-pdf(paste0(dataset,'_spillover.pdf'), width = 22, height = 4)
+circos.par(cell.padding = rep(2.5, 4))
+pdf(paste0('visualization/fig5/',dataset,'_spillover.pdf'), width = 22, height = 4)
 layout(t(matrix(seq(1, length(unique(overviewTable$bulk_ds)) * length(unique(overviewTable$method))),
                 length(unique(overviewTable$method)),
                 1)))
@@ -123,12 +174,12 @@ for(m in unique(data$method)){
       ylim <- get.cell.meta.data("ylim")
       circos.text(
         x = mean(xlim),
-        y = ylim[1] + 0.1,
+        y = ylim[1] + 0.3,
         labels = sector_name,
-        facing = "clockwise",  # use "reverse.clockwise" for inward labels
+        facing = "downward",  # use "reverse.clockwise" for inward labels
         niceFacing = FALSE,
-        adj = c(0, 0.5),
-        cex = 0.6
+        adj = c(0.5, 0.5),
+        cex = .7
       )
     },
     bg.border = NA
@@ -149,4 +200,28 @@ dev.off()
 ```
 
 
+```{r}
+df <- data |>
+  subset(proportion.purified == 1)
+
+df$bulk_ds <- recode(df$bulk_ds, 
+                     'hoek_purified' = 'Hoek-pure',
+                     'linsley_purified' = 'Linsley-pure')
+
+p_boxplot <- ggplot(df, aes(x=purified_celltype, y=proportion.estimated, fill=purified_celltype))+
+  geom_boxplot()+
+  geom_hline(yintercept = 1, color='black', linetype = 'dashed')+
+  facet_grid(bulk_ds~method)+
+  scale_fill_manual(values = color_palette, drop = T)+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1),
+        legend.position = 'bottom',
+        strip.text = element_text(size = 11),
+        strip.background =element_rect(fill='white'),
+        panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank())+
+  xlab('')+ylab('fraction of true cell type')
+
+ggsave(filename = '/nfs/proj/omnideconv_benchmarking/omnideconv/benchmark/revision/visualization/fig5/boxplot.pdf', plot = p_boxplot, width = 15, height = 6)
+```
 

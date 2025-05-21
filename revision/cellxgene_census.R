@@ -63,31 +63,33 @@ library(matrixStats)
 # })
 
 basepath <- '/nfs/data/omnideconv_benchmarking_clean/data/singleCellXGeneCensus/'
-datasets <- list.files(basepath, pattern = '_reduced')
+datasets <- list.files(basepath)
 res <- lapply(datasets, function(i){
   message(paste0('Handling ', i,' ...'))
   dataset_dir <- paste0(basepath, i)
-
-  ad <- zellkonverter::readH5AD(paste0(dataset_dir, '/anndata_annotated_filtered.h5ad'))
-  message(paste0('Finished reading ', i,'.'))
   
-  # raw counts
-  saveRDS(as.matrix(assays(ad)[['counts']]), paste0(dataset_dir, '/matrix_counts.rds'))
-  
-  # CPM counts
-  saveRDS(as.matrix(assays(ad)[['cpm']]), paste0(dataset_dir, '/matrix_norm_counts.rds'))
-  
-  # cell type metadata
-  saveRDS(ad$cell_type, paste0(dataset_dir, '/celltype_annotations.rds'))
-  
-  # batch
-  saveRDS(ad$batch, paste0(dataset_dir, '/batch.rds'))
-  
-  message(paste0('Finished saving ', i,', cleaning up.'))
-  
-  rm(ad)
-  gc()  
-
+  h5_file <- paste0(dataset_dir, '/anndata_annotated_filtered.h5ad')
+  if(file.exists(h5_file)){
+    ad <- zellkonverter::readH5AD(h5_file)
+    message(paste0('Finished reading ', i,'.'))
+    
+    # raw counts
+    saveRDS(as.matrix(assays(ad)[['counts']]), paste0(dataset_dir, '/matrix_counts.rds'))
+    
+    # CPM counts
+    saveRDS(as.matrix(assays(ad)[['cpm']]), paste0(dataset_dir, '/matrix_norm_counts.rds'))
+    
+    # cell type metadata
+    saveRDS(ad$cell_type, paste0(dataset_dir, '/celltype_annotations.rds'))
+    
+    # batch
+    saveRDS(ad$batch, paste0(dataset_dir, '/batch.rds'))
+    
+    message(paste0('Finished saving ', i,', cleaning up.'))
+    
+    rm(ad)
+    gc()  
+  }
 })
 
 

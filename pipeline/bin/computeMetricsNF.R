@@ -52,6 +52,43 @@ if(args$bulk_name=='hoek' | args$bulk_name=='hoek-simulation' | args$bulk_name==
   deconvolution$`T cell` <- deconvolution$`T cells CD4 conv` + deconvolution$`T cells CD8` + deconvolution$`Tregs`
 }
 
+if(args$bulk_name == 'morandini'){
+  deconvolution <- as.data.frame(deconvolution)
+
+  deconvolution$`T cells CD4` <- deconvolution$`T cells CD4 conv`
+  deconvolution$`T cells` <- deconvolution$`T cells CD4` + deconvolution$`T cells CD8` + deconvolution$`Tregs`
+
+  if('ILC' %in% colnames(deconvolution)){
+    deconvolution$`Lymphocytes` <- deconvolution$`T cells` + deconvolution$`B cells` + deconvolution$`Plasma cells` + deconvolution$`ILC` + deconvolution$`NK cells`
+  }else{
+    deconvolution$`Lymphocytes` <- deconvolution$`T cells` + deconvolution$`B cells` + deconvolution$`Plasma cells` + deconvolution$`NK cells`
+  }  
+
+  deconvolution$`Monocytes_solo` <- deconvolution$`Monocytes`
+  if('pDC' %in% colnames(deconvolution)){
+    deconvolution$`Monocytes` <- deconvolution$`Monocytes_solo` + deconvolution$`mDC` + deconvolution$`pDC`
+  }else{
+    deconvolution$`Monocytes` <- deconvolution$`Monocytes_solo` + deconvolution$`mDC`
+  }
+}
+
+if(args$bulk_name == 'altman' | args$bulk_name == 'altman-simulation' | args$bulk_name == 'altman-simulation-nobias'){
+  deconvolution <- as.data.frame(deconvolution)
+
+  if('ILC' %in% colnames(deconvolution)){
+    deconvolution$`Lymphocytes` <- deconvolution$`T cells CD4 conv` + deconvolution$`T cells CD8` + deconvolution$`Tregs` + deconvolution$`B cells` + deconvolution$`Plasma cells` + deconvolution$`NK cells` + deconvolution$`ILC`
+  }else{
+    deconvolution$`Lymphocytes` <- deconvolution$`T cells CD4 conv` + deconvolution$`T cells CD8` + deconvolution$`Tregs` + deconvolution$`B cells` + deconvolution$`Plasma cells` + deconvolution$`NK cells`
+  }   
+
+  deconvolution$`Monocytes_solo` <- deconvolution$`Monocytes`
+    if('pDC' %in% colnames(deconvolution)){
+    deconvolution$`Monocytes` <- deconvolution$`Monocytes_solo` + deconvolution$`mDC` + deconvolution$`pDC`
+  }else{
+    deconvolution$`Monocytes` <- deconvolution$`Monocytes_solo` + deconvolution$`mDC`
+  }
+}
+
 
 #########################
 #### Compute metrics ####
@@ -65,7 +102,7 @@ results_metric$map_cell_type <- compute_metrics(facs_data, deconvolution, 'mae',
 results_metric$mape_cell_type <- compute_metrics(facs_data, deconvolution, 'mape', 'cell_type')
 
 # this dataset has not enough cell-types to calculate sample-wise correlation
-if(args$bulk_name != 'vanderbilt_lung'){
+if(!args$bulk_name %in% c('vanderbilt_lung','altman','altman-simulation','altman-simulation-nobias')){
   results_metric$cor_sample <- compute_metrics(facs_data, deconvolution, 'cor', 'sample')
   results_metric$rmse_sample <- compute_metrics(facs_data, deconvolution, 'rmse', 'sample')
 }

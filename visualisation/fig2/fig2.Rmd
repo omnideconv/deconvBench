@@ -1,0 +1,411 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+source("../helper_functions.R")
+source('ggradar_custom.R')
+library(tidyverse)
+library(data.table)
+library(cowplot)
+library(patchwork)
+library(ggnewscale)
+
+color_palette <- c('B cells'='#999933',
+                   'Macrophages'='#CC6677',
+                   'mDC'='#882255',
+                   'Monocytes'='#AA4499',
+                   'NK cells'='#DDCC77',
+                   'T cell'='#332288',
+                   'CD4 T cells'='#117733',
+                   'CD8 T cells'='#44AA99',
+                   'Tregs'='#88CCEE',
+                   'T cells'='#332288',
+                   'Lymphocytes' = '#6600CC')
+
+method_palette <- palette.colors(palette = "Okabe-Ito")[1:8]
+names(method_palette) <- c('AutoGeneS','BayesPrism','Bisque','CIBERSORTx','DWLS','MuSiC','Scaden','SCDC')
+```
+
+```{r}
+methods <- c('autogenes','bayesprism','bisque','cibersortx','dwls','music','scaden','scdc')
+sc_norm <- c('cpm', rep('counts', 2),'cpm',rep('counts',4))
+bulk_norm <- c('tpm', rep('counts', 2), rep('tpm',5))
+method_parameter_df <- data.frame(method=methods, sc_norm=sc_norm, bulk_norm=bulk_norm)
+method_parameter_df$method_norm_combi <- paste0(method_parameter_df$method, method_parameter_df$sc_norm, method_parameter_df$bulk_norm)
+
+fractions_df_mouse <- get_fractions('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_mouse/', '0', 'tabula-muris', method_parameter_df)
+fractions_df_mouse$org <- 'mm'
+fractions_df_hao <- get_all_fractions('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_main3/', '0', 'HaoCleaned-sampled', method_parameter_df)
+fractions_df_hao$org <- 'hs'
+fractions_df <- rbind(fractions_df_hao, fractions_df_mouse)
+fractions_df <- subset(fractions_df, method_norm_combi %in% method_parameter_df$method_norm_combi)
+
+fractions_df$celltype <- recode(fractions_df$celltype,
+                                   'T cell' = 'T cells',
+                                   'T cells CD4 conv' = 'CD4 T cells',
+                                   'T cells CD4' = 'CD4 T cells',
+                                   'T cells CD8' = 'CD8 T cells')
+
+performance_df_mouse <- get_performance_metrics('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_mouse/', '0', 'tabula-muris', method_parameter_df)
+performance_df_mouse$org <- 'mm'
+performance_df_hao <- get_all_performance_metrics('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_main3/', '0', 'HaoCleaned-sampled', method_parameter_df)
+performance_df_hao$org <- 'hs'
+performance_df <- rbind(performance_df_hao, performance_df_mouse)
+performance_df <- subset(performance_df, method_norm_combi %in% method_parameter_df$method_norm_combi)
+
+performance_df$cell_type <- recode(performance_df$cell_type,
+                                   'T cell' = 'T cells',
+                                   'T cells CD4 conv' = 'CD4 T cells',
+                                   'T cells CD4' = 'CD4 T cells',
+                                   'T cells CD8' = 'CD8 T cells')
+
+df.cor <- data_summary(performance_df, 'cor', c('cell_type','method','bulk_ds','org'))
+df.rmse <- data_summary(performance_df, 'RMSE', c('cell_type','method','bulk_ds','org'))
+df.both <- data.table(merge(df.cor, df.rmse, by = c('cell_type','method','bulk_ds','org'), suffixes = c('.cor','.rmse')))
+```
+
+```{r}
+df.both$cell_type <- as.factor(df.both$cell_type)
+fractions_df$celltype <- as.factor(fractions_df$celltype)
+
+fractions_df <- fractions_df %>% 
+  mutate(method = recode(method,
+                         'autogenes'='AutoGeneS',
+                         'bayesprism'='BayesPrism',
+                         'bisque'='Bisque',
+                         'cibersortx'='CIBERSORTx',
+                         'dwls'='DWLS',
+                         'music'='MuSiC',
+                         'scaden'='Scaden',
+                         'scdc'='SCDC'))
+fractions_df <- fractions_df %>%
+  mutate(bulk_ds = recode(bulk_ds,
+                           "chen" = "Chen",
+                           "chen-simulation" = "ChenSim",
+                           "finotello" = "Finotello",
+                           "finotello-simulation" = "FinotelloSim",
+                           "hoek" = "Hoek",
+                           "hoek-simulation" = "HoekSim",
+                           "petitprez" = "Petitprez",
+                           "petitprez-simulation" = "PetitprezSim",
+                           "altman"="Altman",
+                           "morandini"="Morandini",
+                           "altman-simulation"="AltmanSim",
+                           "morandini-simulation"="MorandiniSim"))
+df.both <- df.both %>%
+  mutate(bulk_ds =  recode(bulk_ds,
+                           "chen" = "Chen",
+                           "chen-simulation" = "ChenSim",
+                           "finotello" = "Finotello",
+                           "finotello-simulation" = "FinotelloSim",
+                           "hoek" = "Hoek",
+                           "hoek-simulation" = "HoekSim",
+                           "petitprez" = "Petitprez",
+                           "petitprez-simulation" = "PetitprezSim",
+                           "altman"="Altman",
+                           "morandini"="Morandini",
+                           "altman-simulation"="AltmanSim",
+                           "morandini-simulation"="MorandiniSim"))
+df.both <- df.both %>% 
+  mutate(method = recode(method,
+                         'autogenes'='AutoGeneS',
+                         'bayesprism'='BayesPrism',
+                         'bisque'='Bisque',
+                         'cibersortx'='CIBERSORTx',
+                         'dwls'='DWLS',
+                         'music'='MuSiC',
+                         'scaden'='Scaden',
+                         'scdc'='SCDC'))
+
+fractions_df <- fractions_df %>%
+  mutate(sc_ds = recode(sc_ds,
+                          "hao-sampled-3" = "HaoSub",
+                          "Hao-sampled" = "HaoSub",
+                          "tabula-muris" = "TM"))
+```
+
+# Fig2a
+
+```{r}
+fig_2a <- fractions_df %>% subset(bulk_ds %in% c('Hoek','Finotello','Morandini')) %>%
+  ggplot(., aes(x=fraction.true, y=fraction.estimate))+
+  geom_abline(linetype='dashed')+
+  geom_hline(yintercept = 1)+
+  geom_point(aes(color=celltype), size=2, alpha=.7)+
+  facet_grid(bulk_ds ~ method)+
+  xlab('Ground truth cell-type fraction')+
+  ylab('Estimated cell-type fraction')+
+  scale_y_continuous(limits = c(0, 1.2), breaks = seq(0, 1, by = 0.25))+
+  theme_bw()+
+  theme(panel.grid = element_blank(),
+        legend.position = 'top',
+        strip.background = element_rect(fill = 'white'))+
+  scale_color_manual(values = color_palette, drop = T)+
+  geom_text(data=df.both %>% subset(bulk_ds %in% c('Hoek','Finotello','Morandini') & cell_type == 'all'), 
+            aes(label=paste0('R: ',round(cor, 3),'\nRMSE: ', round(RMSE, 3))), x=.03, y=1.13, size=3, hjust=0)+
+  labs(color='Celltype')
+
+fig_2a
+
+```
+
+```{r}
+ggsave('../../revision/visualization/fig2/fig_2a.pdf', plot=fig_2a, width = 18, height = 9)
+```
+
+
+# Fig2b
+
+```{r}
+prepare_metric_df <- function(df, ds, metric, transform_fn = identity) {
+  df |>
+    filter(bulk_ds == ds, cell_type != "all") |>
+    select(method, cell_type, bulk_ds, value = all_of(metric)) |>
+    mutate(value = transform_fn(value)) |>
+    pivot_wider(names_from = cell_type, values_from = value) |>
+    select(-bulk_ds) |>
+    replace(is.na(.), 0) |> 
+    as_tibble()
+}
+
+prepare_metric_df_per_celltype <- function(df, ds, metric, transform_fn = identity) {
+  df |>
+    filter(bulk_ds == ds, cell_type != "all") |>
+    select(method, cell_type, bulk_ds, value = all_of(metric)) |>
+    mutate(value = transform_fn(value)) |>
+    pivot_wider(names_from = method, values_from = value) |>
+    select(-bulk_ds) |>
+    replace(is.na(.), 0) |> 
+    as_tibble()
+}
+
+compute_extreme <- function(df, fun, adjust = 0) {
+  round(fun(apply(df[,-1], 2, fun), na.rm = TRUE), 1) + adjust
+}
+
+# Helper function to create radar plot
+plot_radar <- function(df, title, grid.min, grid.mid, grid.max, values.radar, legend.position='none', palette) {
+  ggradar(df,
+          group.colours = palette,
+          group.point.size = 2,
+          group.line.width = .8,
+          grid.min = grid.min,
+          grid.mid = grid.mid,
+          grid.max = grid.max,
+          values.radar = values.radar,
+          font.radar = "sans",
+          legend.text.size = 10,
+          axis.label.size = 3.5,
+          legend.position = legend.position,
+          plot.title = title)
+}
+
+plot_radar_custom <- function(df, title, grid.min, grid.mid, grid.add, grid.max, values.radar, legend.position='none', gridline.mid.colour='grey', palette) {
+  ggradar_custom(df,
+          group.colours = palette,
+          group.point.size = 2,
+          group.line.width = .5,
+          grid.min = grid.min,
+          grid.mid = grid.mid,
+          grid.add = grid.add,
+          grid.max = grid.max,
+          values.radar = values.radar, 
+          gridline.add.colour = 'grey',
+          gridline.mid.colour = gridline.mid.colour,
+          font.radar = "sans",
+          legend.text.size = 10,
+          axis.label.size = 3.5,
+          legend.position = legend.position,
+          plot.title = title)
+}
+
+```
+
+```{r}
+# Datasets
+datasets <- c("Morandini", "Finotello", "Hoek")
+
+method_order <- df.both |> 
+  subset(bulk_ds %in% datasets) |> 
+  dplyr::group_by(method) |> 
+  dplyr::summarize(sum=sum(cor, na.rm=T)) |> 
+  arrange(sum) |> 
+  select(method) |> 
+  unlist()
+
+rmse_plots <- lapply(datasets, function(ds) {
+  df_rmse <- prepare_metric_df_per_celltype(df.both, ds, "RMSE" ,function(x) log(1 / x))[,c('cell_type',method_order)]
+  max_val <- compute_extreme(df_rmse, max, adjust = 0.1)
+  plot_radar_custom(df_rmse,
+             title = paste0("log(1/RMSE) ", ds),
+             grid.min = 0,
+             grid.mid = round(max_val * .33, 2),
+             grid.add = round(max_val * .66, 2),
+             grid.max = round(max_val, 2),
+             values.radar = c("0", 
+                              as.character(round(max_val * .33, 2)), 
+                              as.character(round(max_val * .66, 2)),
+                              as.character(round(max_val, 2))),
+             palette = color_palette[as.character(df_rmse$cell_type)])
+})
+
+# Generate correlation plots
+cor_plots <- lapply(datasets, function(ds) {
+  df_cor <- prepare_metric_df_per_celltype(df.both, ds, "cor")[,c('cell_type',method_order)]
+  min_val <- compute_extreme(df_cor, min, adjust = -0.1)
+  df_cor[is.na(df_cor)] <- min_val - ((1/9) * (1 - min_val))
+  plot_radar_custom(df_cor,
+             title = paste0("Correlation ", ds),
+             grid.min = ifelse(min_val < 0, min_val, 0),
+             grid.mid = ifelse(min_val < 0, 0, min_val),
+             grid.add = 0.5,
+             grid.max = 1,
+             values.radar = c(as.character(min_val), "0", "0.5", "1"),
+             gridline.mid.colour='black',
+             palette = color_palette[as.character(df_cor$cell_type)])
+})
+
+# Assign plots to named variables if needed
+names(rmse_plots) <- paste0("p_rmse_", tolower(datasets))
+names(cor_plots)  <- paste0("p_cor_", tolower(datasets))
+```
+
+
+
+```{r}
+fig_2b <- (rmse_plots$p_rmse_morandini + rmse_plots$p_rmse_finotello + rmse_plots$p_rmse_hoek) / (cor_plots$p_cor_morandini + cor_plots$p_cor_finotello + cor_plots$p_cor_hoek)
+
+ggsave('/nfs/proj/omnideconv_benchmarking/omnideconv/benchmark/revision/visualization/fig2/fig_2b.pdf', plot = fig_2b, width = 20, height = 10)
+```
+
+
+
+# Fig S2
+
+```{r}
+fig_s2a <- fractions_df %>% subset(bulk_ds %in% c('Chen','Petitprez','Altman')) %>%
+  ggplot(., aes(x=fraction.true, y=fraction.estimate))+
+  geom_abline(linetype='dashed')+
+  geom_hline(yintercept = 1)+
+  geom_point(aes(color=celltype), size=2, alpha=.7)+
+  facet_grid(bulk_ds ~ method)+
+  xlab('Ground truth cell-type fraction')+
+  ylab('Estimated cell-type fraction')+
+  scale_y_continuous(limits = c(0, 1.2), breaks = seq(0, 1, by = 0.25))+
+  theme_bw()+
+  theme(panel.grid = element_blank(),
+        legend.position = 'top',
+        strip.background = element_rect(fill = 'white'))+
+  scale_color_manual(values = color_palette, drop = T)+
+  geom_text(data=df.both %>% subset(bulk_ds %in% c('Chen','Petitprez','Altman') & cell_type == 'all'), 
+            aes(label=paste0('R: ',round(cor, 3),'\nRMSE: ', round(RMSE, 3))), x=.03, y=1.13, size=3, hjust=0)+
+  labs(color='Celltype')
+
+
+fig_s2b <- fractions_df %>% subset(bulk_ds %in% c('ChenSim','PetitprezSim','FinotelloSim','HoekSim','MorandiniSim','AltmanSim')) %>%
+  ggplot(., aes(x=fraction.true, y=fraction.estimate))+
+  geom_abline(linetype='dashed')+
+  geom_hline(yintercept = 1)+
+  geom_point(aes(color=celltype), size=2, alpha=.2)+
+  facet_grid(bulk_ds ~ method)+
+  xlab('Ground truth cell-type fraction')+
+  ylab('Estimated cell-type fraction')+
+  scale_y_continuous(limits = c(0, 1.2), breaks = seq(0, 1, by = 0.25))+
+  theme_bw()+
+  theme(panel.grid = element_blank(),
+        legend.position = 'bottom',
+        strip.background = element_rect(fill = 'white'))+
+  guides(color = guide_legend(nrow = 1, override.aes = list(size=5, alpha=1)))+
+  scale_color_manual(values = color_palette, drop = T)+
+  geom_text(data=df.both %>% subset(bulk_ds %in% c('ChenSim','PetitprezSim','FinotelloSim','HoekSim','MorandiniSim','AltmanSim') & cell_type == 'all'), 
+            aes(label=paste0('R: ',round(cor, 3),'\nRMSE: ', round(RMSE, 3))), x=.03, y=1.13, size=3, hjust=0)+
+  labs(color='Celltype')
+
+fig_s2 <- plot_grid(
+  fig_s2a + theme(legend.position="none"),
+  fig_s2b,
+  align = 'h',
+  labels = c("A", "B"), 
+  label_size = 15, 
+  hjust = -1,
+  nrow = 2, ncol = 1,
+  rel_heights = c(.45, .75)
+)
+
+ggsave(plot = fig_s2, filename = '/nfs/proj/omnideconv_benchmarking/omnideconv/benchmark/revision/visualization/fig2/fig_s2.pdf', width = 12, height = 17)
+```
+
+# Fig S3
+
+```{r}
+datasets <- c("Morandini", "Finotello", "Hoek", "Altman",'Chen','Petitprez','ChenSim','PetitprezSim','FinotelloSim','HoekSim','MorandiniSim','AltmanSim')
+
+df.heatmap <- df.both |> subset(bulk_ds %in% datasets & cell_type != 'all') |> select(cell_type, method, bulk_ds, cor, RMSE)
+
+df_long <- df.heatmap %>%
+  pivot_longer(cols = c(cor, RMSE), names_to = "metric", values_to = "value")
+x_levels <- unique(df.heatmap$cell_type)
+y_levels <- unique(df.heatmap$method)
+df_long <- df_long %>%
+  mutate(
+    x_num = as.numeric(factor(cell_type, levels = x_levels)),
+    y_num = as.numeric(factor(method, levels = rev(y_levels)))  # Reverse for heatmap layout
+  )
+
+get_tri_coords <- function(x, y, metric) {
+  if (metric == "cor") {
+    tibble(
+      x_coord = c(x - 0.5, x + 0.5, x - 0.5),
+      y_coord = c(y + 0.5, y + 0.5, y - 0.5)
+    )
+  } else {
+    tibble(
+      x_coord = c(x + 0.5, x + 0.5, x - 0.5),
+      y_coord = c(y + 0.5, y - 0.5, y - 0.5)
+    )
+  }
+}
+
+df_poly <- df_long %>%
+  dplyr::mutate(coords = pmap(list(x_num, y_num, metric), get_tri_coords)) %>%
+  unnest(coords) %>%
+  group_by(cell_type, method, bulk_ds, metric) %>%
+  dplyr::mutate(tile_id = cur_group_id()) %>%
+  ungroup()
+
+df_labels <- df_long %>%
+  mutate(
+    label = ifelse(metric == "cor",
+                   sprintf("%.2f", value),
+                   sprintf("%.2f", value)),
+    x_label = x_num + ifelse(metric == "cor", -0.2, 0.2),
+    y_label = y_num + ifelse(metric == "cor", 0.2, -0.2)
+  )
+
+df_r <- df_poly %>% filter(metric == "cor")
+df_rmse <- df_poly %>% filter(metric == "RMSE")
+
+triangle_heatmap <- ggplot() +
+  # R triangles
+  geom_polygon(data = df_r, aes(x = x_coord, y = y_coord, group = tile_id, fill = value), color = "black") +
+  scale_fill_gradient2(mid = 'darkred', low = "black", high = "steelblue", name = "R") +
+  new_scale_fill() +
+  # RMSE triangles
+  geom_polygon(data = df_rmse, aes(x = x_coord, y = y_coord, group = tile_id, fill = value), color = "black") +
+  scale_fill_gradient(low = "steelblue", high = "darkred", name = "RMSE") +
+  geom_text(data = df_labels, aes(x = x_label, y = y_label, label = label, group = metric), size = 2, color='white') +
+  facet_wrap(~bulk_ds, scales = 'free', ncol = 3) +
+  theme_bw() +
+  theme(
+    panel.grid = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  ) +
+  scale_x_discrete(limits = x_levels) +
+  scale_y_discrete(limits = rev(y_levels)) +
+  labs(x = "", y = "")
+
+ggsave('/nfs/proj/omnideconv_benchmarking/omnideconv/benchmark/revision/visualization/fig2/fig_s3_v2.pdf', plot = triangle_heatmap, width = 14, height = 16)
+```
+

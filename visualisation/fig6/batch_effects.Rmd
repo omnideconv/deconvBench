@@ -1,0 +1,220 @@
+---
+title: "Batch Effect Analysis"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(ggdensity)
+library(data.table)
+source("../visualisation/helper_functions.R")
+color_palette <- c('B cells'='#999933',
+                   'Macrophages'='#CC6677',
+                   'mDC'='#882255',
+                   'Monocytes'='#AA4499',
+                   'NK cells'='#DDCC77',
+                   'T cell'='#332288',
+                   'T cells CD4 conv'='#117733',
+                   'T cells CD4'='#117733',
+                   'CD4 T cells'='#117733',
+                   'T cells CD8'='#44AA99',
+                   'CD8 T cells'='#44AA99',
+                   'Tregs'='#88CCEE',
+                   'T cells'='#332288',
+                   'Lymphocytes' = '#6600CC')
+method_palette <- palette.colors(palette = "Okabe-Ito")[1:8]
+names(method_palette) <- c('AutoGeneS','BayesPrism','Bisque','CIBERSORTx','DWLS','MuSiC','Scaden','SCDC')
+```
+
+# Load data
+```{r}
+data_dir <- '/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_batcheffect'
+data_dir_hao <- '/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_main2/'
+
+result_dirs <- list.files(data_dir, full.names = T, pattern = '-sampled')
+result_dirs_hao <- list.files(data_dir_hao, full.names = T, pattern = '-sampled')
+
+res <- lapply(result_dirs, function(i){
+  metrics_file <- paste0(i,'/results_metric.rds')
+  if(file.exists(metrics_file)){
+      metrics <- readRDS(metrics_file)
+  }else{
+    return(NULL)
+  }
+  
+  sc_dataset <- unique(metrics$runtimes$sc_ds)
+  bulk_dataset <- unique(metrics$runtimes$bulk_ds)
+  df <- left_join(metrics$cor_cell_type, metrics$rmse_cell_type, by = join_by(cell_type))
+  df$sc_dataset <- gsub(pattern = '-sampled',replacement = '',x = sc_dataset)
+  df$bulk_dataset <- bulk_dataset
+  df$method <- unique(metrics$runtimes$method)
+  
+  
+  return(df)
+})
+
+df <- bind_rows(res)
+
+# add Hao-sampled results
+res_hao <- lapply(result_dirs_hao, function(i){
+  metrics_file <- paste0(i,'/results_metric.rds')
+  if(file.exists(metrics_file)){
+      metrics <- readRDS(metrics_file)
+  }else{
+    return(NULL)
+  }
+  
+  sc_dataset <- unique(metrics$runtimes$sc_ds)
+  bulk_dataset <- unique(metrics$runtimes$bulk_ds)
+
+  df <- left_join(metrics$cor_cell_type, metrics$rmse_cell_type, by = join_by(cell_type))
+  df$sc_dataset <- gsub(pattern = '-sampled',replacement = '',x = sc_dataset)
+  df$bulk_dataset <- bulk_dataset
+  df$method <- unique(metrics$runtimes$method)
+  
+  return(df)
+})
+
+df_hao <- bind_rows(res_hao)
+
+df <- bind_rows(df, df_hao)
+
+df <- df %>% 
+  mutate(method = recode(method,
+                         'autogenes'='AutoGeneS',
+                         'bayesprism'='BayesPrism',
+                         'bisque'='Bisque',
+                         'cibersortx'='CIBERSORTx',
+                         'dwls'='DWLS',
+                         'music'='MuSiC',
+                         'scaden'='Scaden',
+                         'scdc'='SCDC'))
+
+df$cell_type <- recode(df$cell_type,
+                                   'T cell' = 'T cells',
+                                   'T cells CD4 conv' = 'CD4 T cells',
+                                   'T cells CD4' = 'CD4 T cells',
+                                   'T cells CD8' = 'CD8 T cells')
+
+df.cor <- data_summary(df, 'cor', c('method','bulk_dataset','cell_type'))
+df.rmse <- data_summary(df, 'RMSE', c('method','bulk_dataset','cell_type'))
+df.both <- data.table(merge(df.cor, df.rmse, by = c('method','bulk_dataset','cell_type'), suffixes = c('.cor','.rmse')))
+```
+# heatmap R
+```{r}
+df <- df %>%
+  filter(bulk_dataset %in% c('hoek','finotello','morandini','altman')) %>%
+  mutate(text_color_cor = ifelse(cor > 0, "black", "white"))
+
+heatmap_r <- ggplot(df |> subset(bulk_dataset %in% c('hoek','finotello','morandini','altman')), aes(x=method, y=sc_dataset, fill=cor, label = round(cor, 2)))+
+  geom_tile()+
+  facet_grid(cell_type~bulk_dataset, scales='free')+
+  geom_text(size=2, color='white')+
+  scale_fill_gradient2(mid = 'darkred', low = "black", high = "steelblue", name = "R", limits=c(-1,1))+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+heatmap_r
+```
+
+# heatmap RMSE
+```{r}
+df <- df %>%
+  filter(bulk_dataset %in% c('hoek','finotello','morandini','altman')) %>%
+  mutate(text_color_rmse = ifelse(RMSE < 0.1, "black", "white"))
+
+heatmap_rmse <- ggplot(df |> subset(bulk_dataset %in% c('hoek','finotello','morandini','altman')), aes(x=method, y=sc_dataset, fill=RMSE, label = round(RMSE, 2)))+
+  geom_tile()+
+  facet_grid(cell_type~bulk_dataset, scales='free')+
+  geom_text(size=2, color='white')+
+  scale_fill_gradient(high = 'darkred', low = 'steelblue')+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+heatmap_rmse
+```
+
+```{r}
+ggsave('visualization/fig6/heatmap_r.pdf', plot=heatmap_r, width = 11, height = 16)
+ggsave('visualization/fig6/heatmap_rmse.pdf', plot=heatmap_rmse, width = 11, height = 16)
+ggsave('visualization/fig6/heatmap_rmse.png', plot=heatmap_rmse, width = 10, height = 13)
+ggsave('visualization/fig6/heatmap_r.png', plot=heatmap_r, width = 10, height = 13)
+```
+
+
+# star plots
+```{r}
+star_fino <- ggplot(df.both |> subset(bulk_dataset %in% c('finotello')), aes(x=`mean.rmse`, y=`mean.cor`, color=method))+
+  geom_point(size=2.5)+
+  geom_errorbar(aes(ymin=`mean.cor`-`sd.cor`, ymax=`mean.cor`+`sd.cor`), width=.01)+
+  geom_errorbar(aes(xmin=`mean.rmse`-`sd.rmse`, xmax=`mean.rmse`+`sd.rmse`), width=.1)+
+  facet_wrap(~cell_type, ncol = 5)+
+  theme_bw()+
+  scale_color_manual(values = method_palette)+
+  ylab('Correlation')+xlab('RMSE')+
+  ggtitle('finotello')
+
+star_hoek <- ggplot(df.both |> subset(bulk_dataset %in% c('hoek')), aes(x=`mean.rmse`, y=`mean.cor`, color=method))+
+  geom_point(size=2.5)+
+  geom_errorbar(aes(ymin=`mean.cor`-`sd.cor`, ymax=`mean.cor`+`sd.cor`), width=.01)+
+  geom_errorbar(aes(xmin=`mean.rmse`-`sd.rmse`, xmax=`mean.rmse`+`sd.rmse`), width=.1)+
+  facet_wrap(~cell_type, ncol = 5)+
+  theme_bw()+
+  scale_color_manual(values = method_palette)+
+  ylab('Correlation')+xlab('RMSE')+
+  ggtitle('hoek')
+
+star_mora <- ggplot(df.both |> subset(bulk_dataset %in% c('morandini')), aes(x=`mean.rmse`, y=`mean.cor`, color=method))+
+  geom_point(size=2.5)+
+  geom_errorbar(aes(ymin=`mean.cor`-`sd.cor`, ymax=`mean.cor`+`sd.cor`), width=.01)+
+  geom_errorbar(aes(xmin=`mean.rmse`-`sd.rmse`, xmax=`mean.rmse`+`sd.rmse`), width=.1)+
+  facet_wrap(~cell_type, ncol = 5)+
+  theme_bw()+
+  scale_color_manual(values = method_palette)+
+  ylab('Correlation')+xlab('RMSE')+
+  ggtitle('morandini')
+
+star_altman <- ggplot(df.both |> subset(bulk_dataset %in% c('altman')), aes(x=`mean.rmse`, y=`mean.cor`, color=method))+
+  geom_point(size=2.5)+
+  geom_errorbar(aes(ymin=`mean.cor`-`sd.cor`, ymax=`mean.cor`+`sd.cor`), width=.01)+
+  geom_errorbar(aes(xmin=`mean.rmse`-`sd.rmse`, xmax=`mean.rmse`+`sd.rmse`), width=.1)+
+  facet_wrap(~cell_type, ncol = 4)+
+  theme_bw()+
+  scale_color_manual(values = method_palette)+
+  ylab('Correlation')+xlab('RMSE')+
+  ggtitle('altman')
+
+star_fino
+star_hoek
+star_mora
+star_altman
+```
+
+```{r}
+ggsave('visualization/fig6/star_fino.pdf', plot=star_fino, width = 8, height = 6)
+ggsave('visualization/fig6/star_hoek.pdf', plot=star_hoek, width = 10, height = 4)
+ggsave('visualization/fig6/star_mora.pdf', plot=star_mora, width = 10, height = 4)
+ggsave('visualization/fig6/star_altman.pdf', plot=star_altman, width = 10, height = 2.6)
+```
+
+# manual inspection of SD
+```{r}
+ggplot(df.both |> subset(bulk_dataset %in% c('hoek','finotello','morandini','altman')), aes(x=sd.rmse, y=sd.cor, color=method, shape=bulk_dataset))+
+    geom_point(size=2.5)+
+    facet_wrap(~cell_type)+
+    xlim(0,.2)+
+    theme_bw()+
+    scale_color_manual(values = method_palette)
+
+
+ggplot(df.both |> subset(bulk_dataset %in% c('hoek','finotello','morandini','altman')), aes(y=method, x=sd.cor))+
+    geom_boxplot()+
+  facet_wrap(~cell_type)+
+    theme_bw()
+
+ggplot(df.both |> subset(bulk_dataset %in% c('hoek','finotello','morandini','altman')), aes(y=method, x=sd.rmse))+
+    geom_boxplot()+
+  facet_wrap(~cell_type)+
+    theme_bw()
+```
+

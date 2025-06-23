@@ -1,0 +1,447 @@
+---
+title: "Spillover"
+author: "Alexander Dietrich"
+date: "2025-04-08"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(circlize)
+
+color_palette <- c('B cells'='#999933',
+                   'Macrophages'='#CC6677',
+                   'mDC'='#882255',
+                   'Monocytes'='#AA4499',
+                   'NK cells'='#DDCC77',
+                   'T cell'='#332288',
+                   'T cells'='#332288',
+                   'CD4 T cells'='#117733',
+                   'T cells CD4'='#117733',
+                   'CD8 T cells'='#44AA99',
+                   'T cells CD8'='#44AA99',
+                   'Tregs'='#88CCEE',
+                   'Lymphocytes' = '#6600CC',
+                   'pDC'='#8D4B00',
+                   'Neutrophils'='#FFFB6A',
+                   'Stromal cells' = '#288BA8',
+                   'Plasma cells'="#FFD92F",
+                   'ILC'="#66C2A5",
+                   'Platelet'="#B3B3B3")
+
+colors = color_palette
+names(colors) = names(color_palette)
+```
+
+# prepare ground truth for pipeline
+```{r cars}
+hoek_purified <- readRDS('/nfs/data/omnideconv_benchmarking_clean/data/spillover/hoek_purified/hoek_purified_pure_cell_type.rds')
+hoek_purified$pure_cell_type <- recode(hoek_purified$pure_cell_type, 'T cells' = 'T cell')
+hoek_purified_facs <- table(hoek_purified$pure_cell_type, hoek_purified$sample)
+hoek_purified_facs <- matrix(hoek_purified_facs, ncol=ncol(hoek_purified_facs), dimnames=dimnames(hoek_purified_facs))
+saveRDS(hoek_purified_facs, '/nfs/data/omnideconv_benchmarking_clean/data/spillover/hoek_purified/hoek_purified_facs.rds')
+
+linsley_purified <- readRDS('/nfs/data/omnideconv_benchmarking_clean/data/spillover/linsley_purified/linsley_purified_pure_cell_type.rds')
+linsley_purified_facs <- table(linsley_purified$pure_cell_type, linsley_purified$sample)
+linsley_purified_facs <- matrix(linsley_purified_facs, ncol=ncol(linsley_purified_facs), dimnames=dimnames(linsley_purified_facs))
+saveRDS(linsley_purified_facs, '/nfs/data/omnideconv_benchmarking_clean/data/spillover/linsley_purified/linsley_purified_facs.rds')
+```
+
+# Real bulks
+
+## read results
+```{r pressure, echo=FALSE}
+output_dirs <- list.files('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_spillover_purified', full.names = T)
+
+res <- lapply(output_dirs, function(i){
+  
+  path <- paste0(i,'/results_metric.rds')
+  if(!file.exists(path)){
+    return(NULL)
+  }
+  metrics <- readRDS(path)
+  
+  method <- unique(metrics$runtimes$method)
+  bulk_ds <- unique(metrics$runtimes$bulk_ds)
+  sc_ds <- unique(metrics$runtimes$sc_ds)
+  if(sc_ds == 'HaoCleaned-sampled'){
+    deconv.results <- metrics$deconv.results |> 
+      as.data.frame() |> 
+      rownames_to_column(var='sample') |> 
+      pivot_longer(-sample, names_to = 'celltype', values_to = 'proportion.estimated') 
+  
+    if(bulk_ds == 'hoek_purified'){
+      # remove T subtypes, because their estimates have been summed up already in the pipeline
+      #deconv.results <- deconv.results |> subset(!celltype %in% c('T cells CD4 conv','T cells CD8','Tregs'))
+    }
+    
+    gt <- metrics$facs_ground_truth |>
+      as.data.frame() |>
+      rownames_to_column(var='celltype') |>
+      pivot_longer(-celltype, names_to = 'sample', values_to = 'proportion.purified')
+    
+    df_long <- deconv.results |> 
+      left_join(gt, by = join_by(sample, celltype)) |>
+      mutate(proportion.purified = ifelse(is.na(proportion.purified), 0, proportion.purified),
+             method = method,
+             bulk_ds = bulk_ds) 
+    
+    df_purified_info <- df_long |> 
+      subset(proportion.purified == 1) |> 
+      mutate(purified_celltype = celltype) |>
+      select(purified_celltype, sample)
+    
+    df_long <- df_long |> left_join(df_purified_info, by = join_by(sample))
+    
+    return(df_long)  
+  }
+})
+
+data <- bind_rows(res)
+
+data$celltype <- recode(data$celltype,
+                        'T cell' = 'T cells',
+                        'T cells CD4 conv' = 'CD4 T cells',
+                        'T cells CD4' = 'CD4 T cells',
+                        'T cells CD8' = 'CD8 T cells')
+
+data$purified_celltype <- recode(data$purified_celltype,
+                        'T cell' = 'T cells',
+                        'T cells CD4 conv' = 'CD4 T cells',
+                        'T cells CD4' = 'CD4 T cells',
+                        'T cells CD8' = 'CD8 T cells')
+
+data <- data |> 
+  mutate(method = recode(method,
+                         'autogenes'='AutoGeneS',
+                         'bayesprism'='BayesPrism',
+                         'bisque'='Bisque',
+                         'cibersortx'='CIBERSORTx',
+                         'dwls'='DWLS',
+                         'music'='MuSiC',
+                         'scaden'='Scaden',
+                         'scdc'='SCDC'))
+```
+
+
+## circle plots
+```{r}
+dataset <- 'hoek_purified'
+
+overviewTable <- data |> subset(bulk_ds == dataset)
+par(mar=rep(2, 4))
+circos.par(cell.padding = rep(2.5, 4))
+pdf(paste0('visualization/fig5/',dataset,'_spillover.pdf'), width = 22, height = 8)
+layout(matrix(1:8, nrow = 2, byrow = TRUE))
+
+
+for(m in unique(data$method)){
+  print(m)
+  resultDf <- data |> subset(purified_celltype != 'Neutrophils')
+  if(dataset == 'hoek_purified'){
+    resultDf <- resultDf |> subset(!celltype %in% c('T cells CD4 conv', 'T cells CD8', 'Tregs'))
+  }
+  migration <- resultDf %>%
+      filter(method == m, bulk_ds == dataset) %>%
+      group_by(method, purified_celltype, celltype) %>%
+      dplyr::summarise(estimate = mean(proportion.estimated)) %>%
+      ungroup()
+  migration_mat = migration %>%
+      select(-method) %>%
+      spread(celltype, estimate) %>%
+      as.data.frame() %>%
+      tibble::column_to_rownames("purified_celltype") %>%
+      as.matrix()
+  noise_ratio = migration %>%
+      mutate(type = ifelse(celltype == purified_celltype, "signal", "noise")) %>%
+      group_by(method, type) %>%
+      dplyr::summarise(estimate = sum(estimate)) %>%
+      spread(type, estimate) %>%
+      mutate(noise_ratio = noise/(signal+noise), signal_ratio = signal/(signal+noise)) %>%
+      ungroup()
+  par(cex = 0.9, mar = c(1, 1, 1, 1))
+  
+  border_mat = matrix(0, 
+                    nrow = nrow(migration_mat), 
+                    ncol = ncol(migration_mat), 
+                    dimnames = list(rownames(migration_mat), colnames(migration_mat)))
+  match_mat <- outer(rownames(border_mat), colnames(border_mat), FUN = "==")
+  border_mat[match_mat] <- 'black'
+  
+  chordDiagram(migration_mat, directional = -1, transparency = .2,
+              grid.col = colors, diffHeight = mm_h(3),
+              annotationTrack =  c("grid"), preAllocateTracks = list(track.height = 0.05),
+              link.border = border_mat, self.link = 2
+  )
+  
+  # rotate axis labels by 90 degrees
+  circos.trackPlotRegion(
+    track.index = 1,
+    panel.fun = function(x, y) {
+      sector_name <- get.cell.meta.data("sector.index")
+      xlim <- get.cell.meta.data("xlim")
+      ylim <- get.cell.meta.data("ylim")
+      circos.text(
+        x = mean(xlim),
+        y = ylim[1] + 0.3,
+        labels = sector_name,
+        facing = "downward",  # use "reverse.clockwise" for inward labels
+        niceFacing = FALSE,
+        adj = c(0.5, 0.5),
+        cex = .7
+      )
+    },
+    bg.border = NA
+  )
+  
+  circos.clear()
+  for(si in get.all.sector.index()) {
+    xlim = get.cell.meta.data("xlim", sector.index = si, track.index = 1)
+    ylim = get.cell.meta.data("ylim", sector.index = si, track.index = 1)
+    circos.text(mean(xlim), mean(ylim), si, sector.index = si, track.index = 1,
+                facing = "bending.inside", niceFacing = TRUE, col = "white")
+  }
+  text(0, 0, m, cex = 1.8)
+  text(0, -0.2, as.character(round(filter(noise_ratio, method == m) %>% pull(noise_ratio), 2)), cex=1.8)
+
+}
+dev.off()
+```
+
+## boxplot
+```{r}
+df <- data |>
+  subset(proportion.purified == 1)
+
+df$bulk_ds <- recode(df$bulk_ds, 
+                     'hoek_purified' = 'Hoek-pure',
+                     'linsley_purified' = 'Linsley-pure')
+
+p_boxplot <- ggplot(df, aes(x=purified_celltype, y=proportion.estimated, fill=purified_celltype))+
+  geom_boxplot()+
+  geom_hline(yintercept = 1, color='black', linetype = 'dashed')+
+  facet_grid(bulk_ds~method)+
+  scale_fill_manual(values = color_palette, drop = T)+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1),
+        legend.position = 'bottom',
+        strip.text = element_text(size = 11),
+        strip.background =element_rect(fill='white'),
+        panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank())+
+  xlab('')+ylab('fraction of true cell type')
+
+ggsave(filename = '/nfs/proj/omnideconv_benchmarking/omnideconv/benchmark/revision/visualization/fig5/boxplot.pdf', plot = p_boxplot, width = 15, height = 6)
+```
+
+## heatmap
+```{r}
+celltypes_ordered_similarity_reference <- c('Tregs', 'CD4 T cells', 'CD8 T cells', 'ILC', 'Plasma cells', 'NK cells',
+                                  'B cells', 'Monocytes', 'mDC', 'pDC', 'Platelet')
+
+mean.predictions <- data %>% 
+  group_by(method, purified_celltype, celltype, bulk_ds) %>%
+  dplyr::summarise(mean.estimate=mean(proportion.estimated))
+
+# no Neutrophils in Hao, so there will be no 'match' with the purified fractions; will show them anyways
+mean.predictions[which(is.na(mean.predictions$purified_celltype)),'purified_celltype'] <- 'Neutrophils'
+
+heatmap_linsley <- ggplot(mean.predictions |> subset(bulk_ds == 'linsley_purified'), aes(x=purified_celltype, y=celltype, fill=mean.estimate)) +
+  geom_tile() +
+  geom_text(aes(label = round(mean.estimate,2)), size = 2.5)+
+  facet_wrap(.~method, nrow = 2)+
+  theme_minimal()+
+  theme(strip.text = element_text(face = "bold"),
+        axis.text.x = element_text(angle = 60, hjust = 1)) +
+  scale_fill_gradient(low='white',high = 'purple', name='Mean estimate') +
+  xlab('True celltype') +
+  ylab('Predicted celltype') +
+  scale_y_discrete(limits=celltypes_ordered_similarity_reference)
+
+heatmap_hoek <- ggplot(mean.predictions |> subset(bulk_ds == 'hoek_purified'), aes(x=purified_celltype, y=celltype, fill=mean.estimate)) +
+  geom_tile() +
+  geom_text(aes(label = round(mean.estimate,2)), size = 2.5)+
+  facet_wrap(.~method, nrow = 2)+
+  theme_minimal()+
+  theme(strip.text = element_text(face = "bold"),
+        axis.text.x = element_text(angle = 60, hjust = 1)) +
+  scale_fill_gradient(low='white',high = 'purple', name='Mean estimate') +
+  xlab('True celltype') +
+  ylab('Predicted celltype') +
+  scale_y_discrete(limits=celltypes_ordered_similarity_reference)
+
+ggsave('/nfs/proj/omnideconv_benchmarking/omnideconv/benchmark/revision/visualization/fig5/linsley_heatmap.pdf', plot = heatmap_linsley, width = 14, height = 7)
+ggsave('/nfs/proj/omnideconv_benchmarking/omnideconv/benchmark/revision/visualization/fig5/hoek_heatmap.pdf', plot = heatmap_hoek, width = 14, height = 7)
+```
+
+
+# Pseudobulks
+
+## read results
+```{r}
+output_dirs <- list.files('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_spillover2', full.names = T)
+
+res <- lapply(output_dirs, function(i){
+  path <- paste0(i, '/deconvolution_spillover.rds')
+  if(!file.exists(path)){
+    return(NULL)
+  }
+  deconv_res <- readRDS(path)
+  method <- strsplit(basename(i),'_')[[1]][1]
+  reference <- strsplit(basename(i),'_')[[1]][2]
+  simulation_sc <- strsplit(basename(i),'_')[[1]][3]
+  
+  estimated_fractions <- deconv_res$deconvolution
+  true_fractions <- deconv_res$true_cell_fractions
+  
+  estimated_fractions_long <- estimated_fractions |> 
+    data.frame(check.names = F) |> 
+    rownames_to_column(var = 'sample') |> 
+    pivot_longer(-sample,names_to = 'cell_type', values_to = 'proportion.estimated') |>
+    mutate(cell_type = gsub('\\.', ' ', cell_type))
+  
+  true_fractions_long <- true_fractions |> 
+    t() |>
+    data.frame(check.names = F) |> 
+    rownames_to_column(var = 'sample') |> 
+    pivot_longer(-sample,names_to = 'cell_type', values_to = 'proportion.true') |>
+    mutate(sample = sub("_[0-9]+(?=(_|$))",'',sample, perl=TRUE))
+  
+  both_df <- left_join(estimated_fractions_long, true_fractions_long, by = join_by(sample, cell_type))
+  both_df$method <- method
+  both_df$purified_celltype <- gsub('_',' ',sapply(strsplit(both_df$sample, '__'), `[[`, 2))
+  
+  return(both_df)
+  
+})
+
+data_sim <- bind_rows(res)
+
+data_sim$cell_type <- recode(data_sim$cell_type,
+                        'T cells CD4 conv' = 'CD4 T cells',
+                        'T cells CD8' = 'CD8 T cells')
+
+data_sim$purified_celltype <- recode(data_sim$purified_celltype,
+                        'T cells CD4 conv' = 'CD4 T cells',
+                        'T cells CD8' = 'CD8 T cells')
+
+data_sim <- data_sim |> 
+  mutate(method = recode(method,
+                         'autogenes'='AutoGeneS',
+                         'bayesprism'='BayesPrism',
+                         'bisque'='Bisque',
+                         'cibersortx'='CIBERSORTx',
+                         'dwls'='DWLS',
+                         'music'='MuSiC',
+                         'scaden'='Scaden',
+                         'scdc'='SCDC'))
+```
+
+## circle plots
+
+```{r}
+overviewTable <- data_sim
+par(mar=rep(2, 4))
+circos.par(cell.padding = rep(2, 4))
+pdf(paste0('visualization/fig5/Hao_spillover.pdf'), width = 22, height = 8)
+layout(matrix(1:8, nrow = 2, byrow = TRUE))
+
+
+for(m in unique(data_sim$method)){
+  print(m)
+  resultDf <- data_sim
+
+  migration <- resultDf %>%
+      filter(method == m) %>%
+      group_by(method, purified_celltype, cell_type) %>%
+      dplyr::summarise(estimate = mean(proportion.estimated)) %>%
+      ungroup()
+  migration_mat = migration %>%
+      select(-method) %>%
+      spread(cell_type, estimate) %>%
+      as.data.frame() %>%
+      tibble::column_to_rownames("purified_celltype") %>%
+      as.matrix()
+  noise_ratio = migration %>%
+      mutate(type = ifelse(cell_type == purified_celltype, "signal", "noise")) %>%
+      group_by(method, type) %>%
+      dplyr::summarise(estimate = sum(estimate)) %>%
+      spread(type, estimate) %>%
+      mutate(noise_ratio = noise/(signal+noise), signal_ratio = signal/(signal+noise)) %>%
+      ungroup()
+  par(cex = 0.9, mar = c(1, 1, 1, 1))
+  
+  border_mat = matrix(0, 
+                    nrow = nrow(migration_mat), 
+                    ncol = ncol(migration_mat), 
+                    dimnames = list(rownames(migration_mat), colnames(migration_mat)))
+  match_mat <- outer(rownames(border_mat), colnames(border_mat), FUN = "==")
+  border_mat[match_mat] <- 'black'
+  
+  chordDiagram(migration_mat, directional = -1, transparency = .2,
+              grid.col = colors, diffHeight = mm_h(3),
+              annotationTrack =  c("grid","name"), preAllocateTracks = list(track.height = 0.05),
+              link.border = border_mat, self.link = 2
+  )
+  
+  circos.clear()
+  for(si in get.all.sector.index()) {
+    xlim = get.cell.meta.data("xlim", sector.index = si, track.index = 1)
+    ylim = get.cell.meta.data("ylim", sector.index = si, track.index = 1)
+    circos.text(mean(xlim), mean(ylim), si, sector.index = si, track.index = 1,
+                facing = "bending.inside", niceFacing = TRUE, col = "white")
+  }
+  
+  text(0, 0, m, cex = 1.8)
+  text(0, -0.2, as.character(round(filter(noise_ratio, method == m) %>% pull(noise_ratio), 2)), cex=1.8)
+
+}
+dev.off()
+```
+
+## boxplot
+```{r}
+df <- data_sim |>
+  subset(proportion.true == 1)
+
+p_boxplot <- ggplot(df, aes(x=purified_celltype, y=proportion.estimated, fill=purified_celltype))+
+  geom_boxplot()+
+  geom_hline(yintercept = 1, color='black', linetype = 'dashed')+
+  facet_wrap(~method, nrow = 8)+
+  scale_fill_manual(values = color_palette, drop = T)+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1),
+        legend.position = 'bottom',
+        strip.text = element_text(size = 11),
+        strip.background =element_rect(fill='white'),
+        panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank())+
+  xlab('')+ylab('fraction of true cell type')
+
+ggsave(filename = '/nfs/proj/omnideconv_benchmarking/omnideconv/benchmark/revision/visualization/fig5/Hao_boxplot.pdf', plot = p_boxplot, width = 3, height = 14)
+```
+
+## heatmap
+```{r}
+celltypes_ordered_similarity <- c('Tregs', 'CD4 T cells', 'CD8 T cells', 'ILC', 'Plasma cells', 'NK cells',
+                                  'B cells', 'Monocytes', 'mDC', 'pDC', 'Platelet')
+
+mean.predictions = data_sim %>%
+  group_by(method, purified_celltype, cell_type) %>%
+  dplyr::summarise(mean.estimate=mean(proportion.estimated))
+
+ggplot(mean.predictions, aes(x=purified_celltype, y=cell_type, fill=mean.estimate)) +
+  geom_tile() +
+  geom_text(aes(label = round(mean.estimate,2)), size = 2.5)+
+  facet_wrap(.~method)+
+  theme_minimal()+
+  theme(strip.text = element_text(face = "bold"),
+        axis.text.x = element_text(angle = 60, hjust = 1)) +
+  scale_fill_gradient(low='white',high = 'purple', name='Mean estimate') +
+  xlab('True celltype') +
+  ylab('Predicted celltype') +
+  scale_x_discrete(limits=celltypes_ordered_similarity) +
+  scale_y_discrete(limits=celltypes_ordered_similarity)
+
+ggsave('/nfs/proj/omnideconv_benchmarking/omnideconv/benchmark/revision/visualization/fig5/Hao_heatmap.pdf', width = 11, height = 9)
+```

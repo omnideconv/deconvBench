@@ -11,14 +11,14 @@ method_parameter_df$method_norm_combi <- paste0(method_parameter_df$method, meth
 
 fractions_df_mouse <- get_fractions('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_mouse/', '0', 'tabula-muris', method_parameter_df)
 fractions_df_mouse$org <- 'mm'
-fractions_df_hao <- get_all_fractions('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_main/', '0', 'hao-sampled-3', method_parameter_df)
+fractions_df_hao <- get_all_fractions('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_main2/', '0', 'Hao-sampled', method_parameter_df)
 fractions_df_hao$org <- 'hs'
 fractions_df <- rbind(fractions_df_hao, fractions_df_mouse)
 fractions_df <- subset(fractions_df, method_norm_combi %in% method_parameter_df$method_norm_combi)
 
 performance_df_mouse <- get_performance_metrics('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_mouse/', '0', 'tabula-muris', method_parameter_df)
 performance_df_mouse$org <- 'mm'
-performance_df_hao <- get_all_performance_metrics('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_main/', '0', 'hao-sampled-3', method_parameter_df)
+performance_df_hao <- get_all_performance_metrics('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_main2/', '0', 'Hao-sampled', method_parameter_df)
 performance_df_hao$org <- 'hs'
 performance_df <- rbind(performance_df_hao, performance_df_mouse)
 performance_df <- subset(performance_df, method_norm_combi %in% method_parameter_df$method_norm_combi)
@@ -87,6 +87,7 @@ df.both <- df.both %>%
 fractions_df <- fractions_df %>%
   mutate(sc_ds = recode(sc_ds,
                           "hao-sampled-3" = "HaoSub",
+                          "Hao-sampled" = "HaoSub",
                           "tabula-muris" = "TM"))
 
 

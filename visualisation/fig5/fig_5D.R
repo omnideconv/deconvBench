@@ -104,8 +104,9 @@ data_summary <- function(data, varname, groupnames){
   summary_func <- function(x, col){
     c(mean = mean(x[[col]], na.rm=TRUE),
       median = median(x[[col]], na.rm=TRUE),
-      sd = sd(x[[col]], na.rm=TRUE),
-      iqr = quantile(x[[col]], probs=c(.25, .75), na.rm=TRUE))
+      iqr = quantile(x[[col]], probs=c(.25, .75), na.rm=TRUE),
+      sd = sd(x[[col]], na.rm=TRUE)
+      )
   }
   data_sum <- ddply(data, groupnames, .fun=summary_func, varname)
   data_sum <- plyr::rename(data_sum, c("median" = varname))
@@ -154,24 +155,6 @@ corr.ribbon <- ggplot(correlation.results.summary, aes(x=as.character(unknown_fr
   labs(title='Correlation trend with increasing tumor fraction')
 ggsave(corr.ribbon, "./visualizations/fig_5/fig_5D.pdf", width=13, height = 8)
 
-rmse.ribbon <- ggplot(rmse.results.summary, aes(x=as.character(unknown_fraction), y=rmse, group=celltype))+
-  geom_point(aes(color=celltype))+
-  geom_line(aes(color=celltype))+
-  geom_errorbar(aes(group=unknown_fraction, ymin=`iqr.25%`, ymax=`iqr.75%`), width=.1)+
-  geom_ribbon(aes(fill=celltype, ymin=`iqr.25%`, ymax=`iqr.75%`), alpha=.2)+
-  facet_wrap(~method, ncol=4)+
-  geom_hline(yintercept = 0, linetype = 'dashed')+
-  geom_vline(xintercept = '0', linetype = 'dashed') +
-  geom_hline(yintercept = 0.5, linetype = 'dashed') +
-  theme_minimal()+
-  theme(legend.position = 'bottom') +
-  #scale_color_brewer(palette = 'Set1')+
-  scale_color_manual(values = cell_palette) +
-  scale_fill_manual(values = cell_palette) +
-  xlab('Unknown cell fraction') +
-  ylab('RMSE') +
-  labs(title='RMSE trend with increasing tumor fraction')
-ggsave(rmse.ribbon, "./visualizations/fig_5/fig_SXX.pdf", width=13, height = 8)
 
 
 

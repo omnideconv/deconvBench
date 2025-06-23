@@ -1,0 +1,211 @@
+---
+title: "Resources"
+author: "Alexander Dietrich"
+date: "2025-06-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(data.table)
+
+method_palette <- palette.colors(palette = "Okabe-Ito")[1:8]
+names(method_palette) <- c('AutoGeneS','BayesPrism','Bisque','CIBERSORTx','DWLS','MuSiC','Scaden','SCDC')
+
+```
+
+# Memory
+
+```{r}
+# dir: /nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_downsample2
+bisque_trace <- fread('bisque-trace.csv', fill=T)
+dwls_trace <- fread('dwls-trace.csv', fill=T)
+scaden_trace <- fread('scaden-trace.csv', fill=T)
+bayesprism_trace <- fread('bayesprism-trace.csv', fill=T)
+scdc_trace <- fread('scdc-trace.csv', fill=T)
+music_trace <- fread('music-trace.csv', fill=T)
+autogenes_trace <- fread('autogenes-trace.csv', fill=T)
+cibersortx_trace <- fread('cibersortx-trace.csv', fill=T)
+
+#runs with 100k cells were done separately
+music_scdc_bisque_100k_trace <- fread('music_scdc_bisque_100k-trace.csv', fill=T)
+dwls_100k_trace <- fread('dwls_100k-trace.csv', fill=T)
+scaden_bayesprism_100k_trace <- fread('bayesprism_scaden_100k-trace.csv', fill=T)
+autogenes_100k_trace <- fread('autogenes_100k-trace.csv', fill=T)
+cibersortx_100k_trace <- fread('cibersortx_100k-trace.csv', fill=T)
+
+df <- bind_rows(bisque_trace, dwls_trace, scaden_trace, bayesprism_trace, scdc_trace, music_trace, autogenes_trace, cibersortx_trace, music_scdc_bisque_100k_trace, dwls_100k_trace, scaden_bayesprism_100k_trace, autogenes_100k_trace, cibersortx_100k_trace)
+```
+
+
+```{r}
+df <- df[-which(df$task_id %in% c('\t','')),]
+df <- df[rowSums(is.na(df)) != ncol(df),]
+
+script_lines <- seq(2, nrow(df), by=2)
+script_entries <- unlist(df[script_lines,'task_id'])
+df <- df[!script_lines]
+df$script <- script_entries
+df$script <- gsub('\'','',df$script)
+df$script <- gsub('\\t',' ',df$script)
+df$process <- gsub('subsampling:','',df$process)
+
+df_sig <- df %>% subset(process == 'CREATE_SIGNATURE_PREPROCESSED')
+df_deconv <- df %>% subset(process == 'DECONVOLUTE')
+
+df_deconv$method <- sapply(strsplit(df_deconv$script,' '), `[[`, 7)
+df_deconv$n_cells <- gsub('perc','',sapply(strsplit(sapply(strsplit(df_deconv$script,' '), `[[`, 3), '_'), `[[`, 2))
+df_deconv$bulk_samples <- gsub('nsamples','',sapply(strsplit(sapply(strsplit(df_deconv$script,' '), `[[`, 5), '-'), `[[`, 3))
+
+df_sig$method <- sapply(strsplit(df_sig$script,' '), `[[`, 6)
+df_sig$n_cells <- gsub('perc','',sapply(strsplit(sapply(strsplit(df_sig$script,' '), `[[`, 2), '_'), `[[`, 2))
+df_sig$bulk_samples <- gsub('nsamples','',sapply(strsplit(sapply(strsplit(df_sig$script,' '), `[[`, 4), '-'), `[[`, 3))
+
+df_comb <- rbind(df_sig[,c('method','process','n_cells','bulk_samples','cpus','memory','status','peak_vmem')], 
+                 df_deconv[,c('method','process','n_cells','bulk_samples','cpus','memory','status','peak_vmem')])
+
+df_comb <- df_comb |> subset(!status %in% c('FAILED','CASHED'))
+
+df_comb$peak_vmem <- unlist(lapply(df_comb$peak_vmem, function(i){
+  if(grepl('GB', i)){
+    as.numeric(gsub('GB','',i))
+  }else{
+    as.numeric(gsub('MB','',i)) / 1024
+  }
+}))
+
+df_comb <- df_comb %>% 
+  mutate(process = recode(process,
+                         'CREATE_SIGNATURE_PREPROCESSED'='SIGNATURE',
+                         'DECONVOLUTE'='DECONVOLUTION'))
+
+df_comb[which(df_comb$method %in% c('bayesprism','bisque','music','autogenes') & df_comb$process == 'SIGNATURE'),'peak_vmem'] <- NA
+
+df_comb <- df_comb %>% 
+  mutate(method = recode(method,
+                         'autogenes'='AutoGeneS',
+                         'bayesprism'='BayesPrism',
+                         'bisque'='Bisque',
+                         'cibersortx'='CIBERSORTx',
+                         'dwls'='DWLS',
+                         'music'='MuSiC',
+                         'scaden'='Scaden',
+                         'scdc'='SCDC'))
+
+
+df_comb$n_cells <- as.numeric(df_comb$n_cells)
+df_comb$bulk_samples <- factor(df_comb$bulk_samples, levels = c('5','25','50','100','200'))
+
+table(df_comb$method)
+```
+
+```{r}
+p_memory <- ggplot(df_comb, aes(x=n_cells, y=peak_vmem, group=method))+
+  geom_hline(yintercept = 50, color='black', linetype='dashed')+
+  geom_line(aes(color=method))+
+  geom_point(color='black', size=2, stroke=1)+
+  geom_point(aes(color=method), size=1.5, stroke=.6)+
+  facet_grid(process~bulk_samples)+
+  theme_bw()+
+  ylab('peak virtual memory (GB)')+
+  xlab('number of single cells')+
+  scale_color_manual(values = method_palette)+
+  theme(axis.text.x = element_text(angle=90, hjust=1, vjust = .5),
+        strip.background = element_rect(fill = 'white'),
+        panel.grid.minor.x = element_blank())+
+  coord_trans(y='log1p', x='log1p')+
+  scale_x_continuous(breaks = c(1000, 3000, 5000, 10000, 25000, 50000, 100000))+
+  scale_y_continuous(breaks = c(10, 25, 50, 100, 150, 200, 300))
+```
+
+
+# Runtime
+```{r}
+dir <- '/home/alex/Documents/PhD/omnideconv/omnideconv_paper/TUM_backup/downsample/results_downsample2'
+results_dirs <- list.dirs(dir, full.names = T, recursive = F)
+res <- lapply(results_dirs, function(i){
+  runtime_sig_file <- paste0(i,'/runtime_signature.rds')
+  runtime_dec_file <- paste0(i,'/runtime_deconvolution.rds')
+  
+  if(file.exists(runtime_sig_file) & file.exists(runtime_dec_file)){
+    runtime_sig <- readRDS(runtime_sig_file)
+    colnames(runtime_sig) <- c("method","sc_name","sc_norm","bulk_name","bulk_norm","subset_value","replicate","process","user.self","sys.self","elapsed")
+    runtime_dec <- readRDS(runtime_dec_file)
+    colnames(runtime_dec) <- c("method","sc_name","sc_norm","bulk_name","bulk_norm","subset_value","replicate","process","user.self","sys.self","elapsed")
+    
+    df <- bind_rows(runtime_sig, runtime_dec)
+    df$bulk_samples <- gsub('nsamples','',sapply(str_split(df$bulk_name, '-'), `[[`, 3))
+    return(df)
+  }
+  
+})
+
+runtime_df <- bind_rows(res)
+runtime_df$subset_value <- as.numeric(runtime_df$subset_value)
+runtime_df$bulk_samples <- factor(runtime_df$bulk_samples, levels = c('5','25','50','100','200'))
+
+#n_cells_df <- bind_rows(lapply(unique(runtime_df$sc_name), function(i){
+#  annotation <- readRDS(paste0('/nfs/data/omnideconv_benchmarking_clean/preprocess/',i,'/celltype_annotations.rds'))
+#  return(data.frame('n_cells' = length(annotation),
+#                    'sc_name' = i))
+#}))
+#runtime_df <- left_join(runtime_df, n_cells_df, by = join_by(sc_name))
+
+runtime_df$elapsed_minutes <- runtime_df$elapsed / 60
+
+# set methods who do not build a signature to 0
+runtime_df[which(runtime_df$method %in% c('bayesprism','bisque','music','autogenes') & runtime_df$process == 'SIGNATURE'),'elapsed_minutes'] <- 0
+
+# sum up both steps of methods to get total run time (FULL WORKFLOW)
+runtime_df <- runtime_df |> 
+  group_by(method, subset_value, bulk_samples) |>
+  summarize('elapsed_minutes' = sum(elapsed_minutes)) |>
+  mutate('process' = 'FULL WORKFLOW') |>
+  bind_rows(runtime_df)
+
+# set methods who do not build a signature to NA
+runtime_df[which(runtime_df$method %in% c('bayesprism','bisque','music','autogenes') & runtime_df$process == 'SIGNATURE'),'elapsed_minutes'] <- NA
+
+
+runtime_df <- runtime_df %>% 
+  mutate(method = recode(method,
+                         'autogenes'='AutoGeneS',
+                         'bayesprism'='BayesPrism',
+                         'bisque'='Bisque',
+                         'cibersortx'='CIBERSORTx',
+                         'dwls'='DWLS',
+                         'music'='MuSiC',
+                         'scaden'='Scaden',
+                         'scdc'='SCDC'))
+runtime_df$process <- factor(runtime_df$process, levels = c('SIGNATURE','DECONVOLUTION','FULL WORKFLOW'))
+
+head(runtime_df)
+```
+
+```{r}
+p_runtime <- ggplot(runtime_df, aes(x=subset_value, y=elapsed_minutes, group=method))+
+  geom_hline(yintercept = 60, color='black', linetype='dashed')+
+  geom_line(aes(color=method), linewidth=1)+
+  geom_point(color='black', size=2, stroke=1)+
+  geom_point(aes(color=method), size=1.5, stroke=.6)+
+  facet_grid(process~bulk_samples)+
+  theme_bw()+
+  ylab('runtime (minutes)')+
+  xlab('number of single cells')+
+  scale_color_manual(values = method_palette)+
+  theme(axis.text.x = element_text(angle=90, hjust=1, vjust = .5),
+        strip.background = element_rect(fill = 'white'), 
+        panel.grid.minor.x = element_blank(),
+        panel.grid.minor.y = element_blank())+
+  coord_trans(y='log1p', x='log1p')+
+  scale_x_continuous(breaks = c(1000, 3000, 5000, 10000, 25000, 50000, 100000))+
+  scale_y_continuous(breaks = c(10, 30, 60, 120, 180, 240, 360, 480))
+```
+
+```{r}
+library(patchwork)
+p <- p_memory / p_runtime + plot_annotation(tag_levels = 'A')
+
+ggsave('~/Documents/PhD/omnideconv/omnideconv_paper/revision/figures/supplement/s4.png',plot = p, width = 12, height=14)
+ggsave('~/Documents/PhD/omnideconv/omnideconv_paper/revision/figures/supplement/s4.pdf',plot = p, width = 12, height=14)
+```

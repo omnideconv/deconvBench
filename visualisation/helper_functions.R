@@ -287,11 +287,15 @@ get_all_fractions <- function(output_dir, ct_values, query_sc, method_parameter_
 data_summary <- function(data, varname, groupnames){
   require(plyr)
   summary_func <- function(x, col){
-    c(median = median(x[[col]], na.rm=TRUE),
-      iqr = quantile(x[[col]], probs=c(.25, .75), na.rm=TRUE))
+    c(mean = mean(x[[col]], na.rm=TRUE),
+      median = median(x[[col]], na.rm=TRUE),
+      iqr = quantile(x[[col]], probs=c(.25, .75), na.rm=TRUE),
+      sd = sd(x[[col]], na.rm=TRUE)
+    )
   }
   data_sum <- ddply(data, groupnames, .fun=summary_func, varname)
   data_sum <- plyr::rename(data_sum, c("median" = varname))
+  message('using median as new default.')
   return(data_sum)
 }
 

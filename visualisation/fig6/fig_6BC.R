@@ -6,12 +6,14 @@ library(cowplot)
 
 source('/vol/omnideconv_input/benchmark/pipeline/bin/general_functions/deconvolution_workflow_for_simulation.R')
 methods <- c('autogenes','bayesprism','bisque','cibersortx','dwls','music','scaden','scdc')
-sc_norm <- c(rep('counts', 3),'cpm',rep('counts',4))
+sc_norm <- c('cpm', rep('counts', 2),'cpm',rep('counts',4))
 bulk_norm <- c('tpm', rep('counts', 2), rep('tpm',5))
+method_parameter_df <- data.frame(method=methods, sc_norm=sc_norm, bulk_norm=bulk_norm)
+method_parameter_df$method_norm_combi <- paste0(method_parameter_df$method, method_parameter_df$sc_norm, method_parameter_df$bulk_norm)
 
 # 1: List directories, methods, cell types
 #############################################################################
-impact.technology.results <- list.files('/vol/omnideconv_results/results_impact_technology', full.names=F, recursive=T)
+impact.technology.results <- list.files('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_impact_technology', full.names=F, recursive=T)
 
 #impact.technology.results <- impact.technology.results[grep('lambrechts', impact.technology.results)]
 impact.technology.results <- impact.technology.results[grep('deconvolution.rds', impact.technology.results)]
@@ -51,13 +53,13 @@ process_results_df <- function(res, method, pseudobulk_ds, signature_ds, replica
 }
 
 for(i in 1:nrow(metadata.table)){
-  result <- readRDS(paste0('/vol/omnideconv_results/results_impact_technology/', metadata.table$path[i])) %>%
+  result <- readRDS(paste0('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_impact_technology/', metadata.table$path[i])) %>%
     .$deconvolution %>%
     as.data.frame()
   colnames(result) <- gsub("xxxx", " ", colnames(result))
   colnames(result) <- gsub("21b2c7567f8711ec9bf265fb9bf6ab9a", "-", colnames(result))
 
-  true.fractions <- readRDS(paste0('/vol/omnideconv_results/results_impact_technology/', metadata.table$path[i])) %>%
+  true.fractions <- readRDS(paste0('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_impact_technology/', metadata.table$path[i])) %>%
     .$true_cell_fractions %>%
     t() %>%
     as.data.frame()

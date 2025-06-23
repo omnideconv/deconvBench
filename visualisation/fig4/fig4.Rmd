@@ -1,0 +1,378 @@
+---
+title: "mrna_bias"
+author: "Alexander Dietrich"
+date: "2025-05-20"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(data.table)
+library(cowplot)
+library(patchwork)
+
+color_palette <- c('B cells'='#999933',
+                   'Macrophages'='#CC6677',
+                   'mDC'='#882255',
+                   'Monocytes'='#AA4499',
+                   'NK cells'='#DDCC77',
+                   'T cell'='#332288',
+                   'T cells'='#332288',
+                   'CD4 T cells'='#117733',
+                   'T cells CD4'='#117733',
+                   'T cells CD4 conv'='#117733',
+                   'CD8 T cells'='#44AA99',
+                   'T cells CD8'='#44AA99',
+                   'Tregs'='#88CCEE',
+                   'Lymphocytes' = '#6600CC',
+                   'Erythrocytes' = '#6600CC',
+                   'pDC'='#8D4B00',
+                   'Neutrophils'='#FFFB6A',
+                   'Stromal cells' = '#288BA8',
+                   'Plasma cells'="#FFD92F",
+                   'ILC'="#66C2A5",
+                   'Platelet'="#288BA8")
+
+method_palette <- palette.colors(palette = "Okabe-Ito")[1:8]
+names(method_palette) <- c('AutoGeneS','BayesPrism','Bisque','CIBERSORTx','DWLS','MuSiC','Scaden','SCDC')
+```
+
+# Load results
+```{r}
+results_dir_main <- 'results_mrnabias/'
+results_dirs <- list.files(results_dir_main, full.names = T)
+
+res <- lapply(results_dirs, function(i){
+  folder <- basename(i)
+
+  if(file.exists(paste0(i,'/results_metric.rds'))){
+    metrics <- readRDS(paste0(i,'/results_metric.rds'))
+  
+    bulk_ds <- unique(metrics$runtimes$bulk_ds)
+      
+    list_split <- strsplit(bulk_ds, '-')[[1]]
+    
+    sc_ds_pseudobulk <- list_split[1]
+    sc_ds_reference <- unique(metrics$runtimes$sc_ds)
+    
+    # only load results for matching reference and pseudobulk sc datasets
+    if(gsub(pattern = '-sampled','',sc_ds_reference) == sc_ds_pseudobulk){
+      
+      df_deconv <- melt(as.data.table(metrics$deconv.results, keep.rownames = T), id.vars = 1)
+      colnames(df_deconv) <- c('sample','cell_type','fraction')
+      df_true <- melt(as.data.table(metrics$facs_ground_truth, keep.rownames = T), id.vars = 1)
+      colnames(df_true) <- c('cell_type','sample','fraction')
+      df_estimates <- merge(df_deconv, df_true, by=c('cell_type','sample'), suffixes = c('.estimate','.true'))
+      df_estimates$method <- unique(metrics$runtimes$method)
+      df_estimates$sc_ds_reference <- unique(metrics$runtimes$sc_ds)
+      df_estimates$sc_ds_pseudobulk <- list_split[1]
+      df_estimates$bulk_ds <- bulk_ds
+      df_estimates$nsamples_pseudobulk <- as.numeric(gsub('nsamples','',list_split[3]))
+      df_estimates$ncells_pseudobulk <- as.numeric(gsub('ncells','',list_split[2]))
+      df_estimates$scenario_pseudobulk <- list_split[4]
+      df_estimates$withbias_pseudobulk <- !list_split[5] == 'NONE'
+      
+      df_metrics <- cbind(metrics$rmse_cell_type, metrics$cor_cell_type[,-1])
+      df_metrics$method <- unique(metrics$runtimes$method)
+      df_metrics$sc_ds_reference <- unique(metrics$runtimes$sc_ds)
+      df_metrics$sc_ds_pseudobulk <- list_split[1]
+      df_metrics$bulk_ds <- bulk_ds
+      df_metrics$nsamples_pseudobulk <- as.numeric(gsub('nsamples','',list_split[3]))
+      df_metrics$ncells_pseudobulk <- as.numeric(gsub('ncells','',list_split[2]))
+      df_metrics$scenario_pseudobulk <- list_split[4]
+      df_metrics$withbias_pseudobulk <- !list_split[5] == 'NONE'
+      
+      return(list('metrics' = df_metrics,
+                  'estimates' = df_estimates))    
+    }
+  }
+})
+
+fractions_df <- bind_rows(lapply(res, `[[`, 'estimates'))
+performance_df <- bind_rows(lapply(res, `[[`, 'metrics'))
+
+fractions_df$cell_type <- recode(fractions_df$cell_type,
+                                   'T cells CD4 conv' = 'CD4 T cells',
+                                   'T cells CD8' = 'CD8 T cells')
+performance_df$cell_type <- recode(performance_df$cell_type,
+                                   'T cells CD4 conv' = 'CD4 T cells',
+                                   'T cells CD8' = 'CD8 T cells')
+performance_df <- performance_df %>% 
+  mutate(method = recode(method,
+                         'autogenes'='AutoGeneS',
+                         'bayesprism'='BayesPrism',
+                         'bisque'='Bisque',
+                         'cibersortx'='CIBERSORTx',
+                         'dwls'='DWLS',
+                         'music'='MuSiC',
+                         'scaden'='Scaden',
+                         'scdc'='SCDC'))
+
+fractions_df <- fractions_df %>% 
+  mutate(method = recode(method,
+                         'autogenes'='AutoGeneS',
+                         'bayesprism'='BayesPrism',
+                         'bisque'='Bisque',
+                         'cibersortx'='CIBERSORTx',
+                         'dwls'='DWLS',
+                         'music'='MuSiC',
+                         'scaden'='Scaden',
+                         'scdc'='SCDC'))
+fractions_df$difference <- fractions_df$fraction.estimate - fractions_df$fraction.true
+```
+
+
+```{r}
+ggplot(fractions_df, aes(x=fraction.true, y=fraction.estimate, color=withbias_pseudobulk))+
+  geom_point(alpha=.7)+
+  geom_abline()+
+  facet_grid(cell_type~method)+
+  scale_color_brewer(palette = 'Set1')+
+  theme_bw()+
+  theme(legend.position = 'top')
+
+```
+
+```{r}
+ggplot(fractions_df |> subset(method == 'SCDC' & sc_ds_pseudobulk %in% c('Hao','HaoCleaned')) , aes(x=fraction.true, y=fraction.estimate, color=withbias_pseudobulk, shape=sc_ds_pseudobulk))+
+  geom_point(alpha=.4)+
+  geom_abline()+
+  facet_wrap(cell_type~method)+
+  scale_color_brewer(palette = 'Set1')+
+  theme_bw()+
+  theme(legend.position = 'top')
+```
+
+```{r}
+method_order <- fractions_df |>
+  group_by(method, withbias_pseudobulk) |>
+  summarize(RMSE = sqrt(mean((fraction.estimate - fraction.true)^2))) |>
+  pivot_wider(
+      id_cols = c(method),
+      names_from = withbias_pseudobulk,
+      values_from = RMSE,
+      names_prefix = "RMSE_"
+  ) |> mutate(RMSE_prop = (RMSE_TRUE - RMSE_FALSE)) |> arrange(RMSE_prop) |> 
+  select(method) |> 
+  unlist()
+
+
+df <- performance_df %>%
+  filter(cell_type != 'all') %>%
+  pivot_wider(
+    id_cols = c(cell_type, method, sc_ds_pseudobulk),
+    names_from = withbias_pseudobulk,
+    values_from = RMSE,
+    names_prefix = "RMSE_"
+  ) %>%
+  mutate(RMSE_prop_scaled = (RMSE_TRUE - RMSE_FALSE) / RMSE_FALSE * 100,
+         RMSE_prop = (RMSE_TRUE - RMSE_FALSE),
+         method = factor(method, levels = method_order))
+
+df_plot <- df |> subset(sc_ds_pseudobulk %in% c("Arunachalam","BioResourceCollaboration","DominguezConde","Heimlich","HaoCleaned","Lee","SchulteSchrepping","TabulaSapiens","allen"))
+
+df_plot$sc_ds_pseudobulk <- recode(df_plot$sc_ds_pseudobulk,
+                                   'allen' = 'Allen - Brain',
+                                   "Arunachalam"= 'Arunachalam - blood',
+                                   "BioResourceCollaboration"= 'BioResourceCollaboration - blood',
+                                   "DominguezConde"= 'DominguezConde - blood',
+                                   "Heimlich"= 'Heimlich - blood',
+                                   "HaoCleaned"= 'Hao - blood',
+                                   "Lee"= 'Lee - blood',
+                                   "SchulteSchrepping"= 'SchulteSchrepping - blood',
+                                   "TabulaSapiens"= 'TabulaSapiens - blood')
+df_plot$sc_ds_pseudobulk <- factor(df_plot$sc_ds_pseudobulk, levels = c('Arunachalam - blood','BioResourceCollaboration - blood','DominguezConde - blood','Heimlich - blood','Hao - blood','Lee - blood','SchulteSchrepping - blood','TabulaSapiens - blood','Allen - Brain'))
+
+
+
+p <- ggplot(df_plot, aes(x=method, y=cell_type, fill=RMSE_prop))+
+    geom_tile()+
+    coord_flip()+
+    facet_wrap(~sc_ds_pseudobulk, scales='free_x')+
+    labs(fill=expression(RMSE[bias] - RMSE[nobias]))+
+    #scale_fill_gradient2(mid = "white", high = "#6600CC", low="#117733", midpoint = 0) +
+    scale_fill_gradientn(colours = c("#117733","white","#6600CC"), 
+                         values = scales::rescale(c(min(df_plot$RMSE_prop), -0.05, 0, 0.05, abs(min(df_plot$RMSE_prop)))),
+                         breaks = c(-0.2,-0.1,0,0.1,0.2), limits = c(min(df_plot$RMSE_prop),abs(min(df_plot$RMSE_prop)))
+                         ) +
+    xlab('')+ylab('')+theme_bw()+
+    theme(axis.text.x = element_text(angle = 60, hjust=1),
+          strip.background = element_rect(fill='white'),
+          legend.position = 'top')
+
+ggsave('mrnabias_heatmaps.pdf', p, width = 9, height = 8)
+```
+
+
+## Inspect n_genes per dataset+celltype
+
+```{r}
+datasets <- c(unique(fractions_df$sc_ds_pseudobulk)[-c(1,5,9,12)])
+
+res_pbmc <- lapply(dataset_pmbc, function(ds){
+  path <- paste0('data/singleCellXGeneCensus/',ds,'/simbu_ds.rds')
+  
+  if(file.exists(path)){
+    simbu_ds <- readRDS(path)
+    return(simbu_ds@colData |> data.frame() |> mutate('dataset'=ds, 'tissue'='PBMC')) 
+  }
+  
+})
+anno_df_pbmc <- bind_rows(res_pbmc)
+
+res_brain <- lapply(dataset_brain, function(ds){
+  path <- paste0('data/singleCell/',ds,'/simbu_ds.rds')
+  
+  if(file.exists(path)){
+    simbu_ds <- readRDS(path)
+    return(simbu_ds@colData |> data.frame() |> mutate('dataset'=ds, 'tissue'='brain')) 
+  }
+  
+})
+anno_df_brain <- bind_rows(res_brain)
+
+anno_df <- bind_rows(anno_df_brain, anno_df_pbmc)
+
+ggplot(anno_df, aes(x=cell_type, y=nGenes_SimBu, fill=cell_type))+
+  geom_boxplot()+
+  facet_grid(dataset~tissue, scales='free_x')+
+  theme_minimal()
+
+
+
+```
+### PBMC
+```{r}
+scaled_df <- anno_df_pbmc |> 
+  group_by(dataset, cell_type) |> 
+  summarize(
+    median_nGenes = median(nGenes_SimBu),
+    sd_nGenes = sd(nGenes_SimBu),
+    .groups = "drop_last"
+  ) |>
+  group_by(dataset) |>
+  mutate(
+    cd8_median = median_nGenes[cell_type == "T cells CD8"],
+    cd8_sd = sd_nGenes[cell_type == "T cells CD8"],
+    scaled_median_nGenes = median_nGenes / cd8_median,
+    scaled_sd_nGenes = sd_nGenes / cd8_sd
+  ) |>
+  ungroup() |>
+  mutate(jittered_y = as.numeric(factor(dataset)) + runif(n(), -0.1, 0.1))
+
+scaled_df_ordered <- scaled_df %>%
+  group_by(dataset) %>%
+  arrange(desc(scaled_median_nGenes), .by_group = TRUE) %>%
+  mutate(jittered_y = row_number()) %>%
+  ungroup()
+
+dataset_levels <- unique(scaled_df_ordered$dataset)
+dataset_offsets <- setNames(seq_along(dataset_levels) * 10, dataset_levels)
+
+scaled_df_ordered <- scaled_df_ordered %>%
+  mutate(jittered_y = jittered_y + dataset_offsets[dataset])
+
+ggplot(scaled_df_ordered, aes(y = jittered_y, x = scaled_median_nGenes, color = cell_type)) +
+  geom_point(size = 2) +
+  geom_errorbarh(aes(
+    xmin = scaled_median_nGenes - scaled_sd_nGenes,
+    xmax = scaled_median_nGenes + scaled_sd_nGenes
+  ), height = 0.4, size = 0.5) +
+  geom_vline(xintercept = 1, color = 'darkgrey', linetype = 'dashed') +
+  scale_y_continuous(
+    breaks = dataset_offsets + 5,  # center label between points
+    labels = names(dataset_offsets)
+  ) +
+  theme_minimal() +
+  scale_color_manual(values = color_palette)+
+  facet_wrap(~dataset, scales='free_y')+
+  theme(axis.text.y = element_blank())
+
+
+# Create a new column that only contains cell_type labels for the first dataset
+scaled_df_ordered <- scaled_df_ordered %>%
+  mutate(label_celltype = ifelse(dataset == first_dataset, as.character(cell_type), NA))
+
+# Plot
+ggplot(scaled_df_ordered, aes(y = jittered_y, x = scaled_median_nGenes, color = cell_type)) +
+  geom_point(size = 2) +
+  geom_errorbarh(aes(
+    xmin = scaled_median_nGenes - scaled_sd_nGenes,
+    xmax = scaled_median_nGenes + scaled_sd_nGenes
+  ), height = 0.4, size = 0.5) +
+  geom_text(
+    aes(x = scaled_median_nGenes + scaled_sd_nGenes, label = cell_type),
+    hjust = 0,
+    nudge_x = 0.05,
+    size = 3,
+    na.rm = TRUE
+  ) +
+  geom_vline(xintercept = 1, color = 'darkgrey', linetype = 'dashed') +
+  scale_y_continuous(
+    breaks = dataset_offsets + 5,
+    labels = names(dataset_offsets)
+  ) +
+  theme_bw() +
+  scale_color_manual(values = color_palette) +
+  facet_wrap(~dataset, scales = 'free_y') +
+  theme(axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        panel.grid.major.y = element_blank(),  
+        panel.grid.minor.y = element_blank(), 
+        legend.position = 'none')+
+  ylab('')+ xlab('scaled median nGenes +/- SD')
+```
+### brain
+```{r}
+scaled_df <- anno_df_brain |> 
+  group_by(dataset, cell_type) |> 
+  summarize(
+    median_nGenes = median(nGenes_SimBu),
+    sd_nGenes = sd(nGenes_SimBu),
+    .groups = "drop_last"
+  ) |>
+  group_by(dataset) |>
+  mutate(
+    opc_median = median_nGenes[cell_type == "OPC"],
+    opc_sd = sd_nGenes[cell_type == "OPC"],
+    scaled_median_nGenes = median_nGenes / opc_median,
+    scaled_sd_nGenes = sd_nGenes / opc_sd
+  ) |>
+  ungroup() |>
+  mutate(jittered_y = as.numeric(factor(dataset)) + runif(n(), -0.1, 0.1))
+
+# basic first plot
+ggplot(scaled_df, aes(y=cell_type, x=scaled_median_nGenes, color=cell_type))+
+  geom_point()+
+  facet_grid(~dataset, scales='free_y')+
+  theme_minimal()
+
+
+# more advanced
+scaled_df_ordered <- scaled_df %>%
+  group_by(dataset) %>%
+  arrange(desc(scaled_median_nGenes), .by_group = TRUE) %>%
+  mutate(jittered_y = row_number()) %>%
+  ungroup()
+
+dataset_levels <- unique(scaled_df_ordered$dataset)
+dataset_offsets <- setNames(seq_along(dataset_levels) * 10, dataset_levels)
+
+scaled_df_ordered <- scaled_df_ordered %>%
+  mutate(jittered_y = jittered_y + dataset_offsets[dataset])
+
+ggplot(scaled_df_ordered, aes(y = cell_type, x = scaled_median_nGenes, color = cell_type)) +
+  geom_point(size = 2) +
+  geom_errorbarh(aes(
+    xmin = scaled_median_nGenes - scaled_sd_nGenes,
+    xmax = scaled_median_nGenes + scaled_sd_nGenes
+  ), height = 0.4, size = 0.5) +
+  theme_bw() +
+  geom_vline(xintercept = 1, color = 'darkgrey', linetype = 'dashed') +
+  facet_wrap(~dataset) +
+  theme(
+        axis.ticks.y = element_blank(),
+        panel.grid.minor.x = element_blank(), 
+        legend.position = 'top')+
+  ylab('')+ xlab('scaled median nGenes +/- SD')
+```

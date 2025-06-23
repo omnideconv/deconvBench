@@ -47,29 +47,10 @@ if(sc_norm == 'counts'){
 
 annotation_path <- file.path(sc_path, sc_dataset, 'celltype_annotations_normal.rds')
 sc_celltype_annotations <- readRDS(annotation_path)
-
 sc_batch <- readRDS(file.path(sc_path, sc_dataset, 'batch.rds'))
 
 sc_celltype_annotations_fine <- readRDS(file.path(gsub('celltype_annotations_normal.rds', 'celltype_annotations_fine.rds', annotation_path)))
-
-
-
-coarse_file <- file.path(sc_path, sc_dataset, 'celltype_annotations_coarse.rds')
-
-if (file.exists(coarse_file)) {
-  sc_celltype_annotations_coarse <- readRDS(coarse_file)
-  sc_celltype_annotations_coarse <- sc_celltype_annotations_coarse[position_vector]
-
-  res_path_coarse <- paste0(res_base_path, '/', method, '/', bulk_name, "_coarse_annot")
-  dir.create(res_path_coarse, recursive = TRUE, showWarnings = TRUE)
-
-
-  run_coarse <- TRUE
-} else {
-  run_coarse <- FALSE
-}
-
-
+sc_celltype_annotations_coarse <- readRDS(file.path(gsub('celltype_annotations_normal.rds', 'celltype_annotations_coarse.rds', annotation_path)))
 
 # Here we need to filter for those cell types that are in the simulated dataset. 
 # NOTE: in the resolution analysis the cell types are specified in terms of finest cell types
@@ -82,32 +63,27 @@ position_vector <- sc_celltype_annotations_fine %in% cell_types_fine
 sc_matrix <- sc_matrix[, position_vector]
 sc_batch <- sc_batch[position_vector]
 sc_celltype_annotations_fine <- sc_celltype_annotations_fine[position_vector]
+sc_celltype_annotations_coarse <- sc_celltype_annotations_coarse[position_vector]
 sc_celltype_annotations <- sc_celltype_annotations[position_vector]
 
 bulk_matrix <- readRDS(file.path(bulk_path, paste0('replicate_1'), paste0(bulk_name, '_', bulk_norm, '.rds'))) %>% as.matrix(.)
 
 res_path_normal <- paste0(res_base_path, '/', method, '/', bulk_name, "_normal_annot")
 res_path_fine <- paste0(res_base_path, '/', method, '/', bulk_name, "_fine_annot")
+res_path_coarse <- paste0(res_base_path, '/', method, '/', bulk_name, "_coarse_annot")
 
 dir.create(res_path_normal, recursive = TRUE, showWarnings = TRUE)
+dir.create(res_path_coarse, recursive = TRUE, showWarnings = TRUE)
 dir.create(res_path_fine, recursive = TRUE, showWarnings = TRUE)
 
-
-if(run_coarse){
-  subset_list <- subset_cells(sc_matrix, sc_celltype_annotations, sc_batch, 1000, 22, 
-                              coarse_annotations = sc_celltype_annotations_coarse, 
-                              fine_annotations = sc_celltype_annotations_fine)
-  
-  sc_celltype_annotations_coarse <- subset_list$annotations_coarse                            
-
-} else {
-  subset_list <- subset_cells(sc_matrix, sc_celltype_annotations, sc_batch, 1000, 22,  
-                              fine_annotations = sc_celltype_annotations_fine)
-}
+subset_list <- subset_cells(sc_matrix, sc_celltype_annotations, sc_batch, 1000, 22, 
+                            sc_celltype_annotations_coarse, 
+                            sc_celltype_annotations_fine)
 
 sc_matrix <- subset_list$data
 sc_celltype_annotations <- subset_list$annotations
 sc_batch <- subset_list$batch_id
+sc_celltype_annotations_coarse <- subset_list$annotations_coarse
 sc_celltype_annotations_fine <- subset_list$annotations_fine
 
 # Normal deconv
@@ -168,68 +144,63 @@ if(method =='autogenes' | method == 'scaden'){
   unlink(signature)
 }
 
-if(run_coarse) {
-  # Coarse deconv
-  ###############################################################################################
-  signature_coarse <- signature_workflow_general(
+# Coarse deconv
+###############################################################################################
+signature_coarse <- signature_workflow_general(
+  sc_matrix, 
+  sc_celltype_annotations_coarse,
+  'coarse', 
+  sc_dataset, 
+  sc_norm, 
+  sc_batch,
+  method, 
+  bulk_matrix,
+  bulk_name, 
+  bulk_norm, 
+  ncores, 
+  res_path_coarse,
+    baseDir=baseDir
+)                                               
+
+for(r in 1:replicates){
+
+  cur_res_path <- file.path(res_path_coarse, paste0('replicate_', r))
+  dir.create(cur_res_path, recursive = TRUE, showWarnings = TRUE)
+
+  bulk_matrix <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0(bulk_name, '_', bulk_norm, '.rds')))
+  bulk_matrix <- as.matrix(bulk_matrix)
+
+  deconvolution <- deconvolution_workflow_general(
     sc_matrix, 
-    sc_celltype_annotations_coarse,
+    sc_celltype_annotations_coarse, 
     'coarse', 
     sc_dataset, 
     sc_norm, 
-    sc_batch,
+    sc_batch, 
+    signature_coarse, 
     method, 
-    bulk_matrix,
+    bulk_matrix, 
     bulk_name, 
     bulk_norm, 
     ncores, 
     res_path_coarse,
     baseDir=baseDir
-  )                                               
+  )
 
-  for(r in 1:replicates){
+  true_fractions <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0(bulk_name, '_coarse_annot_facs.rds')))
 
-    cur_res_path <- file.path(res_path_coarse, paste0('replicate_', r))
-    dir.create(cur_res_path, recursive = TRUE, showWarnings = TRUE)
+  results_list = list(
+    'deconvolution' = deconvolution, 
+    'true_cell_fractions' = true_fractions
+  )
 
-    bulk_matrix <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0(bulk_name, '_', bulk_norm, '.rds')))
-    bulk_matrix <- as.matrix(bulk_matrix)
-
-    deconvolution <- deconvolution_workflow_general(
-      sc_matrix, 
-      sc_celltype_annotations_coarse, 
-      'coarse', 
-      sc_dataset, 
-      sc_norm, 
-      sc_batch, 
-      signature_coarse, 
-      method, 
-      bulk_matrix, 
-      bulk_name, 
-      bulk_norm, 
-      ncores, 
-      res_path_coarse,
-      baseDir=baseDir
-    )
-
-    true_fractions <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0(bulk_name, '_coarse_annot_facs.rds')))
-
-    results_list = list(
-      'deconvolution' = deconvolution, 
-      'true_cell_fractions' = true_fractions
-    )
-
-    saveRDS(results_list, file=paste0(cur_res_path, "/deconvolution.rds"))
-
-  }
-
-  if(method =='autogenes' | method == 'scaden'){
-    unlink(signature_coarse)
-  }
+  saveRDS(results_list, file=paste0(cur_res_path, "/deconvolution.rds"))
 
 }
 
-
+if(method =='autogenes' | method == 'scaden'){
+  unlink(signature_coarse)
+}
 
 
 # Fine deconv 

@@ -1,15 +1,14 @@
 #!/usr/bin/Rscript
 
 library(SingleCellExperiment)
-library(parallel)
+library(tidyverse)
 
 "Usage: 
-  preprocessSingleCellNF.R <sc_name> <sc_path> <method> <subset_value> <replicate> <preProcess_dir> <baseDir>
+  preprocessSingleCellNF.R <sc_name> <sc_path> <subset_value> <replicate> <preProcess_dir> <baseDir>
   
 Options:
 <sc_name> name of sc datasets
 <sc_path> path to sc dataset
-<method> deconvolution method, for which the preprocessing is performed. Important to select the correctly normalized sc dataset
 <subset_value> if < 1: fraction of cell type; if > 1: number of cells per cell type
 <replicate> value of replicate number
 <preProcess_dir> directory where subsampling datasets are stored
@@ -20,18 +19,14 @@ args <- docopt::docopt(doc)
 
 sc_dataset <- args$sc_name
 sc_path <- args$sc_path
-method <- args$method
 baseDir <- args$baseDir
 
 source(paste0(baseDir, '/bin/utils.R'))
-method_normalizations <- read.table(paste0(baseDir, '/optimal_normalizations.csv'), sep = ',', header = TRUE)
-sc_norm <- method_normalizations[method_normalizations$method == method, 2]
-print(paste0('Method: ', method, '; sc-norm: ', sc_norm))
 
 subset_value <- as.numeric(args$subset_value)
 replicate <- as.numeric(args$replicate)
 
-output_dir <- paste0(args$preProcess_dir,'/',sc_dataset,'_',sc_norm,'_perc',subset_value,'_rep',replicate)
+output_dir <- paste0(args$preProcess_dir,'/',sc_dataset,'_perc',format(subset_value, scientific = FALSE),'_rep',replicate)
 
 # check if pre-processed files already exist to save time
 if(dir.exists(output_dir)){
@@ -42,12 +37,8 @@ if(dir.exists(output_dir)){
   }
 }
 
-# read scRNA-seq count matrix
-if(sc_norm == 'counts'){
-    sc_matrix <- readRDS(file.path(sc_path, sc_dataset, 'matrix_counts.rds'))
-} else {
-    sc_matrix <- readRDS(file.path(sc_path, sc_dataset, 'matrix_norm_counts.rds'))
-}
+sc_matrix_counts <- readRDS(file.path(sc_path, sc_dataset, 'matrix_counts.rds'))
+sc_matrix_cpm <- readRDS(file.path(sc_path, sc_dataset, 'matrix_norm_counts.rds'))
 sc_celltype_annotations <- readRDS(file.path(sc_path, sc_dataset, 'celltype_annotations.rds'))
 sc_batch <- readRDS(file.path(sc_path, sc_dataset, 'batch.rds'))
 
@@ -91,7 +82,8 @@ anno_subset <- anno_tbl %>%
   ungroup()
 
 
-subset_matrix <- sc_matrix[,anno_subset$index]
+subset_matrix_counts <- sc_matrix_counts[,anno_subset$index]
+subset_matrix_cpm <- sc_matrix_cpm[,anno_subset$index]
 subset_annot <- sc_celltype_annotations[anno_subset$index]
 subset_batch <- sc_batch[anno_subset$index]
 
@@ -99,11 +91,8 @@ subset_batch <- sc_batch[anno_subset$index]
 dir.create(output_dir, recursive = T, showWarnings = TRUE)
 print(output_dir)
 
-if(sc_norm == 'counts'){
-  saveRDS(subset_matrix, paste0(output_dir,'/matrix_counts.rds'))
-}else{
-  saveRDS(subset_matrix, paste0(output_dir,'/matrix_norm_counts.rds'))
-}
+saveRDS(subset_matrix_counts, paste0(output_dir,'/matrix_counts.rds'))
+saveRDS(subset_matrix_cpm, paste0(output_dir,'/matrix_norm_counts.rds'))
 saveRDS(subset_annot, paste0(output_dir,'/celltype_annotations.rds'))
 saveRDS(subset_batch, paste0(output_dir,'/batch.rds'))
 

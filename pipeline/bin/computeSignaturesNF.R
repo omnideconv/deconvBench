@@ -44,13 +44,21 @@ print(paste0('Method: ', method, '; sc-norm: ', sc_norm, '; bulk-norm: ', bulk_n
 
 # check if preprocessing has been performed
 if(args$run_preprocessing == 'true'){
-  subset_value <- as.numeric(args$subset_value)
-  replicate <- as.numeric(args$replicate)
-  sc_dataset <- paste0(args$sc_name,'_',sc_norm,'_perc',subset_value,'_rep',replicate)
+  sc_dataset <- args$sc_name
+  subset_value <- gsub('perc','',strsplit(sc_dataset,'_')[[1]][2])
+  replicate <- gsub('rep','',strsplit(sc_dataset,'_')[[1]][3])
+
+  # create output directory
+  res_path <- paste0(res_base_path, '/', method, "_", sc_dataset, "_", sc_norm, "_", bulk_name, "_", bulk_norm)
+  dir.create(res_path, recursive = TRUE, showWarnings = TRUE)
 }else{
   subset_value <- 0
   replicate <- 0
   sc_dataset <- args$sc_name
+
+  # create output directory
+  res_path <- paste0(res_base_path, '/', method, "_", sc_dataset, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
+  dir.create(res_path, recursive = TRUE, showWarnings = TRUE)
 }
 
 # read scRNA-seq count matrix
@@ -66,9 +74,7 @@ sc_batch <- readRDS(file.path(sc_path, sc_dataset, 'batch.rds'))
 bulk_matrix <- readRDS(file.path(args$bulk_path, bulk_name, paste0(bulk_name, '_', bulk_norm, '.rds')))
 bulk_matrix <- as.matrix(bulk_matrix)
 
-# create output directory
-res_path <- paste0(res_base_path, '/', method, "_", args$sc_name, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
-dir.create(res_path, recursive = TRUE, showWarnings = TRUE)
+
 
 
 ####################################

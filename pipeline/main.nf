@@ -1,42 +1,53 @@
 #!/usr/bin/env nextflow
 nextflow.enable.dsl=2
 
+def container_map = [
+    'autogenes'      : '/nfs/proj/omnideconv_benchmarking/omnideconv/benchmark/docker/omnideconv_benchmark_1_3.sif'
+]
+
 
 process PREPROCESS_SINGLE_CELL {
 
+      label 'process_default'
+
       input: 
       each sc_ds
-      each method
       each ct_fractions
       each replicate
-
+      /*
       output: 
       tuple val(sc_ds), 
             val(method),
             val(ct_fractions),
             val(replicate)
+      */
+
+      output:
+      val("${sc_ds}_perc${ct_fractions}_rep${replicate}")
 
       shell:
       '''
-      preprocessSingleCellNF.R '!{sc_ds}' '!{params.data_dir_sc}' '!{method}' '!{ct_fractions}' '!{replicate}' '!{params.preProcess_dir}' '!{baseDir}'
+      preprocessSingleCellNF.R '!{sc_ds}' '!{params.data_dir_sc}' '!{ct_fractions}' '!{replicate}' '!{params.preProcess_dir}' '!{baseDir}'
       '''
 }
 
 process SIMULATE_BULK {
   
-      //publishDir "${params.preProcess_dir}/pseudo_bulk", mode: 'copy'
+      label 'process_default'
 
       input:
+      each simulation_sc_dataset
       each simulation_n_cells
       each simulation_n_samples
       each simulation_scenario
+      each simulation_bias_type
 
       output:
-      val("${params.simulation_sc_dataset}-ncells${simulation_n_cells}-nsamples${simulation_n_samples}-${simulation_scenario}")
+      val("${simulation_sc_dataset}-ncells${simulation_n_cells}-nsamples${simulation_n_samples}-${simulation_scenario}-${simulation_bias_type}-simulation")
 
       shell:
       '''
-      simulateBulkNF.R '!{params.simulation_sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{simulation_n_samples}' '!{simulation_scenario}' '!{params.preProcess_dir}' '!{params.ncores}'
+      simulateBulkNF.R '!{simulation_sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{simulation_n_samples}' '!{simulation_scenario}' '!{simulation_bias_type}' '!{params.data_dir_bulk}' '!{params.ncores}'
       '''
 }
 
@@ -60,6 +71,8 @@ process ANALYSIS_BULK_MISSING_CELL_TYPES {
 }
 
 process SIMULATE_BULK_SPILLOVER {
+
+      label 'process_default'
       
       publishDir "${params.preProcess_dir}/pseudo_bulk_spillover", mode: 'copy'
 
@@ -67,11 +80,10 @@ process SIMULATE_BULK_SPILLOVER {
       each sc_dataset
       each simulation_n_cells
       each simulation_n_samples
-      val(cell_types)
+      val cell_types
 
       output:
-      tuple val(sc_dataset),
-            val("${sc_dataset}_spillover_sim"),
+      tuple val("${sc_dataset}_spillover_sim"),
             val("${params.preProcess_dir}/pseudo_bulk_spillover/${sc_dataset}_spillover_sim")
 
       beforeScript 'chmod o+rw .'      
@@ -83,12 +95,14 @@ process SIMULATE_BULK_SPILLOVER {
 
 process ANALYSIS_SPILLOVER {
 
+      label 'process_high'
+
       input:
-      tuple val(sc_dataset), 
-            val(sim_bulk_name), 
+      tuple val(sim_bulk_name),
             val(sim_bulk_path)
       val cell_types
       each method 
+      each sc_reference
      
       output:
       val("${sc_dataset}-spillover")
@@ -97,7 +111,7 @@ process ANALYSIS_SPILLOVER {
       
       shell:
       '''
-      analysisNF_spillover.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{sim_bulk_name}' '!{sim_bulk_path}' '!{method}' '!{cell_types}' '!{params.results_dir_spillover}' '!{params.ncores}' '!{baseDir}'
+      analysisNF_spillover.R '!{sc_reference}' '!{params.data_dir_sc}' '!{sim_bulk_name}' '!{sim_bulk_path}' '!{method}' '!{cell_types}' '!{params.results_dir_spillover}' '!{params.ncores}' '!{baseDir}'
       ''' 
 }
 
@@ -163,7 +177,7 @@ process SIMULATE_BULK_RESOLUTION_ANALYSIS {
       output:
       tuple val(sc_dataset),
             val("${sc_dataset}_resolution_analysis_sim"),
-            val("${params.preProcess_dir}/pseudo_bulk_resolution_newMethod/${sc_dataset}_resolution_analysis_sim"),
+            val("${params.preProcess_dir}/pseudo_bulk_resolution/${sc_dataset}_resolution_analysis_sim"),
             val(replicates)
       
       beforeScript 'chmod o+rw .'     
@@ -175,7 +189,9 @@ process SIMULATE_BULK_RESOLUTION_ANALYSIS {
 }
 
 process ANALYSIS_BULK_RESOLUTION_ANALYSIS {
-  
+      
+      label 'process_high'
+
       publishDir "${params.preProcess_dir}/pseudo_bulk_resolution", mode: 'copy'
 
       input:
@@ -261,6 +277,8 @@ process ANALYSIS_BULK_MIRRORDB {
 
 process CREATE_SIGNATURE {
 
+      label 'process_high'
+
       input:
       each sc_ds
       each bulk_ds
@@ -286,13 +304,16 @@ process CREATE_SIGNATURE {
 
 process CREATE_SIGNATURE_PREPROCESSED {
 
+      label 'process_high'
+
       input:
-      tuple val(sc_ds), 
-            val(method),
-            val(ct_fractions),
-            val(replicate)
+      each sc_ds
       val sc_path
       each bulk_ds
+      val bulk_path
+      each method 
+      each ct_fractions
+      each replicate
       val run_preprocessing
 
       output:
@@ -306,11 +327,13 @@ process CREATE_SIGNATURE_PREPROCESSED {
 
       shell:
       '''
-      computeSignaturesNF.R '!{sc_ds}' '!{sc_path}' '!{bulk_ds}' '!{params.data_dir_bulk}' '!{method}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.ncores}' '!{baseDir}'
+      computeSignaturesNF.R '!{sc_ds}' '!{sc_path}' '!{bulk_ds}' '!{bulk_path}' '!{method}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.ncores}' '!{baseDir}'
       ''' 
 }
 
 process DECONVOLUTE { 
+
+      label 'process_default'
 
 	input:
       tuple val(sc_ds), 
@@ -352,39 +375,10 @@ process COMPUTE_METRICS {
   
 	shell:
 	'''
-	computeMetricsNF.R '!{sc_ds}' '!{params.data_dir_sc}' '!{bulk_ds}' '!{params.data_dir_bulk}' '!{method}' '!{replicate}' '!{ct_fractions}' '!{params.results_dir_general}' '!{baseDir}'
+      
+      computeMetricsNF.R '!{sc_ds}' '!{params.data_dir_sc}' '!{bulk_ds}' '!{params.data_dir_bulk}' '!{method}' '!{replicate}' '!{ct_fractions}' '!{params.results_dir_general}' '!{baseDir}'
 	''' 
 }
-
-workflow simulation {
-  
-  // Normal simulation
-  
-  simulations = SIMULATE_BULK(params.simulation_n_cells,
-							                params.simulation_n_samples,
-							                params.simulation_scenario
-  )
-  
-  sc_files = Channel.fromList(create_file_list_sc(params.data_dir_sc, 
-                                                  params.single_cell_list, 
-                                                  params.single_cell_norm, 
-                                                  'false'))
-  
-  
-  signature = CREATE_SIGNATURE(sc_files,
-                               "${params.preProcess_dir}/pseudo_bulk",
-                               simulations.collect(),
-                               params.simulation_pseudobulk_norm,
-                               params.simulation_cell_types,
-                               params.method_list,
-                               'false')
-  
-  deconvolution = DECONVOLUTE(signature, 
-                             "${params.preProcess_dir}/pseudo_bulk",
-                             'false')
-  
-  metrics = COMPUTE_METRICS(deconvolution, "${params.preProcess_dir}/pseudo_bulk")
-} 
 
 workflow impact_missing_cell_types {
 
@@ -423,7 +417,8 @@ workflow simulation_spillover {
   
   deconvolution = ANALYSIS_SPILLOVER(simulations,
                                      params.spillover_celltypes,
-                                     params.method_list)
+                                     params.method_list,
+                                     params.single_cell_list)
 
 }
 
@@ -470,23 +465,46 @@ workflow subsampling {
   replicates = Channel.of(1..params.replicates).collect()
     
   preprocess = PREPROCESS_SINGLE_CELL(params.single_cell_list,
-                                      params.method_list,
                                       params.ct_fractions, 
                                       replicates
   )
+
+  simulations = SIMULATE_BULK(params.simulation_sc_dataset,
+                              params.simulation_n_cells,
+				      params.simulation_n_samples,
+					'random',
+                              'expressed_genes'
+  ) 
   
   signature = CREATE_SIGNATURE_PREPROCESSED(preprocess,
                                             params.preProcess_dir,
-                                            params.bulk_list,
-                                            'true'
-  )  
+                                            simulations,
+                                            params.data_dir_bulk,
+                                            params.method_list,
+                                            0,
+                                            0,
+                                            'true')
   
   deconvolution = DECONVOLUTE(signature,
                               params.preProcess_dir,
                               'true')
-
-  metrics = COMPUTE_METRICS(deconvolution)
   
+}
+
+workflow deconv_only {
+
+  signature = CREATE_SIGNATURE(params.single_cell_list,
+                               params.bulk_list,
+                               params.method_list,
+                               0,
+                               0,
+                               'false'
+  )  
+  
+  deconvolution = DECONVOLUTE(signature,
+                              params.data_dir_sc,      
+                              'false'
+  )
 }
 
 workflow {
@@ -505,4 +523,30 @@ workflow {
   )
 
   metrics = COMPUTE_METRICS(deconvolution) 
+}
+
+workflow simulation {
+  
+  // Normal simulation
+  
+  simulations = SIMULATE_BULK(params.simulation_sc_dataset,
+                              params.simulation_n_cells,
+				      params.simulation_n_samples,
+					params.simulation_scenario,
+                              params.simulation_bias_type
+  )   
+  
+  signature = CREATE_SIGNATURE(params.single_cell_list,
+                               simulations,
+                               params.method_list,
+                               0,
+                               0,
+                               'false')
+  
+  deconvolution = DECONVOLUTE(signature,
+                              params.data_dir_sc,      
+                              'false'
+      )
+  
+  metrics = COMPUTE_METRICS(deconvolution)
 }

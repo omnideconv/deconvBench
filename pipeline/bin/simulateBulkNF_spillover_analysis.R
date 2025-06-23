@@ -25,7 +25,7 @@ ncells <- as.numeric(args$simulation_n_cells)
 nsamples <- as.numeric(args$simulation_n_samples)
 
 cell_types_simulation <- gsub('\\[|]', '', args$cell_types)
-cell_types_simulation <- strsplit(cell_types_simulation, ",")[[1]]
+cell_types_simulation <- strsplit(cell_types_simulation, ", ")[[1]]
 print(cell_types_simulation)
 
 pseudobulk_name <- paste0(sc_ds, '_spillover_sim')
@@ -43,23 +43,25 @@ if(dir.exists(output_dir)){
 }
 
 sc_dir <- paste0(args$sc_dir, '/', sc_ds, '/')
-sc_matrix_raw <- readRDS(paste0(sc_dir,'/matrix_counts.rds')) 
-sc_matrix_norm <- readRDS(paste0(sc_dir,'/matrix_norm_counts.rds')) 
-sc_celltype_annotations <- readRDS(paste0(sc_dir,'/celltype_annotations.rds'))
-sc_batch <- readRDS(paste0(sc_dir,'/batch.rds'))
+simbu_ds <- readRDS(paste0(sc_dir,'/simbu_ds.rds')) 
+#sc_matrix_raw <- readRDS(paste0(sc_dir,'/matrix_counts.rds')) 
+#sc_matrix_norm <- readRDS(paste0(sc_dir,'/matrix_norm_counts.rds')) 
+#sc_celltype_annotations <- readRDS(paste0(sc_dir,'/celltype_annotations.rds'))
+#sc_batch <- readRDS(paste0(sc_dir,'/batch.rds'))
 
 ncores <- as.numeric(args$ncores)
 
-simbu_ds <- SimBu::dataset(
-  annotation = data.frame(ID = colnames(sc_matrix_raw), cell_type = sc_celltype_annotations), 
-  count_matrix = sc_matrix_raw,
-  tpm_matrix = sc_matrix_norm,
-  name = sc_ds
-)
+#simbu_ds <- SimBu::dataset(
+#  annotation = data.frame(ID = colnames(sc_matrix_raw), cell_type = sc_celltype_annotations), 
+#  count_matrix = sc_matrix_raw,
+#  tpm_matrix = sc_matrix_norm,
+#  name = sc_ds
+#)
 
 simulation_list = list()
 for (cur_cell_type in cell_types_simulation){
   
+  set.seed(1234)
   simulated_bulk <-  SimBu::simulate_bulk(
     data =  simbu_ds,
     scenario = 'pure',
@@ -68,20 +70,25 @@ for (cur_cell_type in cell_types_simulation){
     nsamples = nsamples,
     ncells = ncells,
     BPPARAM = BiocParallel::MulticoreParam(workers = ncores),
-    run_parallel = TRUE
+    run_parallel = TRUE,  
+    seed = 1234, 
+    total_read_counts = 10000000  
   )
 
   cur_cell_type <- gsub(' ', '_', cur_cell_type)
 
   simulation_list[[cur_cell_type]] <- simulated_bulk
   
-  saveRDS(SummarizedExperiment::assays(simulated_bulk$bulk)[["bulk_counts"]], paste0(output_dir,'/', pseudobulk_name, '_', cur_cell_type, '_counts.rds'))
-  saveRDS(SummarizedExperiment::assays(simulated_bulk$bulk)[["bulk_tpm"]], paste0(output_dir,'/', pseudobulk_name, '_', cur_cell_type, '_tpm.rds'))
-  saveRDS(t(simulated_bulk$cell_fractions), paste0(output_dir,'/', pseudobulk_name, '_', cur_cell_type, '_facs.rds'))
+  #saveRDS(SummarizedExperiment::assays(simulated_bulk$bulk)[["bulk_counts"]], paste0(output_dir,'/', pseudobulk_name, '_', cur_cell_type, '_counts.rds'))
+  #saveRDS(SummarizedExperiment::assays(simulated_bulk$bulk)[["bulk_tpm"]], paste0(output_dir,'/', pseudobulk_name, '_', cur_cell_type, '_tpm.rds'))
+  #saveRDS(t(simulated_bulk$cell_fractions), paste0(output_dir,'/', pseudobulk_name, '_', cur_cell_type, '_facs.rds'))
   
 }
 
-simulated_bulk <- merge_simulations(simulation_list)
+simulated_bulk <- SimBu::merge_simulations(simulation_list)
+cell_types_simulation_names <- gsub(' ', '_', cell_types_simulation)
+colnames(simulated_bulk$bulk) <- paste0(colnames(simulated_bulk$bulk), "__", sapply(cell_types_simulation_names, rep, nsamples))
+rownames(simulated_bulk$cell_fractions) <- paste0(rownames(simulated_bulk$cell_fractions), "__", sapply(cell_types_simulation_names, rep, nsamples))
 
 saveRDS(SummarizedExperiment::assays(simulated_bulk$bulk)[["bulk_counts"]], paste0(output_dir,'/', pseudobulk_name, '_counts.rds'))
 saveRDS(SummarizedExperiment::assays(simulated_bulk$bulk)[["bulk_tpm"]], paste0(output_dir,'/', pseudobulk_name, '_tpm.rds'))

@@ -17,4 +17,3 @@ visualization/plots
 data/results/*
 revision/scdownstream/null/
 docker/omnideconv_benchmark*
-

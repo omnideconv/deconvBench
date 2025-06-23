@@ -133,7 +133,7 @@ subset_cells <- function(cell_matrix, annotations, batch_ids, num_cells,
                             'cell_type')
   set.seed(seed)
 
-  if(is.null(coarse_annotations)){
+  if(is.null(fine_annotations)){
     sampled.metadata <- seurat.obj@meta.data %>%
       rownames_to_column(., 'barcode') %>%
       group_by(., cell_type) %>% 
@@ -152,8 +152,32 @@ subset_cells <- function(cell_matrix, annotations, batch_ids, num_cells,
                  'annotations' = sampled.data@meta.data$cell_type,
                  'batch_id' = sampled.data@meta.data$batch_ids)
   
-  } else {
+  } else if(is.null(coarse_annotations)) {
+
       seurat.obj <- Seurat::AddMetaData(seurat.obj,
+                                fine_annotations,
+                                'cell_type_fine')   
+      sampled.metadata <- seurat.obj@meta.data %>%
+        rownames_to_column(., 'barcode') %>%
+        group_by(., cell_type_fine) %>% 
+        nest() %>%            
+        mutate(n =  map_dbl(data, nrow)) %>%
+        mutate(n = min(n, num_cells)) %>%
+        ungroup() %>% 
+        mutate(samp = map2(data, n, sample_n)) %>% 
+        select(-data) %>%
+        unnest(samp)     
+
+
+        sampled.data <- subset(seurat.obj, 
+                             cells = sampled.metadata$barcode)
+        ls <- list('data' = sampled.data[["RNA"]]$counts %>%
+                    as.matrix(.),
+                   'annotations' = sampled.data@meta.data$cell_type,
+                   'annotations_fine' = sampled.data@meta.data$cell_type_fine,
+                   'batch_id' = sampled.data@meta.data$batch_ids)                                            
+  } else {
+    seurat.obj <- Seurat::AddMetaData(seurat.obj,
                                 coarse_annotations,
                                 'cell_type_coarse')
       seurat.obj <- Seurat::AddMetaData(seurat.obj,
@@ -178,7 +202,7 @@ subset_cells <- function(cell_matrix, annotations, batch_ids, num_cells,
                    'annotations' = sampled.data@meta.data$cell_type,
                    'annotations_fine' = sampled.data@meta.data$cell_type_fine,
                    'annotations_coarse' = sampled.data@meta.data$cell_type_coarse,
-                   'batch_id' = sampled.data@meta.data$batch_ids)                                            
+                   'batch_id' = sampled.data@meta.data$batch_ids)
   }
 
   ls

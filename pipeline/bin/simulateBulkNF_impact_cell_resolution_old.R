@@ -31,7 +31,7 @@ cell_types_simulation <- strsplit(cell_types_simulation, ",")[[1]]
 print(cell_types_simulation)
 
 pseudobulk_name <- paste0(sc_ds, '_resolution_analysis_sim')
-output_dir <- paste0(args$preprocess_dir, '/pseudo_bulk_resolution/', pseudobulk_name)
+output_dir <- paste0(args$preprocess_dir, '/pseudo_bulk_resolution_newMethod/', pseudobulk_name)
 
 
 sc_dir <- paste0(args$sc_dir, sc_ds, '/')
@@ -42,9 +42,20 @@ sc_batch <- readRDS(paste0(sc_dir,'/batch.rds'))
 # Here we have the three level of annotations for fine, normal and coarse
 sc_celltype_annotations_normal <- readRDS(paste0(sc_dir,'celltype_annotations_normal.rds'))
 sc_celltype_annotations_fine <- readRDS(paste0(sc_dir,'celltype_annotations_fine.rds'))
+sc_celltype_annotations_coarse <- readRDS(paste0(sc_dir,'celltype_annotations_coarse.rds'))
+
+replicates <- as.numeric(args$replicates)
+ncores <- as.numeric(args$ncores)
 
 simbu_ds_fine <- SimBu::dataset(
   annotation = data.frame(ID = colnames(sc_matrix_raw), cell_type = sc_celltype_annotations_fine), 
+  count_matrix = sc_matrix_raw,
+  tpm_matrix = sc_matrix_norm,
+  name = sc_ds
+)
+
+simbu_ds_coarse <- SimBu::dataset(
+  annotation = data.frame(ID = colnames(sc_matrix_raw), cell_type = sc_celltype_annotations_coarse), 
   count_matrix = sc_matrix_raw,
   tpm_matrix = sc_matrix_norm,
   name = sc_ds
@@ -56,28 +67,6 @@ simbu_ds_normal <- SimBu::dataset(
   tpm_matrix = sc_matrix_norm,
   name = sc_ds
 )
-
-coarse_file <- file.path(sc_dir, 'celltype_annotations_coarse.rds')
-
-if (file.exists(coarse_file)) {
-  sc_celltype_annotations_coarse <- readRDS(coarse_file)
-
-  simbu_ds_coarse <- SimBu::dataset(
-    annotation = data.frame(ID = colnames(sc_matrix_raw), cell_type = sc_celltype_annotations_coarse), 
-    count_matrix = sc_matrix_raw,
-    tpm_matrix = sc_matrix_norm,
-    name = sc_ds
-  )
-
-  run_coarse <- TRUE
-} else {
-  run_coarse <- FALSE
-}
-
-replicates <- as.numeric(args$replicates)
-ncores <- as.numeric(args$ncores)
-
-
 
 # This function and the excel file will be needed for the reannotation of the ground truth fractions
 reannotate_facs <- function(facs.table, annotation, new.annotation.level){
@@ -114,8 +103,7 @@ for(r in 1:replicates){
 
   if(dir.exists(cur_output_dir)){
     # check if all files are present
-    #if(all(c('pseudo_bulk.rds','true_fractions.rds') %in% list.files(output_dir))){
-    if (any(grepl("facs\\.rds$", list.files(cur_output_dir)))) {
+    if(all(c('pseudo_bulk.rds','true_fractions.rds') %in% list.files(output_dir))){
         cat('Simulation with given parameters has already been done and will be skipped.')
         quit(save='no')
     }
@@ -128,6 +116,18 @@ for(r in 1:replicates){
   simulated_bulk <- SimBu::simulate_bulk(
     data =  simbu_ds_fine,
     whitelist = cell_types_simulation,
+    scenario = 'mirror_db',
+    scaling_factor = 'expressed_genes',
+    nsamples = nsamples,
+    ncells = ncells,
+    balance_even_mirror_scenario = 0.05,
+    BPPARAM = BiocParallel::MulticoreParam(workers = ncores),
+    run_parallel = TRUE
+  )
+
+  simulated_bulk_coarse <- SimBu::simulate_bulk(
+    data =  simbu_ds_coarse,
+    whitelist = reannotate_cell_types(cell_types_simulation, table.annotations, 'Coarse'),
     scenario = 'mirror_db',
     scaling_factor = 'expressed_genes',
     nsamples = nsamples,
@@ -154,28 +154,9 @@ for(r in 1:replicates){
   saveRDS(t(simulated_bulk$cell_fractions), paste0(cur_output_dir,'/', pseudobulk_name, '_fine_annot_facs.rds'))
 
   facs.normal.annotations <- reannotate_facs(simulated_bulk$cell_fractions, table.annotations, 'Normal')
+  facs.coarse.annotations <- reannotate_facs(simulated_bulk$cell_fractions, table.annotations, 'Coarse')
 
   saveRDS(t(facs.normal.annotations), paste0(cur_output_dir,'/', pseudobulk_name, '_normal_annot_facs.rds'))
-
-
-  if (run_coarse) {
-    simulated_bulk_coarse <- SimBu::simulate_bulk(
-      data = simbu_ds_coarse,
-      whitelist = reannotate_cell_types(cell_types_simulation, table.annotations, 'Coarse'),
-      scenario = 'mirror_db',
-      scaling_factor = 'expressed_genes',
-      nsamples = nsamples,
-      ncells = ncells,
-      balance_even_mirror_scenario = 0.05,
-      BPPARAM = BiocParallel::MulticoreParam(workers = ncores),
-      run_parallel = TRUE
-    )
-
-    facs.coarse.annotations <- reannotate_facs(simulated_bulk$cell_fractions, table.annotations, 'Coarse')
-    saveRDS(t(facs.coarse.annotations), paste0(cur_output_dir,'/', pseudobulk_name, '_coarse_annot_facs.rds'))
-  }
+  saveRDS(t(facs.coarse.annotations), paste0(cur_output_dir,'/', pseudobulk_name, '_coarse_annot_facs.rds'))
 
 }
-
-
-

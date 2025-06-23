@@ -59,10 +59,14 @@ if(args$bulk_name == 'morandini'){
   deconvolution$`T cells` <- deconvolution$`T cells CD4` + deconvolution$`T cells CD8` + deconvolution$`Tregs`
 
   if('ILC' %in% colnames(deconvolution)){
-    deconvolution$`Lymphocytes` <- deconvolution$`T cells` + deconvolution$`B cells` + deconvolution$`Plasma cells` + deconvolution$`ILC` + deconvolution$`NK cells`
+    deconvolution$`Lymphocytes` <- deconvolution$`T cells` + deconvolution$`B cells` + deconvolution$`ILC` + deconvolution$`NK cells`
   }else{
-    deconvolution$`Lymphocytes` <- deconvolution$`T cells` + deconvolution$`B cells` + deconvolution$`Plasma cells` + deconvolution$`NK cells`
+    deconvolution$`Lymphocytes` <- deconvolution$`T cells` + deconvolution$`B cells` + deconvolution$`NK cells`
   }  
+
+  if('Plasma cells' %in% colnames(deconvolution)){
+    deconvolution$`Lymphocytes` <- deconvolution$`Lymphocytes` + deconvolution$`Plasma cells`
+  }
 
   deconvolution$`Monocytes_solo` <- deconvolution$`Monocytes`
   if('pDC' %in% colnames(deconvolution)){
@@ -76,10 +80,14 @@ if(args$bulk_name == 'altman' | args$bulk_name == 'altman-simulation' | args$bul
   deconvolution <- as.data.frame(deconvolution)
 
   if('ILC' %in% colnames(deconvolution)){
-    deconvolution$`Lymphocytes` <- deconvolution$`T cells CD4 conv` + deconvolution$`T cells CD8` + deconvolution$`Tregs` + deconvolution$`B cells` + deconvolution$`Plasma cells` + deconvolution$`NK cells` + deconvolution$`ILC`
+    deconvolution$`Lymphocytes` <- deconvolution$`T cells CD4 conv` + deconvolution$`T cells CD8` + deconvolution$`Tregs` + deconvolution$`B cells` + deconvolution$`NK cells` + deconvolution$`ILC`
   }else{
-    deconvolution$`Lymphocytes` <- deconvolution$`T cells CD4 conv` + deconvolution$`T cells CD8` + deconvolution$`Tregs` + deconvolution$`B cells` + deconvolution$`Plasma cells` + deconvolution$`NK cells`
+    deconvolution$`Lymphocytes` <- deconvolution$`T cells CD4 conv` + deconvolution$`T cells CD8` + deconvolution$`Tregs` + deconvolution$`B cells` + deconvolution$`NK cells`
   }   
+
+  if('Plasma cells' %in% colnames(deconvolution)){
+    deconvolution$`Lymphocytes` <- deconvolution$`Lymphocytes` + deconvolution$`Plasma cells`
+  }
 
   deconvolution$`Monocytes_solo` <- deconvolution$`Monocytes`
     if('pDC' %in% colnames(deconvolution)){

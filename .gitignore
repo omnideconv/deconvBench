@@ -6,7 +6,7 @@ pipeline/.nextflow/
 pipeline/work
 pipeline/.nextlow.log*
 pipeline/*.Rproj
-pipeline/nextflow_norm.config
+pipeline/nextflow_*
 *.Rproj
 .Rproj.user
 .Rhistory
@@ -17,3 +17,4 @@ visualization/plots
 data/results/*
 revision/scdownstream/null/
 docker/omnideconv_benchmark*
+revision/

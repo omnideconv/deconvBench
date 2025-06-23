@@ -4,279 +4,171 @@ library(circlize)
 library(ggpubr)
 library(cowplot)
 
-source('/vol/omnideconv_input/benchmark/pipeline/bin/general_functions/deconvolution_workflow_for_simulation.R')
-methods <- c('autogenes','bayesprism','bisque','cibersortx','dwls','music','scaden','scdc')
-sc_norm <- c(rep('counts', 3),'cpm',rep('counts',4))
-bulk_norm <- c('tpm', rep('counts', 2), rep('tpm',5))
+base_path <- '/vol/omnideconv_input/results_allen_resolution'
+files <- list.files(base_path, full.names = TRUE, recursive = TRUE, pattern = 'deconvolution.rds')
 
+aggr_map <- read.table('/vol/omnideconv_results/omnideconv_data/allen/cell_type_mappings.csv', sep=',', header=TRUE)
+names(aggr_map) <- c('fine', 'normal')
 
-##############################################################################
-reannotate_facs_new <- function(facs.table, annotation, new.annotation.level){
-
-  facs.table <- as.data.frame(facs.table)
-  annotation <- annotation[which(annotation$fine %in% colnames(facs.table)), ]
-  cell_types <- unique(annotation[[new.annotation.level]])
-  for(c in cell_types){
-    # These are the fine cell types
-    cur.cell.types <- annotation[which(annotation[[new.annotation.level]] == c), 1]
-
-    if(length(cur.cell.types) > 1){
-      facs.table[c] <- rowSums(facs.table[, c(cur.cell.types)])
-      facs.table[, c(cur.cell.types)] <- NULL
-    } else if(length(cur.cell.types) == 1) {
-      if(c != cur.cell.types){
-        facs.table[c] <- facs.table[cur.cell.types]
-        facs.table[cur.cell.types] <- NULL
-      }
-    }
-  }
-  facs.table
-}
-##############################################################################
-
-# 1: List directories, methods, cell types
-#############################################################################
-resolution.deconv.results <- list.files('/vol/omnideconv_results/results_resolution', full.names=F, recursive=T)
-
-resolution.deconv.results <- resolution.deconv.results[grep('wu', resolution.deconv.results)]
-resolution.deconv.results <- resolution.deconv.results[grep('deconvolution.rds', resolution.deconv.results)]
-
-metadata.table <- resolution.deconv.results %>%
-  tibble(path = .,
-         method = map_vec(., function(x) strsplit(x, split = '/')[[1]][1]),
-         dataset_level = map_vec(., function(x) strsplit(x, split = '/')[[1]][2]),
-         replicate = map_vec(., function(x) strsplit(x, split = '/')[[1]][3])) %>%
-  mutate(dataset_level = gsub("_resolution_analysis_sim|_annot", "", dataset_level),
-         replicate = gsub('replicate_', '', replicate)) %>%
-  separate(dataset_level, c("dataset", "level"), sep="_")
-
-
-#metadata.table <- metadata.table[metadata.table$method %in% c('scdc', 'cibersortx', 'dwls', 'music', 'bayesprism', 'bisque'), ]
-#2: Combine these in a unique dataframe
-################################################################################
-data <- NULL
-
-table.annotations <- read.table(paste0('/vol/omnideconv_input/omnideconv_data/singleCell/wu', '/cell_type_mappings.csv'), header = T, sep=',')
-colnames(table.annotations) <- c('fine','normal','coarse')
-
-process_results_df <- function(res, method, resolution, replicate, predicted = TRUE){
-
-  res <- res %>%
-    tibble::rownames_to_column(., var='sample') %>%
-    gather(., key='celltype', value = 'predicted_value', -'sample') %>%
-    #mutate(., celltype = gsub("xxxx", " ", celltype)) %>%
-    mutate(., method = method) %>%
-    mutate(., resolution = resolution) %>%
-    mutate(., replicate = replicate)
-
-  if(!predicted){
-    colnames(res)[colnames(res) == 'predicted_value'] <- 'true_value'
-  }
-
-  res
-}
-annotation <- read.table(paste0('/vol/omnideconv_input/omnideconv_data/singleCell/wu', '/cell_type_mappings.csv'), header = T, sep=',')
-colnames(annotation) <- c('fine', 'normal', 'coarse')
-
-# We read results
-
-for(i in 1:nrow(metadata.table)){
-  result <- readRDS(paste0('/vol/omnideconv_results/results_resolution/', metadata.table$path[i])) %>%
-    .$deconvolution %>%
-    as.data.frame()
-  colnames(result) <- gsub("xxxx", " ", colnames(result))
-  colnames(result) <- gsub("21b2c7567f8711ec9bf265fb9bf6ab9a", "-", colnames(result))
-  colnames(result) <- cleanCelltypesAutogenes(colnames(result))
-
-  true.fractions <- readRDS(paste0('/vol/omnideconv_results/results_resolution/', metadata.table$path[i])) %>%
-    .$true_cell_fractions %>%
-    t() %>%
-    as.data.frame()
-  colnames(true.fractions) <- gsub("xxxx", " ", colnames(true.fractions))
-  colnames(true.fractions) <- gsub("21b2c7567f8711ec9bf265fb9bf6ab9a", "-", colnames(true.fractions))
-  colnames(true.fractions) <- cleanCelltypesAutogenes(colnames(true.fractions))
-
-
-  if(metadata.table$level[i] != 'fine'){
-    true.fractions <- reannotate_facs_new(true.fractions, table.annotations, metadata.table$level[i])
-  }
-  result <- result %>%
-    process_results_df(., metadata.table$method[i], metadata.table$level[i], metadata.table$replicate[i])
-
-  true.fractions <- true.fractions %>%
-    process_results_df(., metadata.table$method[i], metadata.table$level[i],
-                       metadata.table$replicate[i], predicted = FALSE)
-
-  result <- left_join(result, true.fractions)
-
-  data <- rbind(data, result)
-
+extract_metadata <- function(path) {
+  method <- str_extract(path, "(?<=results_allen_resolution/)[^/]+")
+  replicate <- str_extract(path, "replicate_\\d+")
+  annotation_type <- str_extract(path, "(?<=allen_resolution_analysis_sim_)[^/]+")
+  tibble(path = path, method = method, replicate = replicate, annotation_type = annotation_type)
 }
 
-# We read true fractions
+results_long <- map_dfr(files, function(file_path) {
+  meta <- extract_metadata(file_path)
+  obj <- readRDS(file_path)
 
-for(i in c(1, 6, 11)){
-  true.fractions <- readRDS(paste0('/vol/omnideconv_results/results_resolution/', metadata.table$path[i])) %>%
-    .$true_cell_fractions %>%
-    t() %>%
-    as.data.frame()
-  colnames(true.fractions) <- gsub("xxxx", " ", colnames(true.fractions))
-  colnames(true.fractions) <- gsub("21b2c7567f8711ec9bf265fb9bf6ab9a", "-", colnames(true.fractions))
-  colnames(true.fractions) <- cleanCelltypesAutogenes(colnames(true.fractions))
+  pred_mat <- obj[[1]]
+  if (meta$method == "scaden" && meta$annotation_type == "fine_annot") {
+    new_names <- colnames(pred_mat)
+    new_names <- str_replace_all(new_names, c("L2.3.IT" = "L2/3 IT",
+                                              "L5.6.NP" = "L5/6 NP",
+                                              "Micro.PVM" = "Micro-PVM"))
 
-  if(metadata.table$level[i] != 'fine'){
-    true.fractions <- reannotate_facs_new(true.fractions, table.annotations, metadata.table$level[i])
+    new_names <- str_replace_all(new_names, "\\.", " ")
+    colnames(pred_mat) <- new_names
   }
 
-  #true.fractions <- reannotate_facs_new(true.fractions, annotations, metadata.table$level[i])
-  true.fractions <- true.fractions %>%
-    process_results_df(., metadata.table$method[i], metadata.table$level[i], 1, predicted = FALSE)
+  if (meta$method == "dwls" && meta$annotation_type == "fine_annot") {
+    new_names <- colnames(pred_mat)
+    new_names <- str_replace_all(new_names, c("L2-3_IT" = "L2/3 IT",
+                                              "L5-6_NP" = "L5/6 NP"))
 
-  true.fractions$method <- 'true_values'
-  true.fractions$predicted_value <- true.fractions$true_value
+    new_names <- str_replace_all(new_names, "\\_", " ")
+    colnames(pred_mat) <- new_names
+  }
 
-  data <- rbind(data, true.fractions)
+  predicted <- pred_mat %>%
+    as.data.frame() %>%
+    rownames_to_column("sample") %>%
+    pivot_longer(-sample, names_to = "cell_type", values_to = "predicted_fraction")
 
-}
+  true_mat <- obj[[2]]
+  if (meta$annotation_type == "normal_annot") {
+    rownames(true_mat)[rownames(true_mat) == "Micro-PVM"] <- "Micro"
+    true_mat <- rbind(true_mat, Endo = 1 - colSums(true_mat))
+  }
 
-data <- data[data$resolution != 'fine', ]
-data$resolution[data$resolution=='normal'] <- 'fine'
-data <- data[!is.na(data$true_value), ]
-data$resolution <- factor(data$resolution, level=c('coarse', 'fine'))
+  true <- true_mat %>%
+    as.data.frame() %>%
+    rownames_to_column("cell_type") %>%
+    pivot_longer(-cell_type, names_to = "sample", values_to = "true_fraction")
 
-# Correlation metrics for the results
+  base <- predicted %>%
+    inner_join(true, by = c("sample", "cell_type")) %>%
+    mutate(method = meta$method,
+           replicate = meta$replicate,
+           annotation_type = meta$annotation_type,
+           path = file_path)
 
-correlation.results <- data %>%
-  group_by(celltype, method, resolution) %>%
-  dplyr::summarize(corr = cor.test(true_value, predicted_value, method = 'pearson')$estimate,
-                   pval = cor.test(true_value, predicted_value, method = 'pearson')$p.value,
-                   rmse = sqrt(mean((true_value - predicted_value)^2))) %>%
-  ungroup()
+  # If fine_annot, add aggregated fine_aggr
+  if (meta$annotation_type == "fine_annot") {
+    aggr <- base %>%
+      inner_join(aggr_map, by = c("cell_type" = "fine")) %>%
+      group_by(sample, normal, method, replicate, path) %>%
+      summarise(predicted_fraction = sum(predicted_fraction),
+                true_fraction = sum(true_fraction),
+                .groups = "drop") %>%
+      rename(cell_type = normal) %>%
+      mutate(annotation_type = "fine_aggr")
 
-correlation.results.all <- data %>%
-  group_by(method, resolution) %>%
-  dplyr::summarize(celltype = 'all',
-                   corr = cor.test(true_value, predicted_value, method = 'pearson')$estimate,
-                   pval = cor.test(true_value, predicted_value, method = 'pearson')$p.value,
-                   rmse = sqrt(mean((true_value - predicted_value)^2))) %>%
-  ungroup()
+    base <- bind_rows(base, aggr)
+  }
 
-correlation.results <- rbind(correlation.results, correlation.results.all)
-correlation.results$resolution <- factor(correlation.results$resolution, levels=c('coarse', 'fine'))
-correlation.results$celltype <- factor(correlation.results$celltype,
-                                       levels = c(unique(correlation.results$celltype)))
+  return(base)
+})
 
-
-# Now we aggregate the results to compute the "coarsed" results
-
-resolution.table <- table.annotations[, -c(1)]
-resolution.table$group_coarse <- resolution.table$coarse
-resolution.table <- gather(resolution.table, key='res', value='celltype', -group_coarse)
-resolution.table$res <- NULL
-resolution.table <- distinct(resolution.table)
-
-data.coarsed <- left_join(data, resolution.table)
-data.coarse.res.all.levels <- data.coarsed %>%
-  group_by(sample, replicate, method, group_coarse, resolution) %>%
-  dplyr::summarise(
-    predicted_value_coarse = sum(predicted_value),
-    true_value_coarse = sum(true_value)
-  ) %>%
-  ungroup()
-
-data.coarse.res.all.levels$celltype <- data.coarse.res.all.levels$group_coarse
+glimpse(results_long)
 
 
-data.coarsed <- data.coarse.res.all.levels %>%
-  mutate(resolution = recode(resolution,
-                             'fine' = 'fine_aggr'))
-data.coarsed$predicted_value <- data.coarsed$predicted_value_coarse
-data.coarsed$true_value <- data.coarsed$true_value_coarse
-
-data.coarsed <- select(data.coarsed, -c('predicted_value_coarse', 'true_value_coarse', 'group_coarse'))
-data.coarsed <- data.coarsed[data.coarsed$resolution != 'coarse', ]
-
-data <- rbind(data.coarsed, data)
-
-data$resolution <- factor(data$resolution, levels=c('fine', 'coarse', 'fine_aggr'))
-
-# And the coarsed metrics
-
-correlation.coarse <- data.coarse.res.all.levels %>%
-  group_by(group_coarse, method, resolution) %>%
-  dplyr::summarize(corr = cor.test(true_value_coarse, predicted_value_coarse, method = 'pearson')$estimate,
-                   pval = cor.test(true_value_coarse, predicted_value_coarse, method = 'pearson')$p.value,
-                   rmse = sqrt(mean((true_value_coarse - predicted_value_coarse)^2))) %>%
-  ungroup()
-
-correlation.coarse.all <- data.coarse.res.all.levels %>%
-  group_by(method, resolution) %>%
-  dplyr::summarize(group_coarse = 'all',
-                   corr = cor.test(true_value_coarse, predicted_value_coarse, method = 'pearson')$estimate,
-                   pval = cor.test(true_value_coarse, predicted_value_coarse, method = 'pearson')$p.value,
-                   rmse = sqrt(mean((true_value_coarse - predicted_value_coarse)^2))) %>%
-  ungroup()
-
-correlation.coarse <- rbind(correlation.coarse, correlation.coarse.all)
 
 
-# We bind with the other metrics
-
-correlation.coarse$celltype <- correlation.coarse$group_coarse
-correlation.coarse$group_coarse <- NULL
-correlation.coarse <- correlation.coarse %>%
-  mutate(resolution = recode(resolution,
-                             'fine' = 'fine_aggr'))
-
-correlation.coarse <- correlation.coarse[correlation.coarse$resolution != 'coarse', ]
-
-correlation.results <- rbind(correlation.coarse, correlation.results)
-correlation.results$resolution <- factor(correlation.results$resolution, levels=c('fine', 'coarse', 'fine_aggr'))
-correlation.results <- correlation.results[correlation.results$method != 'true_values', ]
+library(dplyr)
 
 
-annotation <- table.annotations
-table.annotations$fine <- NULL
-table.annotations$fine <- table.annotations$normal
-table.annotations$normal <- NULL
-table.annotations$coarse_celltype <- table.annotations$coarse
-annotations <- gather(table.annotations, key='resolution', value='celltype', -coarse_celltype)
-annotation$resolution <- NULL
+results_long <- results_long %>%
+  mutate(coarse_cell_type = case_when(annotation_type %in% c("normal_annot", "fine_aggr") ~ cell_type,
+                                      annotation_type == "fine_annot" ~ aggr_map$normal[match(cell_type, aggr_map$fine)],
+                                      TRUE ~ NA_character_))
 
-correlation.results <- left_join(correlation.results, annotation)
-correlation.results <- unique(correlation.results)
-correlation.results$coarse_celltype[correlation.results$celltype == 'all'] <- 'all'
+metrics_summary <- results_long %>%
+  group_by(annotation_type, method, cell_type, coarse_cell_type) %>%
+  summarise(pearson_r = cor(predicted_fraction, true_fraction, method = "pearson"),
+            rmse = sqrt(mean((predicted_fraction - true_fraction)^2)),
+            .groups = "drop")
 
-correlation.results <- correlation.results %>%
-  mutate(coarse_celltype = recode(coarse_celltype,
-                                  'B-cells' = 'B cells',
-                                  'T-cells'='T cells'),
-         celltype=recode(celltype,
-                         'B-cells' = 'B cells',
-                         'T-cells'='T cells'))
+data_to_plot <- metrics_summary[metrics_summary$coarse_cell_type %in% c('Excit', 'Inhib'), ]
+
+data_to_plot$annotation_type[data_to_plot$annotation_type == "fine_aggr"] <- "fine (aggregated)"
+data_to_plot$annotation_type[data_to_plot$annotation_type == "fine_annot"] <- "fine"
+data_to_plot$annotation_type[data_to_plot$annotation_type == "normal_annot"] <- "coarse"
 
 
-df <- correlation.results%>% subset(celltype != 'all')
-df.all <- correlation.results%>% subset(celltype == 'all')
 
-plot <- ggplot(df)+
-  geom_point(mapping=aes(x=rmse, y=corr, color=celltype_label_plot, shape=coarse_celltype), size=2.5, alpha = .7)+
-  geom_point(data = df.all, aes(x=rmse, y=corr), size = 2, color='black', shape=16, alpha = .7)+
-  facet_grid(method~resolution)+
-  geom_hline(yintercept = 0, linetype='dotted') +
-  geom_hline(yintercept = 0.5, linetype='dotted') +
-  geom_vline(xintercept = 0.1, linetype='dotted') +
-  theme_bw()+
-  theme(legend.position = 'bottom',
-        strip.background = element_rect(fill = 'white'),
-        axis.text = element_text(size = 7)) +
-  guides(color=guide_legend(ncol=4),
-         shape=guide_legend(ncol=1)) +
-  rotate_x_text(angle=60)+
-  xlab('RMSE')+ylab('Pearson Correlation')+
-  scale_shape_manual(values = c('B cells' = 8,
-                                'CAFs' = 15,
-                                'Myeloid' = 18,
-                                'T cells' = 17))
+allen_palette <- c('Astro' = '#88CCEE',
+                   'Endo' = '#c2c0b3',
+                   'Micro' = '#fffb6a',
+                   'Inhib' = '#44AA99',
+                   'Excit' = '#CC6677',
+                   'Oligo' = '#882255',
+                   'OPC' = '#AA4499')
 
-ggsave(plot, filename = './visualisation/supplement/Fig_s6.pdf', width = 10, height = 10)
+
+method_palette <- c('AutogeneS' = '#88CCEE',
+                    'Bisque' = '#117733',
+                    'BayesPrism' = '#c1772c',
+                    'CIBERSORTx' = '#44AA99',
+                    'DWLS' = '#CC6677',
+                    'MuSiC' = '#332288',
+                    'Scaden' = '#AA4499',
+                    'SCDC' = '#c12c2c')
+
+data_to_plot$method <- recode(data_to_plot$method,
+                              'autogenes' = 'AutogeneS',
+                              'bayesprism' = 'BayesPrism',
+                              'bisque' = 'Bisque',
+                              'cibersortx' = 'CIBERSORTx',
+                              'dwls' = 'DWLS',
+                              'music' = 'MuSiC',
+                              'scaden' = 'Scaden',
+                              'scdc' = 'SCDC')
+
+plot1 <- data_to_plot[data_to_plot$annotation_type != 'fine', ] %>%
+  ggplot(., aes(x=rmse, y=pearson_r, color=method, shape=annotation_type, group=method)) +
+  geom_point(size=3) +
+  geom_line(linetype='dashed') +
+  theme_bw() +
+  facet_wrap(.~cell_type) +
+  scale_color_manual(values=method_palette) +
+  labs(x='RMSE', y='R', shape="annotation type") +
+  geom_hline(yintercept = 0.8, linetype = 'dashed') +
+  geom_vline(xintercept = 0.1, linetype = 'dashed') +
+  theme(legend.position = 'bottom')
+
+
+plot2 <- data_to_plot[data_to_plot$annotation_type == 'fine', ] %>%
+  ggplot(., aes(x=rmse, y=pearson_r, color=coarse_cell_type)) +
+  geom_point(size=2) +
+  theme_bw() +
+  facet_wrap(.~method, ncol=4) +
+  scale_color_manual(values=allen_palette) +
+  labs(x='RMSE', y='R', color="coarse cell type") +
+  geom_hline(yintercept = 0.8, linetype = 'dashed') +
+  geom_vline(xintercept = 0.05, linetype = 'dashed') +
+  rotate_x_text(angle=60) +
+  theme(legend.position = 'bottom')
+
+
+
+
+library(patchwork)
+
+
+combined_plot <- plot2 / plot1 +
+  plot_layout(heights = c(0.6, 0.4)) +
+  plot_annotation(tag_levels = 'A')
+
+ggsave(combined_plot, filename = './visualisation/supplement/Fig_s6.pdf', width = 13, height = 8)

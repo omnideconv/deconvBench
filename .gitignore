@@ -15,4 +15,6 @@ work/
 visualization/plots
 .RData
 data/results/*
+revision/scdownstream/null/
+docker/omnideconv_benchmark*
 

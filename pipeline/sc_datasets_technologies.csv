@@ -2,6 +2,7 @@ sc_dataset,technology
 sc1,10X
 hao-sampled-3,10X
 Hao-sampled,10X
+HaoCleaned-sampled,10X
 Arunachalam-sampled,10X
 BioResourceCollaboration-sampled,10X
 DominguezConde-sampled,10X
@@ -9,3 +10,6 @@ Heimlich-sampled,10X
 Lee-sampled,10X
 SchulteSchrepping-sampled,10X
 TabulaSapiens-sampled,10X
+allen,10X
+myers,10X
+tran,10X

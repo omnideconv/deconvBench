@@ -264,6 +264,14 @@ signature_workflow_general <- function(sc_matrix, annotations, annotation_catego
       verbose = TRUE
     )$basis
     
+  } else if (method == "momf") {
+    
+    signature <- omnideconv::build_model_momf(
+      sc_matrix,
+      annotations,
+      bulk_matrix
+    )
+    
   } else if(method == "scaden"){
     unlink(tmp_dir_path, recursive=TRUE)
     if(!dir.exists(paste0(tmp_dir_path))){
@@ -283,7 +291,7 @@ signature_workflow_general <- function(sc_matrix, annotations, annotation_catego
       verbose = TRUE
     )
 
-  }else if (method %in% c('autogenes', 'bayesprism', 'bisque', 'music')){
+  } else if (method %in% c('autogenes', 'bayesprism', 'bisque', 'cdseq', 'cpm', 'music')){
     signature <- NULL
       
   } else {
@@ -354,6 +362,21 @@ deconvolution_workflow_general <- function(sc_matrix, annotations, annotation_ca
       batch_ids = sc_batch,
       verbose = TRUE,
     )$bulk.props)
+
+  } else if (method=="cdseq"){
+
+    deconvolution_cdseq <- omnideconv::deconvolute_cdseq(
+      bulk_gene_expression = bulk_matrix, 
+      single_cell_object = sc_matrix, 
+      cell_type_annotations = annotations,
+      batch_ids = sc_batch,
+      block_number=10,
+      gene_subset_size=1000,
+      verbose = TRUE,
+    )
+    
+    deconvolution <- t(deconvolution_cdseq$cdseq_prop_merged)
+    print(deconvolution)
     
   } else if (method=="cibersortx"){
 
@@ -391,6 +414,15 @@ deconvolution_workflow_general <- function(sc_matrix, annotations, annotation_ca
     unlink(cx_input, recursive=TRUE)
     unlink(cx_output, recursive=TRUE)
     
+  } else if (method=="cpm"){
+
+    deconvolution <- omnideconv::deconvolute_cpm(
+      bulk_gene_expression = bulk_matrix, 
+      single_cell_object = sc_matrix, 
+      cell_type_annotations = annotations,
+      verbose = TRUE,
+    )$cellTypePredictions
+    
   } else if(method=="dwls") {
     
     deconvolution <- omnideconv::deconvolute_dwls(
@@ -422,8 +454,18 @@ deconvolution_workflow_general <- function(sc_matrix, annotations, annotation_ca
     #)
     print(deconvolution)
 
-  } else if (method == "music"){
-    deconvolution <- omnideconv::deconvolute_music(
+  } else if (method == "momf"){
+    deconvolution_momf <- omnideconv::deconvolute_momf(
+          bulk_matrix,
+          signature, 
+          sc_matrix, 
+          verbose = TRUE,
+        )
+    
+    deconvolution <- deconvolution_momf$cell.prop
+
+  }  else if (method == "music"){
+    deconvolution <- omnideconv::deconvolute_momf(
       bulk_gene_expression = bulk_matrix, 
       single_cell_object = sc_matrix, 
       cell_type_annotations = annotations,

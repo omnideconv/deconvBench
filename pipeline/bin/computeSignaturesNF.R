@@ -38,9 +38,13 @@ source(paste0(baseDir, '/bin/utils.R'))
 method_normalizations <- read.table(paste0(baseDir, '/optimal_normalizations.csv'), sep = ',', header = TRUE)
 
 # find method-specific normalizations for sc and bulk
-sc_norm <- method_normalizations[method_normalizations$method == method, 2]
-bulk_norm <- method_normalizations[method_normalizations$method == method, 3]
-print(paste0('Method: ', method, '; sc-norm: ', sc_norm, '; bulk-norm: ', bulk_norm))
+if(method %in% method_normalizations$method){
+    sc_norm <- method_normalizations[method_normalizations$method == method, 2]
+    bulk_norm <- method_normalizations[method_normalizations$method == method, 3]
+    print(paste0('Method: ', method, '; sc-norm: ', sc_norm, '; bulk-norm: ', bulk_norm))
+} else {
+    stop(paste0('Method ', method, ' is not currently supported. Exiting.')) 
+}
 
 # check if preprocessing has been performed
 if(args$run_preprocessing == 'true'){

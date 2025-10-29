@@ -4,18 +4,10 @@ library(circlize)
 library(ggpubr)
 library(cowplot)
 
-source('/vol/omnideconv_input/benchmark/pipeline/bin/general_functions/deconvolution_workflow_for_simulation.R')
-methods <- c('autogenes','bayesprism','bisque','cibersortx','dwls','music','scaden','scdc')
-sc_norm <- c('cpm', rep('counts', 2),'cpm',rep('counts',4))
-bulk_norm <- c('tpm', rep('counts', 2), rep('tpm',5))
-method_parameter_df <- data.frame(method=methods, sc_norm=sc_norm, bulk_norm=bulk_norm)
-method_parameter_df$method_norm_combi <- paste0(method_parameter_df$method, method_parameter_df$sc_norm, method_parameter_df$bulk_norm)
-
 # 1: List directories, methods, cell types
 #############################################################################
-impact.technology.results <- list.files('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_impact_technology', full.names=F, recursive=T)
+impact.technology.results <- list.files('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_impact_technology2/', full.names=F, recursive=T)
 
-#impact.technology.results <- impact.technology.results[grep('lambrechts', impact.technology.results)]
 impact.technology.results <- impact.technology.results[grep('deconvolution.rds', impact.technology.results)]
 
 metadata.table <- impact.technology.results %>%
@@ -52,41 +44,44 @@ process_results_df <- function(res, method, pseudobulk_ds, signature_ds, replica
   res
 }
 
-for(i in 1:nrow(metadata.table)){
+metadata.table <- metadata.table |> subset(dataset_pseudobulk %in% c('lambrechts','maynard'))
+
+tmp <- lapply(1:nrow(metadata.table), function(i){
   result <- readRDS(paste0('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_impact_technology/', metadata.table$path[i])) %>%
     .$deconvolution %>%
     as.data.frame()
   colnames(result) <- gsub("xxxx", " ", colnames(result))
   colnames(result) <- gsub("21b2c7567f8711ec9bf265fb9bf6ab9a", "-", colnames(result))
-
+  colnames(result) <- gsub("\\.", " ", colnames(result))
+  
   true.fractions <- readRDS(paste0('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_impact_technology/', metadata.table$path[i])) %>%
     .$true_cell_fractions %>%
     t() %>%
     as.data.frame()
   colnames(true.fractions) <- gsub("xxxx", " ", colnames(true.fractions))
   colnames(true.fractions) <- gsub("21b2c7567f8711ec9bf265fb9bf6ab9a", "-", colnames(true.fractions))
-
+  
   result <- result %>%
     process_results_df(., metadata.table$method[i], metadata.table$dataset_pseudobulk[i],
                        metadata.table$dataset_signature[i], metadata.table$replicate[i])
-
+  
   true.fractions <- true.fractions %>%
     process_results_df(., metadata.table$method[i], metadata.table$dataset_pseudobulk[i],
                        metadata.table$dataset_signature[i], metadata.table$replicate[i], predicted = FALSE)
-
+  
   result <- left_join(result, true.fractions)
+  
+  return(result)
+})
 
-  data <- rbind(data, result)
+data <- bind_rows(tmp)
 
-  #result$absolute_difference <- abs(result$true_value - result$predicted_value)
-
-}
-
-
+celltypes <- c('B cells', 'Monocytes', 'NK cells', 'Plasma cells', 'T cells CD4 conv', 'T cells CD8', 'Tregs')
+data <- data |> subset(celltype %in% celltypes)
 
 # General correlation results
 ###############################################################################
-data <- data[data$dataset_pseudobulk %in% c('lambrechts', 'maynard'), ]
+
 correlation.results <- data %>%
   group_by(celltype, method, dataset_pseudobulk, dataset_signature) %>%
   dplyr::summarize(corr = cor.test(true_value, predicted_value, method = 'pearson')$estimate,
@@ -125,7 +120,7 @@ lambrechts.plot <- ggplot(correlation.results[correlation.results$dataset_pseudo
   theme(axis.title.x = element_text(vjust = -2), legend.position = 'hide') +
   rotate_x_text(angle=60)
 
-ggsave(lambrechts.plot, './visualisation/fig_6/Fig_6A.pdf', dpi=350, width=10, height=5)
+ggsave(plot = lambrechts.plot, '/nfs/proj/omnideconv_benchmarking/omnideconv/benchmark/revision2/visualization/fig6/Fig_6B.pdf', dpi=350, width=10, height=5)
 
 maynard.plot <- ggplot(correlation.results[correlation.results$dataset_pseudobulk == 'maynard', ],
                        aes(x=celltype, y=method, fill=corr)) +
@@ -145,9 +140,4 @@ maynard.plot <- ggplot(correlation.results[correlation.results$dataset_pseudobul
   rotate_x_text(angle=60)
 
 
-ggarrange(lambrechts.plot,
-          NULL,
-          maynard.plot,
-          nrow = 3, heights = c(7, 0.2, 7))
-
-ggsave(maynard.plot, './visualisation/fig_6/Fig_6B.pdf', dpi=350, width=10, height=5)
+ggsave(plot = maynard.plot, '/nfs/proj/omnideconv_benchmarking/omnideconv/benchmark/revision2/visualization/fig6/Fig_6C.pdf', dpi=350, width=10, height=5)

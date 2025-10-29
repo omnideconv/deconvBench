@@ -53,6 +53,8 @@ process SIMULATE_BULK {
 
 process ANALYSIS_BULK_MISSING_CELL_TYPES {
 
+      label 'process_default'
+
       input:
       each sc_dataset
       each bulk_ds
@@ -214,6 +216,8 @@ process ANALYSIS_BULK_RESOLUTION_ANALYSIS {
 }
 
 process SIMULATE_PSEUDOBULK_MIRRORDB {
+
+      label 'process_high'
       
       publishDir "${params.preProcess_dir}/pseudo_bulk_impact_technology", mode: 'copy'
 
@@ -238,6 +242,8 @@ process SIMULATE_PSEUDOBULK_MIRRORDB {
 
 process ANALYSIS_PSEUDOBULK_MIRRORDB {
 
+      label 'process_default'
+
       input:
       each sc_dataset
       tuple val(sim_bulk_name), 
@@ -258,10 +264,11 @@ process ANALYSIS_PSEUDOBULK_MIRRORDB {
 
 process ANALYSIS_BULK_MIRRORDB {
 
+      label 'process_default'
+
       input:
       each sc_dataset
-      each bulk_name, 
-      val(bulk_path)
+      each bulk_name 
       each method
      
       output:
@@ -271,7 +278,7 @@ process ANALYSIS_BULK_MIRRORDB {
       
       shell:
       '''
-      analysisNF_mixed_simulations_real_dataset.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{bulk_name}' '!{bulk_path}' '!{params.preProcess_dir}' '!{method}' '!{params.results_dir_impact_technology}' '!{params.ncores}' '!{baseDir}'
+      analysisNF_mixed_simulations_real_dataset.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{bulk_name}' '!{params.data_dir_bulk}' '!{params.preProcess_dir}' '!{method}' '!{params.results_dir_impact_technology}' '!{params.ncores}' '!{baseDir}'
       ''' 
 }
 
@@ -403,7 +410,6 @@ workflow simulation_impact_technology {
 
   deconvolution_real = ANALYSIS_BULK_MIRRORDB(params.simulation_sc_dataset,
                                               params.bulk_impact_technology,
-                                              params.data_dir_bulk, 
                                               params.method_list)                                                                                      
 }
 
@@ -431,9 +437,6 @@ workflow simulation_unknown_content {
                                                 params.known_cell_types,
                                                 params.unknown_cell_type, 
                                                 params.replicates_unknown_content)
-  
-  
-  
   
   deconvolution = ANALYSIS_BULK_UNKNOWN_CELL_TYPE(simulations,
                                              params.fractions_unknown_cells,

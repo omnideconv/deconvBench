@@ -18,6 +18,7 @@ names(method_palette) <- c('AutoGeneS','BayesPrism','Bisque','CIBERSORTx','DWLS'
 
 ```{r}
 # dir: /nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_downsample2
+# dir: /nfs/proj/omnideconv_benchmarking/omnideconv/benchmark/reports_traces
 bisque_trace <- fread('bisque-trace.csv', fill=T)
 dwls_trace <- fread('dwls-trace.csv', fill=T)
 scaden_trace <- fread('scaden-trace.csv', fill=T)
@@ -122,6 +123,7 @@ p_memory <- ggplot(df_comb, aes(x=n_cells, y=peak_vmem, group=method))+
 # Runtime
 ```{r}
 dir <- '/home/alex/Documents/PhD/omnideconv/omnideconv_paper/TUM_backup/downsample/results_downsample2'
+dir <- '/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_downsample2'
 results_dirs <- list.dirs(dir, full.names = T, recursive = F)
 res <- lapply(results_dirs, function(i){
   runtime_sig_file <- paste0(i,'/runtime_signature.rds')

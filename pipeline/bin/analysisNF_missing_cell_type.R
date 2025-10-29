@@ -62,8 +62,6 @@ if(missing_cell_type != '-'){
 }
 
 
-
-
 res_path_normal <- paste0(res_base_path, '/', method, "/", sc_dataset, '_', bulk_name, '_no_', missing_cell_type)
 res_path_normal <- gsub(' ', '_', res_path_normal)
 res_path_norml <- tolower(res_path_normal)
@@ -112,8 +110,8 @@ deconvolution <- deconvolution_workflow_general(
   bulk_norm, 
   ncores, 
   res_path_normal,
-  rmbatch_S_mode = TRUE,
-    baseDir=baseDir
+  rmbatch_S_mode = FALSE,
+  baseDir=baseDir
 )
 
 colnames(deconvolution) <- gsub("xxxx", " ", colnames(deconvolution))

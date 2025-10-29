@@ -87,7 +87,7 @@ signature <- signature_workflow_general(
   bulk_norm, 
   ncores, 
   res_path_normal,
-    baseDir=baseDir
+  baseDir=baseDir
 )
 
 # If we are deconvolving bulk data with a 10x dataset, we use the s mode
@@ -96,13 +96,13 @@ signature <- signature_workflow_general(
 datasets_technologies <- read.table(paste0(baseDir, '/sc_datasets_technologies.csv'), sep = ',', header = TRUE)
 cur_tech <- datasets_technologies[datasets_technologies$technology == sc_dataset, 2]
 
-if(cur_tech!='10X'){
-    s_mode <- FALSE
-    b_mode <- TRUE
-} else {
-    s_mode <- TRUE
-    b_mode <- FALSE
-}
+#if(cur_tech!='10X'){
+#    s_mode <- FALSE
+#    b_mode <- TRUE
+#} else {
+#    s_mode <- TRUE
+#    b_mode <- FALSE
+#}
 
 deconvolution <- deconvolution_workflow_general(
   sc_matrix, 
@@ -118,9 +118,9 @@ deconvolution <- deconvolution_workflow_general(
   bulk_norm, 
   ncores, 
   res_path_normal,
-  rmbatch_S_mode = s_mode,
-  rmbatch_B_mode = b_mode,
-    baseDir=baseDir
+  rmbatch_S_mode = FALSE,
+  rmbatch_B_mode = FALSE,
+  baseDir=baseDir
 ) 
 
 true_fractions <- readRDS(file.path(bulk_path, bulk_name, paste0(bulk_name, '_facs.rds')))

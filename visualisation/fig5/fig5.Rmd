@@ -64,6 +64,7 @@ res <- lapply(output_dirs, function(i){
   method <- unique(metrics$runtimes$method)
   bulk_ds <- unique(metrics$runtimes$bulk_ds)
   sc_ds <- unique(metrics$runtimes$sc_ds)
+  
   if(sc_ds == 'HaoCleaned-sampled'){
     deconv.results <- metrics$deconv.results |> 
       as.data.frame() |> 
@@ -131,7 +132,7 @@ dataset <- 'hoek_purified'
 overviewTable <- data |> subset(bulk_ds == dataset)
 par(mar=rep(2, 4))
 circos.par(cell.padding = rep(2.5, 4))
-pdf(paste0('visualization/fig5/',dataset,'_spillover.pdf'), width = 22, height = 8)
+pdf(paste0('/nfs/proj/omnideconv_benchmarking/omnideconv/benchmark/revision2/visualization/fig5/',dataset,'_spillover.pdf'), width = 22, height = 8)
 layout(matrix(1:8, nrow = 2, byrow = TRUE))
 
 
@@ -139,7 +140,7 @@ for(m in unique(data$method)){
   print(m)
   resultDf <- data |> subset(purified_celltype != 'Neutrophils')
   if(dataset == 'hoek_purified'){
-    resultDf <- resultDf |> subset(!celltype %in% c('T cells CD4 conv', 'T cells CD8', 'Tregs'))
+    resultDf <- resultDf |> subset(!celltype %in% c('CD4 T cells', 'CD8 T cells', 'Tregs'))
   }
   migration <- resultDf %>%
       filter(method == m, bulk_ds == dataset) %>%
@@ -231,7 +232,7 @@ p_boxplot <- ggplot(df, aes(x=purified_celltype, y=proportion.estimated, fill=pu
         panel.grid.major.x = element_blank())+
   xlab('')+ylab('fraction of true cell type')
 
-ggsave(filename = '/nfs/proj/omnideconv_benchmarking/omnideconv/benchmark/revision/visualization/fig5/boxplot.pdf', plot = p_boxplot, width = 15, height = 6)
+ggsave(filename = '/nfs/proj/omnideconv_benchmarking/omnideconv/benchmark/revision2/visualization/fig5/boxplot.pdf', plot = p_boxplot, width = 15, height = 6)
 ```
 
 ## heatmap
@@ -270,8 +271,8 @@ heatmap_hoek <- ggplot(mean.predictions |> subset(bulk_ds == 'hoek_purified'), a
   ylab('Predicted celltype') +
   scale_y_discrete(limits=celltypes_ordered_similarity_reference)
 
-ggsave('/nfs/proj/omnideconv_benchmarking/omnideconv/benchmark/revision/visualization/fig5/linsley_heatmap.pdf', plot = heatmap_linsley, width = 14, height = 7)
-ggsave('/nfs/proj/omnideconv_benchmarking/omnideconv/benchmark/revision/visualization/fig5/hoek_heatmap.pdf', plot = heatmap_hoek, width = 14, height = 7)
+ggsave('/nfs/proj/omnideconv_benchmarking/omnideconv/benchmark/revision2/visualization/fig5/linsley_heatmap.pdf', plot = heatmap_linsley, width = 14, height = 7)
+ggsave('/nfs/proj/omnideconv_benchmarking/omnideconv/benchmark/revision2/visualization/fig5/hoek_heatmap.pdf', plot = heatmap_hoek, width = 14, height = 7)
 ```
 
 

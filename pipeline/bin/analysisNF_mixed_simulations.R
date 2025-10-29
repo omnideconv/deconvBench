@@ -88,17 +88,17 @@ signature <- signature_workflow_general(
   bulk_norm, 
   ncores, 
   res_path_normal,
-    baseDir=baseDir
+  baseDir=baseDir
 )
 
 # If the datasets for pseudobulk simulation and signature building are not the same, 
 # we need to apply CIBERSORTx S mode
 
-if(bulk_name == sc_dataset){
-    s_mode <- FALSE
-} else {
-    s_mode <- TRUE
-}
+#if(bulk_name == sc_dataset){
+#    s_mode <- FALSE
+#} else {
+#    s_mode <- TRUE
+#}
 
 for(r in 1:replicates){
 
@@ -122,8 +122,8 @@ for(r in 1:replicates){
       bulk_norm, 
       ncores, 
       res_path_normal,
-      rmbatch_S_mode = s_mode,
-    baseDir=baseDir
+      rmbatch_S_mode = FALSE,
+      baseDir=baseDir
     )  
 
     true_fractions <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0('simulation_facs.rds')))

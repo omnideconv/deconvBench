@@ -2,13 +2,14 @@ library(tidyverse)
 library(dplyr)
 library(ggpubr)
 library(gridGraphics)
+library(stringi)
 
 methods <- c('autogenes','bayesprism','bisque','cibersortx','dwls','music','scaden','scdc')
 sc_norm <- c(rep('counts', 3),'cpm',rep('counts',4))
 bulk_norm <- c('tpm', rep('counts', 2), rep('tpm',5))
 
 # 1: List directories, methods, cell types
-missing.cell.types.deconv.results <- list.files('/vol/omnideconv_results/results_missing_cell_types', full.names=F, recursive=T)
+missing.cell.types.deconv.results <- list.files('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_missing_cell_types', full.names=F, recursive=T)
 
 metadata.table <- missing.cell.types.deconv.results %>%
   tibble(path = .,
@@ -28,7 +29,7 @@ metadata.table$missing_celltype <- gsub('_', ' ', metadata.table$missing_celltyp
 #2: Combine these in a unique dataframe
 data <- NULL
 for(i in 1:nrow(metadata.table)){
-  result <- readRDS(paste0('/vol/omnideconv_results/results_missing_cell_types/', metadata.table$path[i])) %>%
+  result <- readRDS(paste0('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_missing_cell_types/', metadata.table$path[i])) %>%
     .$deconv.result %>%
     as.data.frame()
 
@@ -38,17 +39,22 @@ for(i in 1:nrow(metadata.table)){
     mutate(., celltype = gsub("xxxx", " ", celltype)) %>%
     mutate(., missing_celltype = metadata.table$missing_celltype[i]) %>%
     mutate(., method = metadata.table$method[i]) %>%
-    mutate(., bulk_dataset = metadata.table$bulk_dataset[i])
+    mutate(., bulk_dataset = metadata.table$bulk_dataset[i]) %>%
+    mutate(., sc_dataset = metadata.table$sc_dataset[i])
   data <- rbind(data, result)
 }
 
+data1 <- data %>% subset(sc_dataset == 'hao-complete' & method != 'cibersortx')
+data2 <- data %>% subset(sc_dataset == 'HaoCleaned-sampled' & method == 'cibersortx')
+data <- bind_rows(data1, data2)
+
 metrics.data <- NULL
 for(i in 1:nrow(metadata.table)){
-  corr.result <- readRDS(paste0('/vol/omnideconv_results/results_missing_cell_types/', metadata.table$path[i])) %>%
+  corr.result <- readRDS(paste0('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_missing_cell_types/', metadata.table$path[i])) %>%
     .$cor_cell_type %>%
     as.data.frame()
 
-  rmse.result <- readRDS(paste0('/vol/omnideconv_results/results_missing_cell_types/', metadata.table$path[i])) %>%
+  rmse.result <- readRDS(paste0('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_missing_cell_types/', metadata.table$path[i])) %>%
     .$rmse_cell_type %>%
     as.data.frame()
 
@@ -56,7 +62,8 @@ for(i in 1:nrow(metadata.table)){
     mutate(., cell_type = gsub("xxxx", " ", cell_type)) %>%
     mutate(., missing_celltype = metadata.table$missing_celltype[i]) %>%
     mutate(., method = metadata.table$method[i]) %>%
-    mutate(., bulk_dataset = metadata.table$bulk_dataset[i]) %>%
+    mutate(., bulk_dataset = metadata.table$bulk_dataset[i])%>%
+    mutate(., sc_dataset = metadata.table$sc_dataset[i]) %>%
     select(., -c('pval'))
 
 
@@ -64,11 +71,13 @@ for(i in 1:nrow(metadata.table)){
     mutate(., cell_type = gsub("xxxx", " ", cell_type)) %>%
     mutate(., missing_celltype = metadata.table$missing_celltype[i]) %>%
     mutate(., method = metadata.table$method[i]) %>%
-    mutate(., bulk_dataset = metadata.table$bulk_dataset[i]) %>%
+    mutate(., bulk_dataset = metadata.table$bulk_dataset[i])%>%
+    mutate(., sc_dataset = metadata.table$sc_dataset[i]) %>%
     select(., -c('zRMSE', 'wRMSE'))
   corr.result <- left_join(corr.result, rmse.result)
   metrics.data <- rbind(metrics.data, corr.result)
 }
+metrics.data <- metrics.data %>% subset(sc_dataset == 'hao-complete')
 
 data$missing_celltype[data$missing_celltype == 'all-cells'] <- 'None'
 metrics.data$missing_celltype[metrics.data$missing_celltype == 'all-cells'] <- 'None'
@@ -116,5 +125,5 @@ hoek.plot <- ggplot(metrics.plot[metrics.plot$bulk_dataset=='hoek', ], aes(x=mis
   labs(y="Predicted cell type\n", x="Missing cell type", title = 'Hoek dataset')
 
 
-ggsave(finotello.plot, './visualization/fig_5/fig_5A.pdf', dpi=350, width=12, height=12)
-ggsave(finotello.plot, './visualization/supplement/fig_s7.pdf', dpi=350, width=12, height=12)
+ggsave(plot = finotello.plot, '/nfs/proj/omnideconv_benchmarking/omnideconv/benchmark/revision2/visualization/supplement/fig_s7_finotello.pdf', dpi=350, width=12, height=12)
+ggsave(plot = hoek.plot, '/nfs/proj/omnideconv_benchmarking/omnideconv/benchmark/revision2/visualization/supplement/fig_s7_hoek.pdf', dpi=350, width=12, height=12)

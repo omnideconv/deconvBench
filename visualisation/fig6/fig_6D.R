@@ -4,15 +4,9 @@ library(circlize)
 library(ggpubr)
 library(cowplot)
 
-source('/vol/omnideconv_input/benchmark/pipeline/bin/general_functions/deconvolution_workflow_for_simulation.R')
-methods <- c('autogenes','bayesprism','bisque','cibersortx','dwls','music','scaden','scdc')
-sc_norm <- c(rep('counts', 3),'cpm',rep('counts',4))
-bulk_norm <- c('tpm', rep('counts', 2), rep('tpm',5))
-
-
 # 1: List directories, methods, cell types
 #############################################################################
-impact.technology.results <- list.files('/vol/omnideconv_results/results_impact_technology', full.names=F, recursive=T)
+impact.technology.results <- list.files('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_impact_technology', full.names=F, recursive=T)
 
 #impact.technology.results <- impact.technology.results[grep('lambrechts', impact.technology.results)]
 impact.technology.results <- impact.technology.results[grep('deconvolution.rds', impact.technology.results)]
@@ -50,48 +44,54 @@ process_results_df <- function(res, method, pseudobulk_ds, signature_ds, predict
   res
 }
 
-for(i in 1:nrow(metadata.table)){
-  result <- readRDS(paste0('/vol/omnideconv_results/results_impact_technology/', metadata.table$path[i])) %>%
+tmp <- lapply(1:nrow(metadata.table), function(i){
+  result <- readRDS(paste0('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_impact_technology/', metadata.table$path[i])) %>%
     .$deconvolution %>%
     as.data.frame()
   colnames(result) <- gsub("xxxx", " ", colnames(result))
   colnames(result) <- gsub("21b2c7567f8711ec9bf265fb9bf6ab9a", "-", colnames(result))
-
+  
   result$`T cells CD4` <- result$`T cells CD4 conv` + result$`Tregs`
   result$`T cells CD4 conv` <- NULL
   result$`Tregs` <- NULL
   result$`T cells` <- result$`T cells CD4` + result$`T cells CD8`
-
-  true.fractions <- readRDS(paste0('/vol/omnideconv_results/results_impact_technology/', metadata.table$path[i])) %>%
+  
+  true.fractions <- readRDS(paste0('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_impact_technology/', metadata.table$path[i])) %>%
     .$true_cell_fractions %>%
     t() %>%
     as.data.frame()
   colnames(true.fractions) <- gsub("xxxx", " ", colnames(true.fractions))
   colnames(true.fractions) <- gsub("21b2c7567f8711ec9bf265fb9bf6ab9a", "-", colnames(true.fractions))
-
+  
   true.fractions$`T cells CD4` <- true.fractions$`T cells CD4 conv`
   true.fractions$`T cells CD4 conv` <- NULL
+  if("CD4" %in% colnames(true.fractions)){
+    true.fractions$`T cells CD4` <- true.fractions$`CD4`
+    true.fractions$`CD4` <- NULL
+  }
+  if("CD8" %in% colnames(true.fractions)){
+    true.fractions$`T cells CD8` <- true.fractions$`CD8`
+    true.fractions$`CD8` <- NULL
+  }
 
+  
   true.fractions$`T cells` <- true.fractions$`T cells CD4` + true.fractions$`T cells CD8`
-
+  
   result <- result %>%
     process_results_df(., metadata.table$method[i], metadata.table$dataset_pseudobulk[i],
                        metadata.table$sc_dataset[i])
-
+  
   true.fractions <- true.fractions %>%
     process_results_df(., metadata.table$method[i], metadata.table$dataset_pseudobulk[i],
                        metadata.table$sc_dataset[i], predicted = FALSE)
-
-
-
+  
+  
+  
   result <- left_join(result, true.fractions)
+  return(result)
+})
 
-  data <- rbind(data, result)
-
-  #result$absolute_difference <- abs(result$true_value - result$predicted_value)
-
-}
-
+data <- bind_rows(tmp)
 data <- data[!is.na(data$true_value), ]
 
 # General correlation results
@@ -135,4 +135,4 @@ vanderbilt.plot <- correlation.results[correlation.results$celltype!='all', ] %>
   theme(axis.title.x = element_text(vjust = -2), legend.position = 'hide') +
   rotate_x_text(angle=60)
 
-ggsave('./visualisation/fig_6/Fig_6C.pdf', dpi=350, width=2, height=9)
+ggsave(plot = vanderbilt.plot, '/nfs/proj/omnideconv_benchmarking/omnideconv/benchmark/revision2/visualization/fig6/Fig_6D.pdf', dpi=350, width=2, height=9)

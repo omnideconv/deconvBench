@@ -122,8 +122,8 @@ runtime <- system.time({
     bulk_norm, 
     ncores, 
     res_path,
-    rmbatch_S_mode = s_mode,
-    rmbatch_B_mode = b_mode,
+    rmbatch_S_mode = FALSE,
+    rmbatch_B_mode = FALSE,
     baseDir=baseDir
   )
 

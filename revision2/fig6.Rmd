@@ -1,0 +1,209 @@
+---
+title: "fig6"
+author: "Alexander Dietrich"
+date: "2025-10-21"
+output: html_document
+---
+
+```{r}
+library(dplyr)
+library(circlize)
+library(ggpubr)
+library(cowplot)
+```
+
+
+```{r}
+impact.technology.results <- list.files('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_impact_technology2', full.names=T, recursive=T, pattern = "*.rds")
+```
+
+```{r}
+res_pseudobulk <- bind_rows(lapply(1:length(impact.technology.results), function(i){
+  
+  pseudobulk <- strsplit(strsplit(impact.technology.results[i], split = '/')[[1]][8], split = '_')[[1]][1]
+  if(pseudobulk %in% c('hao-complete', 'lambrechts', 'maynard')){
+    ds <- readRDS(impact.technology.results[i])
+    deconv <- ds[['deconvolution']] |>
+      as.data.frame() |>
+      rownames_to_column('sample') |>
+      pivot_longer(-sample, names_to = 'celltype', values_to = 'estimated') |>
+      mutate(celltype = gsub("\\.", " ", celltype))
+    
+    true_fractions <- ds[['true_cell_fractions']] |>
+      as.data.frame() |>
+      rownames_to_column('celltype') |> 
+      pivot_longer(-celltype, names_to = 'sample', values_to = 'true') |>
+      mutate(celltype = gsub("\\.", " ", celltype))
+    
+    df <- left_join(deconv, true_fractions, by = join_by(sample, celltype))
+    df$replicate <- strsplit(impact.technology.results[i], split = '/')[[1]][9]
+    df$signature <- strsplit(strsplit(impact.technology.results[i], split = '/')[[1]][8], split = '_')[[1]][3]
+    df$pseudobulk <- pseudobulk
+    df$method <- strsplit(strsplit(impact.technology.results[i], split = '/')[[1]][7], split = '_')[[1]][1]
+    df$celltype <- gsub("\\.", " ", df$celltype)
+    df  
+  }
+  
+}))
+
+res_pseudobulk <- res_pseudobulk |> 
+  mutate(method = recode(method,
+                         'autogenes'='AutoGeneS',
+                         'bayesprism'='BayesPrism',
+                         'bisque'='Bisque',
+                         'cibersortx'='CIBERSORTx',
+                         'dwls'='DWLS',
+                         'music'='MuSiC',
+                         'scaden'='Scaden',
+                         'scdc'='SCDC'))
+
+res_real <- bind_rows(lapply(1:length(impact.technology.results), function(i){
+  
+  pseudobulk <- strsplit(strsplit(impact.technology.results[i], split = '/')[[1]][8], split = '_')[[1]][1]
+  if(pseudobulk %in% c('vanderbilt')){
+    ds <- readRDS(impact.technology.results[i])
+    
+    deconv <- ds[['deconvolution']] |> as.data.frame() 
+    colnames(deconv) <- gsub("\\.", " ", colnames(deconv))
+    deconv$`T cells CD4` <- deconv$`T cells CD4 conv` + deconv$`Tregs`
+    deconv$`T cells CD4 conv` <- NULL
+    deconv$`Tregs` <- NULL
+    deconv$`T cells` <- deconv$`T cells CD4` + deconv$`T cells CD8`
+    
+    
+    deconv <- deconv |>
+      rownames_to_column('sample') |>
+      pivot_longer(-sample, names_to = 'celltype', values_to = 'estimated') |>
+      mutate(celltype = gsub("\\.", " ", celltype))
+    
+    true_fractions <- ds[['true_cell_fractions']] |>
+      as.data.frame() |>
+      rownames_to_column('celltype') |> 
+      pivot_longer(-celltype, names_to = 'sample', values_to = 'true') |>
+      mutate(celltype = gsub("\\.", " ", celltype)) |>
+      mutate(celltype = dplyr::recode(celltype, 
+        'CD8' = 'T cells CD8',
+        'CD4' = 'T cells CD4'
+      ))
+    
+    # Create a combined "T cells" entry
+    true_fractions_Tcells <- true_fractions |>
+      group_by(sample) |>
+      dplyr::summarise(true = sum(true)) |>
+      mutate(celltype = "T cells")
+    
+    true_fractions <- bind_rows(true_fractions, true_fractions_Tcells)
+    
+    df <- left_join(deconv, true_fractions, by = join_by(sample, celltype))
+    df$replicate <- NA
+    df$signature <- strsplit(strsplit(impact.technology.results[i], split = '/')[[1]][8], split = '_')[[1]][4]
+    df$pseudobulk <- pseudobulk
+    df$method <- strsplit(strsplit(impact.technology.results[i], split = '/')[[1]][7], split = '_')[[1]][1]
+    df$celltype <- gsub("\\.", " ", df$celltype)
+    df  
+  }
+  
+}))
+res_real <- res_real[!is.na(res_real$true), ]
+
+res_real <- res_real |> 
+  mutate(method = recode(method,
+                         'autogenes'='AutoGeneS',
+                         'bayesprism'='BayesPrism',
+                         'bisque'='Bisque',
+                         'cibersortx'='CIBERSORTx',
+                         'dwls'='DWLS',
+                         'music'='MuSiC',
+                         'scaden'='Scaden',
+                         'scdc'='SCDC'))
+
+```
+
+```{r}
+correlation.results <- res_pseudobulk |>
+  group_by(celltype, method, pseudobulk, signature) |>
+  dplyr::summarize(corr = cor.test(true, estimated, method = 'pearson')$estimate,
+                   pval = cor.test(true, estimated, method = 'pearson')$p.value,
+                   rmse = sqrt(mean((true - estimated)^2))) |>
+  ungroup()
+
+correlation.results.all <- res_pseudobulk %>%
+  group_by(method, pseudobulk, signature) %>%
+  dplyr::summarize(celltype = 'all',
+                   corr = cor.test(true, estimated, method = 'pearson')$estimate,
+                   pval = cor.test(true, estimated, method = 'pearson')$p.value,
+                   rmse = sqrt(mean((true - estimated)^2))) %>%
+  ungroup()
+
+correlation.results <- rbind(correlation.results, correlation.results.all)
+
+correlation.results.real <- res_real |>
+  group_by(celltype, method, pseudobulk, signature) |>
+  dplyr::summarize(corr = cor.test(true, estimated, method = 'pearson')$estimate,
+                   pval = cor.test(true, estimated, method = 'pearson')$p.value,
+                   rmse = sqrt(mean((true - estimated)^2))) |>
+  ungroup()
+```
+
+```{r}
+maynard.plot <- ggplot(correlation.results[correlation.results$pseudobulk == 'maynard', ],
+                       aes(x=celltype, y=method, fill=corr)) +
+  geom_tile()+
+  coord_fixed()+
+  geom_text(aes(label = round(corr,2)), size = 2.5)+
+  facet_wrap(~signature, ncol=3,
+             labeller=labeller(
+               signature = c('hao-complete' = 'signature: hao',
+                                     'lambrechts' = 'signature: lambrechts',
+                                     'maynard' = 'signature: maynard')
+             ))+
+  theme_minimal()+
+  scale_fill_gradient2(low = '#ce273f', high='#2d87bb', limits=c(-1,1)) +
+  labs(title = 'Maynard', xlab='\n\ncelltype\n') +
+  theme(axis.title.x = element_text(vjust = -1), legend.position = 'bottom') +
+  rotate_x_text(angle=60)
+
+ggsave(plot = maynard.plot, '/nfs/proj/omnideconv_benchmarking/omnideconv/benchmark/revision2/visualization/fig6/Fig_6B.pdf', dpi=350, width=10, height=5)
+```
+
+```{r}
+lambrechts.plot <- ggplot(correlation.results[correlation.results$pseudobulk == 'lambrechts', ],
+                       aes(x=celltype, y=method, fill=corr)) +
+  geom_tile()+
+  coord_fixed()+
+  geom_text(aes(label = round(corr,2)), size = 2.5)+
+  facet_wrap(~signature, ncol=3,
+             labeller=labeller(
+               signature = c('hao-complete' = 'signature: hao',
+                                     'lambrechts' = 'signature: lambrechts',
+                                     'maynard' = 'signature: maynard')
+             ))+
+  theme_minimal()+
+  scale_fill_gradient2(low = '#ce273f', high='#2d87bb', limits=c(-1,1)) +
+  labs(title = 'Lambrechts', xlab='\n\ncelltype\n') +
+  theme(axis.title.x = element_text(vjust = -1), legend.position = 'bottom') +
+  rotate_x_text(angle=60)
+
+ggsave(plot = lambrechts.plot, '/nfs/proj/omnideconv_benchmarking/omnideconv/benchmark/revision2/visualization/fig6/Fig_6C.pdf', dpi=350, width=10, height=5)
+```
+
+```{r}
+vanderbilt.plot <- ggplot(correlation.results.real, aes(x=celltype, y=method, fill=corr)) +
+  geom_tile()+
+  #coord_fixed()+
+  geom_text(aes(label = round(corr,2)), size = 2.5)+
+  facet_wrap(~signature, ncol=1,
+             labeller=labeller(
+               signature = c('hao' = 'signature: hao',
+                                     'lambrechts' = 'signature: \nlambrechts',
+                                     'maynard' = 'signature: \nmaynard')
+             ))+
+  theme_minimal()+
+  scale_fill_gradient2(low = '#ce273f', high='#2d87bb', limits=c(-1,1)) +
+  labs(title = 'Vanderbilt', xlab='\ncelltype') +
+  theme(axis.title.x = element_text(vjust = -2), legend.position = 'hide') +
+  rotate_x_text(angle=60)
+
+ggsave(plot = vanderbilt.plot, '/nfs/proj/omnideconv_benchmarking/omnideconv/benchmark/revision2/visualization/fig6/Fig_6D.pdf', dpi=350, width=2, height=9)
+```
+

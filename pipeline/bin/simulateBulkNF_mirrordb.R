@@ -37,7 +37,7 @@ ncores <- as.numeric(args$ncores)
 # We need to identify the common cell types across the datasets and generate the simulated pseudobulks with only those cell types
 list.annotations <- list()
 for (d in datasets){
-  cur.cell.annotations <- readRDS(file.path(sc_dir, d, 'celltype_annotations.rds'))
+  cur.cell.annotations <- as.character(readRDS(file.path(sc_dir, d, 'celltype_annotations.rds')))
   list.annotations[[d]] <- unique(cur.cell.annotations)
 }
 
@@ -46,7 +46,7 @@ saveRDS(common.cells, file = file.path(args$preprocess_dir, 'cell_types.rds'))
 
 for (d in datasets){
   sc_dir_cur <- paste0(sc_dir, '/', d, '/')
-  sc_celltype_annotations <- readRDS(paste0(sc_dir_cur,'/celltype_annotations.rds'))
+  sc_celltype_annotations <- as.character(readRDS(paste0(sc_dir_cur,'/celltype_annotations.rds')))
 
   position_vector <- sc_celltype_annotations %in% common.cells
   sc_celltype_annotations <- sc_celltype_annotations[position_vector]
@@ -85,7 +85,8 @@ for (d in datasets){
       ncells = ncells,
       BPPARAM = BiocParallel::MulticoreParam(workers = ncores),
       balance_even_mirror_scenario = 0.05,
-      run_parallel = TRUE
+      run_parallel = TRUE,
+      seed = r + 100
     )
     
     saveRDS(SummarizedExperiment::assays(simulated_bulk$bulk)[["bulk_counts"]], paste0(output_dir, '/simulation_counts.rds'))

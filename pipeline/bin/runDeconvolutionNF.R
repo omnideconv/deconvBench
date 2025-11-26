@@ -106,6 +106,14 @@ if(method=='cibersortx'){
 #### Perform devonvolution ####
 ###############################
 
+if(method == 'rectangle'){
+  # do not incluce anndata creation in runtime measurement
+  ad <- anndata::AnnData(X = t(sc_matrix),
+                        obs = data.frame('cell_type' = sc_celltype_annotations, row.names = colnames(sc_matrix)),
+                        var = data.frame('genes' = rownames(sc_matrix), row.names = rownames(sc_matrix)))
+  sc_matrix <- ad 
+}
+
 runtime <- system.time({
 
   deconvolution <- deconvolution_workflow_general(

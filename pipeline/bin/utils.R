@@ -215,6 +215,7 @@ signature_workflow_general <- function(sc_matrix, annotations, annotation_catego
   
   # path to temporary directory that is inside results directory of one unique result 
   tmp_dir_path <- paste0(res_path, '/tmp/')
+  ncores <- as.numeric(ncores)
 
   # Signature building part
   # Dependent on which method we have 
@@ -282,8 +283,7 @@ signature_workflow_general <- function(sc_matrix, annotations, annotation_catego
       model_path = paste0(res_path, '/model'),
       verbose = TRUE
     )
-
-  }else if (method %in% c('autogenes', 'bayesprism', 'bisque', 'music')){
+  } else if (method %in% c('autogenes', 'bayesprism', 'bisque', 'music', 'rectangle')){
     signature <- NULL
       
   } else {
@@ -312,6 +312,7 @@ deconvolution_workflow_general <- function(sc_matrix, annotations, annotation_ca
   
   # path to temporary directory that is inside results directory of one unique result 
   tmp_dir_path <- paste0(res_path, '/tmp/')
+  ncores <- as.numeric(ncores)
 
   if(method=="autogenes"){
 
@@ -462,6 +463,16 @@ deconvolution_workflow_general <- function(sc_matrix, annotations, annotation_ca
       verbose = TRUE
     )
     #unlink(tmp_dir_path, recursive=TRUE)
+
+  } else if (method == "rectangle") {
+
+    rp <- reticulate::import("rectanglepy")
+
+    #ad <- anndata::AnnData(X = t(sc_matrix),
+    #                       obs = data.frame('cell_type' = annotations, row.names = colnames(sc_matrix)),
+    #                       var = data.frame('genes' = rownames(sc_matrix), row.names = rownames(sc_matrix)))
+
+    deconvolution <- rp$rectangle(sc_matrix, bulks = as.data.frame(t(bulk_matrix), n_cpus=ncores))[[1]]
 
   } else {
     message('Selected method is not supported in the benchmark. Please check again.')

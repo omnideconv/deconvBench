@@ -76,7 +76,6 @@ bulk_matrix <- as.matrix(bulk_matrix)
 
 
 
-
 ####################################
 #### Perform signature building ####
 ####################################

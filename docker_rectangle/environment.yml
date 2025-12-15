@@ -1,0 +1,6 @@
+name: r-omnideconv
+dependencies:
+  - python=3.11
+  - pip
+  - pip:
+    - rectanglepy==1.0.0

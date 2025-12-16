@@ -21,3 +21,4 @@ revision/
 docker_rectangle/
 revision2/
 visualization/*/*.html
+pipeline/*.sh

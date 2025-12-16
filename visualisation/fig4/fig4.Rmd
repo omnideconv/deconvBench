@@ -39,7 +39,7 @@ names(method_palette) <- c('AutoGeneS','BayesPrism','Bisque','CIBERSORTx','DWLS'
 
 # Load results
 ```{r}
-results_dir_main <- 'results_mrnabias/'
+results_dir_main <- '/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_mrnabias/'
 results_dirs <- list.files(results_dir_main, full.names = T)
 
 res <- lapply(results_dirs, function(i){
@@ -123,30 +123,9 @@ fractions_df$difference <- fractions_df$fraction.estimate - fractions_df$fractio
 
 
 ```{r}
-ggplot(fractions_df, aes(x=fraction.true, y=fraction.estimate, color=withbias_pseudobulk))+
-  geom_point(alpha=.7)+
-  geom_abline()+
-  facet_grid(cell_type~method)+
-  scale_color_brewer(palette = 'Set1')+
-  theme_bw()+
-  theme(legend.position = 'top')
-
-```
-
-```{r}
-ggplot(fractions_df |> subset(method == 'SCDC' & sc_ds_pseudobulk %in% c('Hao','HaoCleaned')) , aes(x=fraction.true, y=fraction.estimate, color=withbias_pseudobulk, shape=sc_ds_pseudobulk))+
-  geom_point(alpha=.4)+
-  geom_abline()+
-  facet_wrap(cell_type~method)+
-  scale_color_brewer(palette = 'Set1')+
-  theme_bw()+
-  theme(legend.position = 'top')
-```
-
-```{r}
 method_order <- fractions_df |>
-  group_by(method, withbias_pseudobulk) |>
-  summarize(RMSE = sqrt(mean((fraction.estimate - fraction.true)^2))) |>
+  dplyr::group_by(method, withbias_pseudobulk) |>
+  dplyr::summarize(RMSE = sqrt(mean((fraction.estimate - fraction.true)^2))) |>
   pivot_wider(
       id_cols = c(method),
       names_from = withbias_pseudobulk,

@@ -29,10 +29,14 @@ names(method_palette) <- c('AutoGeneS','BayesPrism','Bisque','CIBERSORTx','DWLS'
 # Load data
 ```{r}
 data_dir <- '/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_batcheffect'
-data_dir_hao <- '/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_main2/'
+data_dir_hao <- '/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_main3'
+data_dir_cibersortx <- '/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_cibersort_reruns'
 
 result_dirs <- list.files(data_dir, full.names = T, pattern = '-sampled')
+result_dirs <- result_dirs[!grepl("cibersortx", result_dirs, ignore.case = TRUE)]
+result_dirs <- c(result_dirs, list.files(data_dir_cibersortx, full.names = T, pattern = '-sampled'))
 result_dirs_hao <- list.files(data_dir_hao, full.names = T, pattern = '-sampled')
+result_dirs_hao <- result_dirs_hao[!grepl("cibersortx", result_dirs_hao, ignore.case = TRUE)]
 
 res <- lapply(result_dirs, function(i){
   metrics_file <- paste0(i,'/results_metric.rds')
@@ -44,18 +48,18 @@ res <- lapply(result_dirs, function(i){
   
   sc_dataset <- unique(metrics$runtimes$sc_ds)
   bulk_dataset <- unique(metrics$runtimes$bulk_ds)
+
   df <- left_join(metrics$cor_cell_type, metrics$rmse_cell_type, by = join_by(cell_type))
   df$sc_dataset <- gsub(pattern = '-sampled',replacement = '',x = sc_dataset)
   df$bulk_dataset <- bulk_dataset
   df$method <- unique(metrics$runtimes$method)
-  
   
   return(df)
 })
 
 df <- bind_rows(res)
 
-# add Hao-sampled results
+# add Hao results
 res_hao <- lapply(result_dirs_hao, function(i){
   metrics_file <- paste0(i,'/results_metric.rds')
   if(file.exists(metrics_file)){
@@ -78,6 +82,7 @@ res_hao <- lapply(result_dirs_hao, function(i){
 df_hao <- bind_rows(res_hao)
 
 df <- bind_rows(df, df_hao)
+table(df$method, df$sc_dataset)
 
 df <- df %>% 
   mutate(method = recode(method,
@@ -95,11 +100,14 @@ df$cell_type <- recode(df$cell_type,
                                    'T cells CD4 conv' = 'CD4 T cells',
                                    'T cells CD4' = 'CD4 T cells',
                                    'T cells CD8' = 'CD8 T cells')
+df <- df |> subset(df$sc_dataset %in% c("Arunachalam", "BioResourceCollaboration", "DominguezConde", "Heimlich", "Lee", "SchulteSchrepping", "TabulaSapiens", "HaoCleaned"))
+
 
 df.cor <- data_summary(df, 'cor', c('method','bulk_dataset','cell_type'))
 df.rmse <- data_summary(df, 'RMSE', c('method','bulk_dataset','cell_type'))
 df.both <- data.table(merge(df.cor, df.rmse, by = c('method','bulk_dataset','cell_type'), suffixes = c('.cor','.rmse')))
 ```
+
 # heatmap R
 ```{r}
 df <- df %>%
@@ -126,8 +134,8 @@ df <- df %>%
 heatmap_rmse <- ggplot(df |> subset(bulk_dataset %in% c('hoek','finotello','morandini','altman')), aes(x=method, y=sc_dataset, fill=RMSE, label = round(RMSE, 2)))+
   geom_tile()+
   facet_grid(cell_type~bulk_dataset, scales='free')+
-  geom_text(size=2, color='white')+
-  scale_fill_gradient(high = 'darkred', low = 'steelblue')+
+  geom_text(size=2)+
+  scale_fill_gradient2(low = "steelblue", mid = "steelblue", high = "darkred", name = "RMSE", limits=c(0,.7))+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 60, hjust = 1))
 
@@ -135,10 +143,8 @@ heatmap_rmse
 ```
 
 ```{r}
-ggsave('visualization/fig6/heatmap_r.pdf', plot=heatmap_r, width = 11, height = 16)
-ggsave('visualization/fig6/heatmap_rmse.pdf', plot=heatmap_rmse, width = 11, height = 16)
-ggsave('visualization/fig6/heatmap_rmse.png', plot=heatmap_rmse, width = 10, height = 13)
-ggsave('visualization/fig6/heatmap_r.png', plot=heatmap_r, width = 10, height = 13)
+ggsave('/nfs/proj/omnideconv_benchmarking/omnideconv/benchmark/revision2/visualization/fig6/heatmap_r.pdf', plot=heatmap_r, width = 10, height = 16)
+ggsave('/nfs/proj/omnideconv_benchmarking/omnideconv/benchmark/revision2/visualization/fig6/heatmap_rmse.pdf', plot=heatmap_rmse, width = 10, height = 16)
 ```
 
 
@@ -148,11 +154,10 @@ star_fino <- ggplot(df.both |> subset(bulk_dataset %in% c('finotello')), aes(x=`
   geom_point(size=2.5)+
   geom_errorbar(aes(ymin=`mean.cor`-`sd.cor`, ymax=`mean.cor`+`sd.cor`), width=.01)+
   geom_errorbar(aes(xmin=`mean.rmse`-`sd.rmse`, xmax=`mean.rmse`+`sd.rmse`), width=.1)+
-  facet_wrap(~cell_type, ncol = 5)+
+  facet_wrap(~cell_type, ncol = 3)+
   theme_bw()+
   scale_color_manual(values = method_palette)+
-  ylab('Correlation')+xlab('RMSE')+
-  ggtitle('finotello')
+  ylab('Correlation')+xlab('RMSE')
 
 star_hoek <- ggplot(df.both |> subset(bulk_dataset %in% c('hoek')), aes(x=`mean.rmse`, y=`mean.cor`, color=method))+
   geom_point(size=2.5)+
@@ -191,10 +196,10 @@ star_altman
 ```
 
 ```{r}
-ggsave('visualization/fig6/star_fino.pdf', plot=star_fino, width = 8, height = 6)
-ggsave('visualization/fig6/star_hoek.pdf', plot=star_hoek, width = 10, height = 4)
-ggsave('visualization/fig6/star_mora.pdf', plot=star_mora, width = 10, height = 4)
-ggsave('visualization/fig6/star_altman.pdf', plot=star_altman, width = 10, height = 2.6)
+ggsave('/nfs/proj/omnideconv_benchmarking/omnideconv/benchmark/revision2/visualization/fig6/star_fino.pdf', plot=star_fino, width = 8, height = 6)
+ggsave('/nfs/proj/omnideconv_benchmarking/omnideconv/benchmark/revision2/visualization/fig6/star_hoek.pdf', plot=star_hoek, width = 10, height = 4)
+ggsave('/nfs/proj/omnideconv_benchmarking/omnideconv/benchmark/revision2/visualization/fig6/star_mora.pdf', plot=star_mora, width = 10, height = 4)
+ggsave('/nfs/proj/omnideconv_benchmarking/omnideconv/benchmark/revision2/visualization/fig6/star_altman.pdf', plot=star_altman, width = 10, height = 2.6)
 ```
 
 # manual inspection of SD
@@ -205,16 +210,4 @@ ggplot(df.both |> subset(bulk_dataset %in% c('hoek','finotello','morandini','alt
     xlim(0,.2)+
     theme_bw()+
     scale_color_manual(values = method_palette)
-
-
-ggplot(df.both |> subset(bulk_dataset %in% c('hoek','finotello','morandini','altman')), aes(y=method, x=sd.cor))+
-    geom_boxplot()+
-  facet_wrap(~cell_type)+
-    theme_bw()
-
-ggplot(df.both |> subset(bulk_dataset %in% c('hoek','finotello','morandini','altman')), aes(y=method, x=sd.rmse))+
-    geom_boxplot()+
-  facet_wrap(~cell_type)+
-    theme_bw()
 ```
-

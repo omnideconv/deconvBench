@@ -9,7 +9,7 @@ bulk_norm <- c('tpm', rep('counts', 2), rep('tpm',5))
 
 # 1: List directories, methods, cell types
 
-unknown.content.deconv.results <- list.files('/vol/omnideconv_results/results_unknown_content', full.names=F, recursive=T)
+unknown.content.deconv.results <- list.files('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_unknown_content', full.names=F, recursive=T)
 
 unknown.content.deconv.results <- unknown.content.deconv.results[grep('replicate', unknown.content.deconv.results)]
 unknown.content.deconv.results <- unknown.content.deconv.results[grep('lambrechts', unknown.content.deconv.results)]

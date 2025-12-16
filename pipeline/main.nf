@@ -118,6 +118,8 @@ process ANALYSIS_SPILLOVER {
 }
 
 process SIMULATE_BULK_UNKNOWN_CELL_TYPE {
+
+      label 'process_default'
       
       publishDir "${params.preProcess_dir}/pseudo_bulk_unknown_content", mode: 'copy'
 
@@ -144,6 +146,8 @@ process SIMULATE_BULK_UNKNOWN_CELL_TYPE {
 }
 
 process ANALYSIS_BULK_UNKNOWN_CELL_TYPE {
+
+      label 'process_default'
 
       input:
       tuple val(sc_dataset), 

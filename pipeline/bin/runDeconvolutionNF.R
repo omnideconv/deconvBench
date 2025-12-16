@@ -108,7 +108,10 @@ if(method=='cibersortx'){
 
 if(method == 'rectangle'){
   # do not incluce anndata creation in runtime measurement
-  ad <- anndata::AnnData(X = t(sc_matrix),
+  AnnData <- reticulate::import("anndata")
+  counts <- as.data.frame(t(sc_matrix))
+
+  ad <- AnnData$AnnData(X = counts,
                         obs = data.frame('cell_type' = sc_celltype_annotations, row.names = colnames(sc_matrix)),
                         var = data.frame('genes' = rownames(sc_matrix), row.names = rownames(sc_matrix)))
   sc_matrix <- ad 

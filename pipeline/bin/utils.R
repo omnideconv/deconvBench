@@ -472,7 +472,7 @@ deconvolution_workflow_general <- function(sc_matrix, annotations, annotation_ca
     #                       obs = data.frame('cell_type' = annotations, row.names = colnames(sc_matrix)),
     #                       var = data.frame('genes' = rownames(sc_matrix), row.names = rownames(sc_matrix)))
 
-    deconvolution <- rp$rectangle(sc_matrix, bulks = as.data.frame(t(bulk_matrix), n_cpus=ncores))[[1]]
+    deconvolution <- rp$rectangle(sc_matrix, bulks = as.data.frame(t(bulk_matrix)), n_cpus=ncores)[[1]]
 
   } else {
     message('Selected method is not supported in the benchmark. Please check again.')

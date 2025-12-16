@@ -9,7 +9,7 @@ bulk_norm <- c('tpm', rep('counts', 2), rep('tpm',5))
 
 # 1: List directories, methods, cell types
 
-unknown.content.deconv.results <- list.files('/vol/omnideconv_results/results_unknown_content', full.names=F, recursive=T)
+unknown.content.deconv.results <- list.files('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_unkown_content/results_unknown_content/', full.names=F, recursive=T)
 
 unknown.content.deconv.results <- unknown.content.deconv.results[grep('replicate', unknown.content.deconv.results)]
 unknown.content.deconv.results <- unknown.content.deconv.results[grep('lambrechts', unknown.content.deconv.results)]
@@ -37,10 +37,10 @@ metadata.table <- metadata.table[metadata.table$unknown_fraction %in% vector.fra
 #2: Combine these in a unique dataframe
 data <- NULL
 for(i in 1:nrow(metadata.table)){
-  result <- readRDS(paste0('/vol/omnideconv_results/results_unknown_content/', metadata.table$path[i])) %>%
+  result <- readRDS(paste0('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_unkown_content/results_unknown_content/', metadata.table$path[i])) %>%
     .$deconvolution %>%
     as.data.frame()
-  true.fractions <- readRDS(paste0('/vol/omnideconv_results/results_unknown_content/', metadata.table$path[i])) %>%
+  true.fractions <- readRDS(paste0('/nfs/data/omnideconv_benchmarking_clean/benchmark_results/results_unkown_content/results_unknown_content/', metadata.table$path[i])) %>%
     .$true_cell_fractions %>%
     as.data.frame() %>%
     .[!(row.names(.) == 'Tumor cells'), ]

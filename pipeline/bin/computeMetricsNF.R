@@ -68,12 +68,12 @@ if(args$bulk_name == 'morandini'){
     deconvolution$`Lymphocytes` <- deconvolution$`Lymphocytes` + deconvolution$`Plasma cells`
   }
 
-  deconvolution$`Monocytes_solo` <- deconvolution$`Monocytes`
-  if('pDC' %in% colnames(deconvolution)){
-    deconvolution$`Monocytes` <- deconvolution$`Monocytes_solo` + deconvolution$`mDC` + deconvolution$`pDC`
-  }else{
-    deconvolution$`Monocytes` <- deconvolution$`Monocytes_solo` + deconvolution$`mDC`
-  }
+#  deconvolution$`Monocytes_solo` <- deconvolution$`Monocytes`
+#  if('pDC' %in% colnames(deconvolution)){
+#    deconvolution$`Monocytes` <- deconvolution$`Monocytes_solo` + deconvolution$`mDC` + deconvolution$`pDC`
+#  }else{
+#    deconvolution$`Monocytes` <- deconvolution$`Monocytes_solo` + deconvolution$`mDC`
+#  }
 }
 
 if(args$bulk_name == 'altman' | args$bulk_name == 'altman-simulation' | args$bulk_name == 'altman-simulation-nobias'){

@@ -20,6 +20,12 @@ set -u
 # the CIBERSORTx profile runs in Docker as a different user and has to read and write the run directory
 umask 000
 
+# With Java 21 on this cluster, copying a file larger than about 2 MB to an NFS share never returns,
+# which blocks Nextflow when it publishes results. Java 17 is not affected.
+if [ -z "${NXF_JAVA_HOME:-}" ] && [ -d /usr/lib/jvm/java-17-openjdk-amd64 ]; then
+    export NXF_JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+fi
+
 if [ $# -ne 2 ]; then
     echo "Usage: $0 <fixture_dir> <run_dir>"
     exit 1

@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
 # Compare two result trees of the pipeline (e.g. reference run vs. run of refactored code).
 #
-# Usage: compare_results.R <reference_dir> <new_dir> [--tolerance=<x>] [--report=<file.csv>] [--known-unstable=<file>]
+# Usage: compare_results.R <reference_dir> <new_dir> [--tolerance=<x>] [--report=<file.csv>] [--known-unstable=<file>] [--only=<regex>]
 #
 # 1) both trees have to contain the same files (relative paths)
 # 2) every .rds/.RData/.csv has to have equal content, up to a numeric tolerance (default 1e-8;
@@ -13,6 +13,8 @@
 # only the structure is compared: dimensions, row names and the set of column names.
 # Files matching a pattern in the known-unstable list (default: known_unstable.txt next to this
 # script) are reported but do not fail the comparison.
+# With --only, the comparison is restricted to files whose relative path matches the regular
+# expression, e.g. --only='^(main|simulation)/' to check some workflows only.
 # Exit status 0 if the trees are equivalent, 1 otherwise.
 
 args <- commandArgs(trailingOnly = TRUE)
@@ -26,6 +28,7 @@ get_opt <- function(name, default) {
 }
 tolerance <- as.numeric(get_opt("tolerance", "1e-8"))
 report_file <- get_opt("report", NA)
+only <- get_opt("only", NA)
 script_path <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE)[1])
 unstable_file <- get_opt("known-unstable", file.path(dirname(script_path), "known_unstable.txt"))
 unstable_patterns <- character(0)
@@ -41,6 +44,7 @@ list_tree <- function(d) {
   f <- list.files(d, recursive = TRUE, all.files = TRUE)
   f <- f[!grepl("(^|/)tmp/", f)]
   f <- f[!grepl("(^|/)tmp_(input|output)/", f)]
+  if (!is.na(only)) f <- f[grepl(only, f, perl = TRUE)]
   sort(f)
 }
 

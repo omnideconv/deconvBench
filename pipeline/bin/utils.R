@@ -362,11 +362,11 @@ deconvolution_workflow_general <- function(sc_matrix, annotations, annotation_ca
     # --> created fixed input and output directories!
     cx_input <- paste0(tmp_dir_path,'_input')
     if(!dir.exists(paste0(cx_input))){
-      dir.create(cx_input)
+      dir.create(cx_input, recursive=TRUE)
     }
     cx_output <- paste0(tmp_dir_path,'_output')
     if(!dir.exists(paste0(cx_output))){
-      dir.create(cx_output)
+      dir.create(cx_output, recursive=TRUE)
     }
 
     # batch correction options for cibersortx

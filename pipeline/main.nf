@@ -1,55 +1,81 @@
 #!/usr/bin/env nextflow
-nextflow.enable.dsl=2
 
-def container_map = [
-    'autogenes'      : '/nfs/proj/omnideconv_benchmarking/omnideconv/benchmark/docker/omnideconv_benchmark_1_3.sif'
-]
+include { PREPROCESS_SINGLE_CELL                            } from './modules/local/preprocess_single_cell'
+include { SIMULATE_BULK                                     } from './modules/local/simulate_bulk'
+include { CREATE_SIGNATURE                                  } from './modules/local/create_signature'
+include { CREATE_SIGNATURE as CREATE_SIGNATURE_PREPROCESSED } from './modules/local/create_signature'
+include { DECONVOLUTE                                       } from './modules/local/deconvolute'
+include { COMPUTE_METRICS                                   } from './modules/local/compute_metrics'
+include { datasetChannel; simulationInput; deconvolutionInput; metricsInput } from './functions'
 
+// The entry workflows call the processes directly instead of through sub-workflows, so that the
+// process names in the trace files stay as they are (e.g. 'subsampling:DECONVOLUTE');
+// visualisation/supplement/fig_s4.Rmd selects tasks by these names.
 
-process PREPROCESS_SINGLE_CELL {
+/*
+ * Workflows that pass files between processes
+ */
 
-      label 'process_default'
+workflow {
 
-      input: 
-      each sc_ds
-      each ct_fractions
-      each replicate
-      /*
-      output: 
-      tuple val(sc_ds), 
-            val(method),
-            val(ct_fractions),
-            val(replicate)
-      */
+  ch_input = deconvolutionInput(datasetChannel(params.single_cell_list, params.data_dir_sc),
+                                datasetChannel(params.bulk_list, params.data_dir_bulk),
+                                false)
 
-      output:
-      val("${sc_ds}_perc${ct_fractions}_rep${replicate}")
+  CREATE_SIGNATURE(ch_input)
 
-      shell:
-      '''
-      preprocessSingleCellNF.R '!{sc_ds}' '!{params.data_dir_sc}' '!{ct_fractions}' '!{replicate}' '!{params.preProcess_dir}' '!{baseDir}'
-      '''
+  DECONVOLUTE(ch_input.join(CREATE_SIGNATURE.out.signature))
+
+  COMPUTE_METRICS(metricsInput(ch_input, CREATE_SIGNATURE.out.signature, DECONVOLUTE.out.deconvolution))
 }
 
-process SIMULATE_BULK {
-  
-      label 'process_default'
+workflow deconv_only {
 
-      input:
-      each simulation_sc_dataset
-      each simulation_n_cells
-      each simulation_n_samples
-      each simulation_scenario
-      each simulation_bias_type
+  ch_input = deconvolutionInput(datasetChannel(params.single_cell_list, params.data_dir_sc),
+                                datasetChannel(params.bulk_list, params.data_dir_bulk),
+                                false)
 
-      output:
-      val("${simulation_sc_dataset}-ncells${simulation_n_cells}-nsamples${simulation_n_samples}-${simulation_scenario}-${simulation_bias_type}-simulation")
+  CREATE_SIGNATURE(ch_input)
 
-      shell:
-      '''
-      simulateBulkNF.R '!{simulation_sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{simulation_n_samples}' '!{simulation_scenario}' '!{simulation_bias_type}' '!{params.data_dir_bulk}' '!{params.ncores}'
-      '''
+  DECONVOLUTE(ch_input.join(CREATE_SIGNATURE.out.signature))
 }
+
+workflow simulation {
+
+  SIMULATE_BULK(simulationInput(params.simulation_scenario, params.simulation_bias_type))
+
+  ch_input = deconvolutionInput(datasetChannel(params.single_cell_list, params.data_dir_sc),
+                                SIMULATE_BULK.out.bulk,
+                                false)
+
+  CREATE_SIGNATURE(ch_input)
+
+  DECONVOLUTE(ch_input.join(CREATE_SIGNATURE.out.signature))
+
+  COMPUTE_METRICS(metricsInput(ch_input, CREATE_SIGNATURE.out.signature, DECONVOLUTE.out.deconvolution))
+}
+
+workflow subsampling {
+
+  PREPROCESS_SINGLE_CELL(datasetChannel(params.single_cell_list, params.data_dir_sc)
+                           .combine(channel.fromList(params.ct_fractions))
+                           .combine(channel.of(1..params.replicates)))
+
+  SIMULATE_BULK(simulationInput(['random'], ['expressed_genes']))
+
+  // the subsampled reference is named after its directory, e.g. sc1_perc100_rep1
+  ch_input = deconvolutionInput(PREPROCESS_SINGLE_CELL.out.subsample.map { subsample -> [subsample.name, subsample] },
+                                SIMULATE_BULK.out.bulk,
+                                true)
+
+  CREATE_SIGNATURE_PREPROCESSED(ch_input)
+
+  DECONVOLUTE(ch_input.join(CREATE_SIGNATURE_PREPROCESSED.out.signature))
+}
+
+/*
+ * Workflows that still pass dataset names; their scripts write directly into the result directories
+ */
 
 process ANALYSIS_BULK_MISSING_CELL_TYPES {
 
@@ -284,111 +310,6 @@ process ANALYSIS_BULK_MIRRORDB {
       ''' 
 }
 
-process CREATE_SIGNATURE {
-
-      label 'process_high'
-
-      input:
-      each sc_ds
-      each bulk_ds
-      each method 
-      each ct_fractions
-      each replicate
-      val run_preprocessing
-
-      output:
-      tuple val(sc_ds), 
-            val(bulk_ds),
-            val(method),
-            val(replicate), 
-            val(ct_fractions)
-
-      beforeScript 'chmod o+rw .'
-
-      shell:
-      '''
-      computeSignaturesNF.R '!{sc_ds}' '!{params.data_dir_sc}' '!{bulk_ds}' '!{params.data_dir_bulk}' '!{method}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.ncores}' '!{baseDir}'
-      ''' 
-}
-
-process CREATE_SIGNATURE_PREPROCESSED {
-
-      label 'process_high'
-
-      input:
-      each sc_ds
-      val sc_path
-      each bulk_ds
-      val bulk_path
-      each method 
-      each ct_fractions
-      each replicate
-      val run_preprocessing
-
-      output:
-      tuple val(sc_ds), 
-            val(bulk_ds),
-            val(method),
-            val(replicate), 
-            val(ct_fractions)
-
-      beforeScript 'chmod o+rw .'
-
-      shell:
-      '''
-      computeSignaturesNF.R '!{sc_ds}' '!{sc_path}' '!{bulk_ds}' '!{bulk_path}' '!{method}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.ncores}' '!{baseDir}'
-      ''' 
-}
-
-process DECONVOLUTE { 
-
-      label 'process_default'
-
-	input:
-      tuple val(sc_ds), 
-            val(bulk_ds),
-            val(method),
-            val(replicate), 
-            val(ct_fractions)
-      val sc_path
-	val run_preprocessing
-  
-	output:
-	tuple val(method),
-	      val(sc_ds), 
-	      val(bulk_ds), 
-	      val(replicate),
-	      val(ct_fractions)
-  
-	shell:
-	'''
-	runDeconvolutionNF.R '!{sc_ds}' '!{sc_path}' '!{bulk_ds}' '!{params.data_dir_bulk}' '!{method}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.species_sc}' '!{params.ncores}' '!{baseDir}'
-	''' 
-}
-
-process COMPUTE_METRICS { 
-
-	input:
-	tuple val(method),
-	      val(sc_ds), 
-	      val(bulk_ds), 
-	      val(replicate),
-	      val(ct_fractions)
-  
-	output:
-	tuple val(method),
-	      val(sc_ds), 
-	      val(bulk_ds), 
-	      val(replicate),
-	      val(ct_fractions)
-  
-	shell:
-	'''
-      
-      computeMetricsNF.R '!{sc_ds}' '!{params.data_dir_sc}' '!{bulk_ds}' '!{params.data_dir_bulk}' '!{method}' '!{replicate}' '!{ct_fractions}' '!{params.results_dir_general}' '!{baseDir}'
-	''' 
-}
-
 workflow impact_missing_cell_types {
 
   deconvolution = ANALYSIS_BULK_MISSING_CELL_TYPES(params.single_cell_list,
@@ -463,95 +384,4 @@ workflow simulation_resolution_analysis {
                                                     params.cell_types_finer_res,
                                                     params.method_list)
   
-}
-
-workflow subsampling {
-
-  replicates = Channel.of(1..params.replicates).collect()
-    
-  preprocess = PREPROCESS_SINGLE_CELL(params.single_cell_list,
-                                      params.ct_fractions, 
-                                      replicates
-  )
-
-  simulations = SIMULATE_BULK(params.simulation_sc_dataset,
-                              params.simulation_n_cells,
-				      params.simulation_n_samples,
-					'random',
-                              'expressed_genes'
-  ) 
-  
-  signature = CREATE_SIGNATURE_PREPROCESSED(preprocess,
-                                            params.preProcess_dir,
-                                            simulations,
-                                            params.data_dir_bulk,
-                                            params.method_list,
-                                            0,
-                                            0,
-                                            'true')
-  
-  deconvolution = DECONVOLUTE(signature,
-                              params.preProcess_dir,
-                              'true')
-  
-}
-
-workflow deconv_only {
-
-  signature = CREATE_SIGNATURE(params.single_cell_list,
-                               params.bulk_list,
-                               params.method_list,
-                               0,
-                               0,
-                               'false'
-  )  
-  
-  deconvolution = DECONVOLUTE(signature,
-                              params.data_dir_sc,      
-                              'false'
-  )
-}
-
-workflow {
-
-  signature = CREATE_SIGNATURE(params.single_cell_list,
-                               params.bulk_list,
-                               params.method_list,
-                               0,
-                               0,
-                               'false'
-  )  
-  
-  deconvolution = DECONVOLUTE(signature,
-                              params.data_dir_sc,      
-                              'false'
-  )
-
-  metrics = COMPUTE_METRICS(deconvolution) 
-}
-
-workflow simulation {
-  
-  // Normal simulation
-  
-  simulations = SIMULATE_BULK(params.simulation_sc_dataset,
-                              params.simulation_n_cells,
-				      params.simulation_n_samples,
-					params.simulation_scenario,
-                              params.simulation_bias_type
-  )   
-  
-  signature = CREATE_SIGNATURE(params.single_cell_list,
-                               simulations,
-                               params.method_list,
-                               0,
-                               0,
-                               'false')
-  
-  deconvolution = DECONVOLUTE(signature,
-                              params.data_dir_sc,      
-                              'false'
-      )
-  
-  metrics = COMPUTE_METRICS(deconvolution)
 }

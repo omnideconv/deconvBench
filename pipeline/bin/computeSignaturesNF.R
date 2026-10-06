@@ -15,7 +15,7 @@ Options:
 <bulk_name> name of simulated bulk RNAseq dataset
 <bulk_path> path to simulated bulk datasets
 <deconv_method>  deconv method
-<results_dir> results (base) directory
+<results_dir> directory of this result; signature and deconvolution files are read from and written to it
 <run_preprocessing> if pre-processing has been done
 <replicate> value of replicate number
 <subset_value> if < 1: fraction of cell type; if > 1: number of cells per cell type
@@ -49,16 +49,18 @@ if(args$run_preprocessing == 'true'){
   replicate <- gsub('rep','',strsplit(sc_dataset,'_')[[1]][3])
 
   # create output directory
-  res_path <- paste0(res_base_path, '/', method, "_", sc_dataset, "_", sc_norm, "_", bulk_name, "_", bulk_norm)
-  dir.create(res_path, recursive = TRUE, showWarnings = TRUE)
+  res_path <- res_base_path
+  dir.create(res_path, recursive = TRUE, showWarnings = FALSE)
+  res_path <- normalizePath(res_path)
 }else{
   subset_value <- 0
   replicate <- 0
   sc_dataset <- args$sc_name
 
   # create output directory
-  res_path <- paste0(res_base_path, '/', method, "_", sc_dataset, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
-  dir.create(res_path, recursive = TRUE, showWarnings = TRUE)
+  res_path <- res_base_path
+  dir.create(res_path, recursive = TRUE, showWarnings = FALSE)
+  res_path <- normalizePath(res_path)
 }
 
 # read scRNA-seq count matrix

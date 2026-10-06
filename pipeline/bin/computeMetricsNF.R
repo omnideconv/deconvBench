@@ -15,7 +15,7 @@ Options:
 <deconv_method>  deconv method
 <subset_value> if < 1: fraction of cell type; if > 1: number of cells per cell type
 <replicate> value of replicate number
-<results_dir> results (base) directory
+<results_dir> directory of this result; signature and deconvolution files are read from and written to it
 <baseDir> nextflow base directory" -> doc
 
 
@@ -42,7 +42,7 @@ print(paste0('Method: ', method, '; sc-norm: ', sc_norm, '; bulk-norm: ', bulk_n
 # load ground truth data
 facs_data <- readRDS(file.path(bulk_path, bulk_name, paste0(bulk_name, '_facs.rds')))
 
-res_path <- paste0(res_base_path, '/', method, "_", sc_dataset, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
+res_path <- res_base_path
 
 deconvolution <- readRDS(paste0(res_path, '/deconvolution.rds'))
 

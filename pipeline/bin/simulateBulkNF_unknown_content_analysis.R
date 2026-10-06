@@ -73,6 +73,8 @@ for (cur_cell_fraction in fractions_unknown){
   simulation_list = list()
   for (r in 1:replicates){    
 
+    # without a seed the pseudo-bulks differ between runs
+    set.seed(r * 1000 + round(cur_cell_fraction * 100))
     simulated_bulk <- SimBu::simulate_bulk(
       data =  simbu_ds,
       whitelist = ,

@@ -76,6 +76,8 @@ for (d in datasets){
       dir.create(output_dir, recursive=TRUE)
     }
 
+    # the seed argument of simulate_bulk alone does not make the mirror_db scenario reproducible
+    set.seed(r + 100)
     simulated_bulk <- SimBu::simulate_bulk(
       data =  simbu_ds,
       scenario = 'mirror_db',

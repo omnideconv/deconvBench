@@ -17,6 +17,8 @@
 # of earlier ones. Within a Slurm profile the workflows run in parallel.
 
 set -u
+# the CIBERSORTx profile runs in Docker as a different user and has to read and write the run directory
+umask 000
 
 if [ $# -ne 2 ]; then
     echo "Usage: $0 <fixture_dir> <run_dir>"
@@ -66,6 +68,7 @@ done
 
 for profile in $profiles; do
     echo "[$(date +%H:%M:%S)] profile $profile"
+    chmod -R a+rwX "$run_dir" 2> /dev/null
     for wf in $workflows; do
         if [ "$profile" == "cibersortx" ]; then
             run_workflow "$profile" "$wf"

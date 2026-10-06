@@ -4,10 +4,13 @@
 # Usage: compare_results.R <reference_dir> <new_dir> [--tolerance=<x>] [--report=<file.csv>]
 #
 # 1) both trees have to contain the same files (relative paths)
-# 2) every .rds/.RData/.csv has to have equal content
+# 2) every .rds/.RData/.csv has to have equal content, up to a numeric tolerance (default 1e-8;
+#    two runs of the same code on different cluster nodes differ by about 1e-13)
 #
-# Not compared: tmp/ directories (method scratch), runtime_*.rds (timings) and the content of
-# scaden model/ directories (only their presence is checked).
+# Not compared: tmp/ directories (method scratch), runtime_*.rds and the runtimes entry of
+# results_metric.rds (timings), and the content of scaden model/ directories (presence only).
+# Scaden is not reproducible (no seed can be passed through omnideconv), so for scaden results
+# only the structure is compared: dimensions, row names and the set of column names.
 # Exit status 0 if the trees are equivalent, 1 otherwise.
 
 args <- commandArgs(trailingOnly = TRUE)
@@ -19,7 +22,7 @@ get_opt <- function(name, default) {
   hit <- opts[startsWith(opts, paste0("--", name, "="))]
   if (length(hit) == 0) default else sub(paste0("^--", name, "="), "", hit[1])
 }
-tolerance <- as.numeric(get_opt("tolerance", "0"))
+tolerance <- as.numeric(get_opt("tolerance", "1e-8"))
 report_file <- get_opt("report", NA)
 
 ref_dir <- normalizePath(dirs[1])
@@ -36,16 +39,32 @@ content_checked <- function(f) {
   !grepl("(^|/)runtime_[^/]*\\.rds$", f) & !grepl("(^|/)model/", f)
 }
 
-compare_objects <- function(a, b) {
+is_scaden <- function(f) {
+  grepl("(^|/)scaden(_|/)", f)
+}
+
+# reduce an object to what has to be stable for a stochastic method
+structure_of <- function(x) {
+  if (is.matrix(x) || is.data.frame(x)) {
+    return(list(dim = dim(x), rows = rownames(x), cols = sort(colnames(x))))
+  }
+  if (is.list(x)) {
+    return(lapply(x[sort(names(x))], structure_of))
+  }
+  list(class = class(x), length = length(x))
+}
+
+compare_objects <- function(a, b, structure_only = FALSE) {
   if (identical(a, b)) return("identical")
+  if (structure_only) {
+    if (identical(structure_of(a), structure_of(b))) return("same structure")
+    return("DIFFERENT: structure")
+  }
   res <- tryCatch(
-    if (tolerance > 0) all.equal(a, b, tolerance = tolerance) else all.equal(a, b, tolerance = 0),
+    all.equal(a, b, tolerance = tolerance),
     error = function(e) paste("all.equal failed:", conditionMessage(e))
   )
-  if (isTRUE(res)) {
-    if (tolerance > 0) return("equal within tolerance")
-    return("identical")
-  }
+  if (isTRUE(res)) return("equal within tolerance")
   paste("DIFFERENT:", paste(utils::head(res, 3), collapse = " | "))
 }
 
@@ -54,12 +73,21 @@ compare_file <- function(f) {
   b <- file.path(new_dir, f)
   if (!content_checked(f)) return("not compared")
   if (grepl("\\.rds$", f, ignore.case = TRUE)) {
-    return(compare_objects(readRDS(a), readRDS(b)))
+    obj_a <- readRDS(a)
+    obj_b <- readRDS(b)
+    if (grepl("(^|/)results_metric\\.rds$", f)) {
+      obj_a$runtimes <- NULL
+      obj_b$runtimes <- NULL
+    }
+    return(compare_objects(obj_a, obj_b, structure_only = is_scaden(f)))
   }
   if (grepl("\\.RData$", f, ignore.case = TRUE)) {
     ea <- new.env(); eb <- new.env()
     load(a, envir = ea); load(b, envir = eb)
-    return(compare_objects(as.list(ea)[sort(ls(ea))], as.list(eb)[sort(ls(eb))]))
+    return(compare_objects(as.list(ea)[sort(ls(ea))], as.list(eb)[sort(ls(eb))], structure_only = is_scaden(f)))
+  }
+  if (grepl("\\.csv$", f, ignore.case = TRUE)) {
+    return(compare_objects(read.csv(a), read.csv(b), structure_only = is_scaden(f)))
   }
   if (unname(tools::md5sum(a)) == unname(tools::md5sum(b))) "identical" else "DIFFERENT: file content"
 }
@@ -83,7 +111,7 @@ report$ok <- !grepl("^(DIFFERENT|MISSING|ADDITIONAL)", report$status)
 if (!is.na(report_file)) write.csv(report, report_file, row.names = FALSE)
 
 cat("reference:", ref_dir, "\nnew:      ", new_dir, "\ntolerance:", tolerance, "\n\n")
-summary_tbl <- table(report$workflow, ifelse(report$ok, sub(":.*", "", report$status), sub(":.*", "", report$status)))
+summary_tbl <- table(report$workflow, sub(":.*", "", report$status))
 print(summary_tbl)
 
 bad <- report[!report$ok, ]

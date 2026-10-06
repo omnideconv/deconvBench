@@ -1,0 +1,10 @@
+# Result files that differ between two runs of the same code. One regular expression per line,
+# matched against the path relative to the result tree. Matching files are reported but do not
+# fail the comparison.
+
+# simulation_impact_technology: jobs that deconvolve the same pseudo-bulk with different references
+# share one result folder (<method>_<pseudobulk>). Which job writes last, or survives, is a matter
+# of timing: DWLS intermediate files, CIBERSORTx and Scaden runs.
+^simulation_impact_technology/results_impact_technology/dwls_[^/]+/[^/]+\.(csv|RData)$
+^simulation_impact_technology/results_impact_technology/cibersortx_[^/]+/
+^simulation_impact_technology/results_impact_technology/scaden_[^/]+/

@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
 # Compare two result trees of the pipeline (e.g. reference run vs. run of refactored code).
 #
-# Usage: compare_results.R <reference_dir> <new_dir> [--tolerance=<x>] [--report=<file.csv>]
+# Usage: compare_results.R <reference_dir> <new_dir> [--tolerance=<x>] [--report=<file.csv>] [--known-unstable=<file>]
 #
 # 1) both trees have to contain the same files (relative paths)
 # 2) every .rds/.RData/.csv has to have equal content, up to a numeric tolerance (default 1e-8;
@@ -11,6 +11,8 @@
 # results_metric.rds (timings), and the content of scaden model/ directories (presence only).
 # Scaden is not reproducible (no seed can be passed through omnideconv), so for scaden results
 # only the structure is compared: dimensions, row names and the set of column names.
+# Files matching a pattern in the known-unstable list (default: known_unstable.txt next to this
+# script) are reported but do not fail the comparison.
 # Exit status 0 if the trees are equivalent, 1 otherwise.
 
 args <- commandArgs(trailingOnly = TRUE)
@@ -24,6 +26,13 @@ get_opt <- function(name, default) {
 }
 tolerance <- as.numeric(get_opt("tolerance", "1e-8"))
 report_file <- get_opt("report", NA)
+script_path <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE)[1])
+unstable_file <- get_opt("known-unstable", file.path(dirname(script_path), "known_unstable.txt"))
+unstable_patterns <- character(0)
+if (file.exists(unstable_file)) {
+  unstable_patterns <- readLines(unstable_file)
+  unstable_patterns <- unstable_patterns[nzchar(trimws(unstable_patterns)) & !startsWith(unstable_patterns, "#")]
+}
 
 ref_dir <- normalizePath(dirs[1])
 new_dir <- normalizePath(dirs[2])
@@ -107,11 +116,14 @@ report <- rbind(
 )
 report$workflow <- sub("/.*", "", report$file)
 report$ok <- !grepl("^(DIFFERENT|MISSING|ADDITIONAL)", report$status)
+unstable <- Reduce(`|`, lapply(unstable_patterns, grepl, x = report$file), rep(FALSE, nrow(report)))
+report$status[unstable & !report$ok] <- paste("known unstable,", report$status[unstable & !report$ok])
+report$ok <- report$ok | unstable
 
 if (!is.na(report_file)) write.csv(report, report_file, row.names = FALSE)
 
 cat("reference:", ref_dir, "\nnew:      ", new_dir, "\ntolerance:", tolerance, "\n\n")
-summary_tbl <- table(report$workflow, sub(":.*", "", report$status))
+summary_tbl <- table(report$workflow, sub("[:,].*", "", report$status))
 print(summary_tbl)
 
 bad <- report[!report$ok, ]

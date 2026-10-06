@@ -23,3 +23,4 @@ revision2/
 visualization/*/*.html
 pipeline/*.sh
 old_scripts/
+data/*

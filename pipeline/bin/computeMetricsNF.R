@@ -68,12 +68,28 @@ if(args$bulk_name == 'morandini'){
     deconvolution$`Lymphocytes` <- deconvolution$`Lymphocytes` + deconvolution$`Plasma cells`
   }
 
-  deconvolution$`Monocytes_solo` <- deconvolution$`Monocytes`
-  if('pDC' %in% colnames(deconvolution)){
-    deconvolution$`Monocytes` <- deconvolution$`Monocytes_solo` + deconvolution$`mDC` + deconvolution$`pDC`
+  #deconvolution$`Monocytes_solo` <- deconvolution$`Monocytes`
+  #if('pDC' %in% colnames(deconvolution)){
+  #  deconvolution$`Monocytes` <- deconvolution$`Monocytes_solo` + deconvolution$`mDC` + deconvolution$`pDC`
+  #}else{
+  #  deconvolution$`Monocytes` <- deconvolution$`Monocytes_solo` + deconvolution$`mDC`
+  #}
+}
+
+if(args$bulk_name == 'dietrich'){
+  deconvolution <- as.data.frame(deconvolution)
+  deconvolution$`T cells` <- deconvolution$`T cells CD4` + deconvolution$`T cells CD8` + deconvolution$`Tregs`
+
+  if('pDC' %in% colnames(deconvolution) && 'mDC' %in% colnames(deconvolution)){
+    deconvolution$`DCs` <- deconvolution$`mDC` + deconvolution$`pDC`
+  }else if ('mDC' %in% colnames(deconvolution)) {
+    deconvolution$`DCs` <- deconvolution$`mDC`
+  }else if ('pDC' %in% colnames(deconvolution)) {
+    deconvolution$`DCs` <- deconvolution$`pDC`
   }else{
-    deconvolution$`Monocytes` <- deconvolution$`Monocytes_solo` + deconvolution$`mDC`
+    deconvolution$`DCs` <- 0
   }
+
 }
 
 if(args$bulk_name == 'altman' | args$bulk_name == 'altman-simulation' | args$bulk_name == 'altman-simulation-nobias'){
@@ -90,7 +106,7 @@ if(args$bulk_name == 'altman' | args$bulk_name == 'altman-simulation' | args$bul
   }
 
   deconvolution$`Monocytes_solo` <- deconvolution$`Monocytes`
-    if('pDC' %in% colnames(deconvolution)){
+  if('pDC' %in% colnames(deconvolution)){
     deconvolution$`Monocytes` <- deconvolution$`Monocytes_solo` + deconvolution$`mDC` + deconvolution$`pDC`
   }else{
     deconvolution$`Monocytes` <- deconvolution$`Monocytes_solo` + deconvolution$`mDC`

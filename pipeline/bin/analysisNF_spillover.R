@@ -83,6 +83,13 @@ signature <- signature_workflow_general(
   baseDir=baseDir
 )
 
+if(method == 'rectangle'){
+  # do not incluce anndata creation in runtime measurement
+  ad <- anndata::AnnData(X = t(sc_matrix),
+                        obs = data.frame('cell_type' = gsub(' ','_',sc_celltype_annotations), row.names = colnames(sc_matrix)),
+                        var = data.frame('genes' = rownames(sc_matrix), row.names = rownames(sc_matrix)))
+  sc_matrix <- ad 
+}
 
 deconvolution <- deconvolution_workflow_general(
   sc_matrix, 

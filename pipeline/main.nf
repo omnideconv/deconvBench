@@ -167,6 +167,8 @@ process ANALYSIS_BULK_UNKNOWN_CELL_TYPE {
 }
 
 process SIMULATE_BULK_RESOLUTION_ANALYSIS {
+
+      label 'process_default'
   
       publishDir "${params.preProcess_dir}/pseudo_bulk_resolution", mode: 'copy'
 

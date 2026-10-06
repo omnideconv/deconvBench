@@ -52,23 +52,7 @@ sc_batch <- readRDS(file.path(sc_path, sc_dataset, 'batch.rds'))
 
 sc_celltype_annotations_fine <- readRDS(file.path(gsub('celltype_annotations_normal.rds', 'celltype_annotations_fine.rds', annotation_path)))
 
-
-
 coarse_file <- file.path(sc_path, sc_dataset, 'celltype_annotations_coarse.rds')
-
-if (file.exists(coarse_file)) {
-  sc_celltype_annotations_coarse <- readRDS(coarse_file)
-  sc_celltype_annotations_coarse <- sc_celltype_annotations_coarse[position_vector]
-
-  res_path_coarse <- paste0(res_base_path, '/', method, '/', bulk_name, "_coarse_annot")
-  dir.create(res_path_coarse, recursive = TRUE, showWarnings = TRUE)
-
-
-  run_coarse <- TRUE
-} else {
-  run_coarse <- FALSE
-}
-
 
 
 # Here we need to filter for those cell types that are in the simulated dataset. 
@@ -76,7 +60,7 @@ if (file.exists(coarse_file)) {
 
 cell_types_fine <- gsub('\\[|]', '', args$cell_types_fine)
 cell_types_fine <- strsplit(cell_types_fine, ",")[[1]]
-print(cell_types_fine)
+cell_types_fine <- unlist(lapply(cell_types_fine, trimws))
 
 position_vector <- sc_celltype_annotations_fine %in% cell_types_fine
 sc_matrix <- sc_matrix[, position_vector]
@@ -92,16 +76,29 @@ res_path_fine <- paste0(res_base_path, '/', method, '/', bulk_name, "_fine_annot
 dir.create(res_path_normal, recursive = TRUE, showWarnings = TRUE)
 dir.create(res_path_fine, recursive = TRUE, showWarnings = TRUE)
 
+if (file.exists(coarse_file)) {
+  sc_celltype_annotations_coarse <- readRDS(coarse_file)
+  sc_celltype_annotations_coarse <- sc_celltype_annotations_coarse[position_vector]
+
+  res_path_coarse <- paste0(res_base_path, '/', method, '/', bulk_name, "_coarse_annot")
+  dir.create(res_path_coarse, recursive = TRUE, showWarnings = TRUE)
+
+
+  run_coarse <- TRUE
+} else {
+  run_coarse <- FALSE
+}
+
 
 if(run_coarse){
-  subset_list <- subset_cells(sc_matrix, sc_celltype_annotations, sc_batch, 1000, 22, 
+  subset_list <- subset_cells(sc_matrix, sc_celltype_annotations, sc_batch, 500, 22, 
                               coarse_annotations = sc_celltype_annotations_coarse, 
                               fine_annotations = sc_celltype_annotations_fine)
   
   sc_celltype_annotations_coarse <- subset_list$annotations_coarse                            
 
 } else {
-  subset_list <- subset_cells(sc_matrix, sc_celltype_annotations, sc_batch, 1000, 22,  
+  subset_list <- subset_cells(sc_matrix, sc_celltype_annotations, sc_batch, 500, 22,  
                               fine_annotations = sc_celltype_annotations_fine)
 }
 
@@ -125,7 +122,7 @@ signature <- signature_workflow_general(
   bulk_norm, 
   ncores, 
   res_path_normal,
-    baseDir=baseDir
+  baseDir=baseDir
 )
 
 for(r in 1:replicates){
@@ -135,6 +132,14 @@ for(r in 1:replicates){
 
   bulk_matrix <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0(bulk_name, '_', bulk_norm, '.rds')))
   bulk_matrix <- as.matrix(bulk_matrix)
+
+  if(method == 'rectangle'){
+    # do not incluce anndata creation in runtime measurement
+    ad <- anndata::AnnData(X = t(sc_matrix),
+                          obs = data.frame('cell_type' = gsub(' ','_',sc_celltype_annotations), row.names = colnames(sc_matrix)),
+                          var = data.frame('genes' = rownames(sc_matrix), row.names = rownames(sc_matrix)))
+    sc_matrix <- ad 
+  }
 
   deconvolution <- deconvolution_workflow_general(
     sc_matrix, 
@@ -152,6 +157,8 @@ for(r in 1:replicates){
     res_path_normal,
     baseDir=baseDir
   )
+
+  sc_matrix <- subset_list$data
 
   true_fractions <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0(bulk_name, '_normal_annot_facs.rds')))
 
@@ -195,6 +202,14 @@ if(run_coarse) {
     bulk_matrix <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0(bulk_name, '_', bulk_norm, '.rds')))
     bulk_matrix <- as.matrix(bulk_matrix)
 
+    if(method == 'rectangle'){
+      # do not incluce anndata creation in runtime measurement
+      ad <- anndata::AnnData(X = t(sc_matrix),
+                            obs = data.frame('cell_type' = gsub(' ','_',sc_celltype_annotations_coarse), row.names = colnames(sc_matrix)),
+                            var = data.frame('genes' = rownames(sc_matrix), row.names = rownames(sc_matrix)))
+      sc_matrix <- ad 
+    }
+
     deconvolution <- deconvolution_workflow_general(
       sc_matrix, 
       sc_celltype_annotations_coarse, 
@@ -212,6 +227,8 @@ if(run_coarse) {
       baseDir=baseDir
     )
 
+    sc_matrix <- subset_list$data
+
     true_fractions <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0(bulk_name, '_coarse_annot_facs.rds')))
 
     results_list = list(
@@ -228,8 +245,6 @@ if(run_coarse) {
   }
 
 }
-
-
 
 
 # Fine deconv 
@@ -259,6 +274,14 @@ for(r in 1:replicates){
   bulk_matrix <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0(bulk_name, '_', bulk_norm, '.rds')))
   bulk_matrix <- as.matrix(bulk_matrix)
 
+  if(method == 'rectangle'){
+    # do not incluce anndata creation in runtime measurement
+    ad <- anndata::AnnData(X = t(sc_matrix),
+                          obs = data.frame('cell_type' = gsub(' ','_',sc_celltype_annotations_fine), row.names = colnames(sc_matrix)),
+                          var = data.frame('genes' = rownames(sc_matrix), row.names = rownames(sc_matrix)))
+    sc_matrix <- ad 
+  }
+
   deconvolution <- deconvolution_workflow_general(
     sc_matrix, 
     sc_celltype_annotations_fine, 
@@ -275,6 +298,8 @@ for(r in 1:replicates){
     res_path_fine,
     baseDir=baseDir
   )
+
+  sc_matrix <- subset_list$data
 
   true_fractions <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0(bulk_name, '_fine_annot_facs.rds')))
 

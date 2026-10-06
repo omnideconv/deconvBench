@@ -205,7 +205,6 @@ subset_cells <- function(cell_matrix, annotations, batch_ids, num_cells,
                    'batch_id' = sampled.data@meta.data$batch_ids)
   }
 
-  ls
   
 }
 

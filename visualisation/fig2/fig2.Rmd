@@ -94,7 +94,8 @@ fractions_df <- fractions_df %>%
                            "altman"="Altman",
                            "morandini"="Morandini",
                            "altman-simulation"="AltmanSim",
-                           "morandini-simulation"="MorandiniSim"))
+                           "morandini-simulation"="MorandiniSim",
+                          "dietrich"="Dietrich"))
 df.both <- df.both %>%
   mutate(bulk_ds =  recode(bulk_ds,
                            "chen" = "Chen",
@@ -108,7 +109,8 @@ df.both <- df.both %>%
                            "altman"="Altman",
                            "morandini"="Morandini",
                            "altman-simulation"="AltmanSim",
-                           "morandini-simulation"="MorandiniSim"))
+                           "morandini-simulation"="MorandiniSim",
+                          "dietrich"="Dietrich"))
 df.both <- df.both %>% 
   mutate(method = recode(method,
                          'autogenes'='AutoGeneS',

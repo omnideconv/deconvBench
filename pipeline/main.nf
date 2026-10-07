@@ -16,7 +16,7 @@ include { ANALYSIS_BULK_RESOLUTION_ANALYSIS                 } from './modules/lo
 include { SIMULATE_PSEUDOBULK_MIRRORDB                      } from './modules/local/simulate_pseudobulk_mirrordb'
 include { ANALYSIS_PSEUDOBULK_MIRRORDB                      } from './modules/local/analysis_pseudobulk_mirrordb'
 include { ANALYSIS_BULK_MIRRORDB                            } from './modules/local/analysis_bulk_mirrordb'
-include { datasetChannel; simulationInput; deconvolutionInput; metricsInput } from './functions'
+include { datasetChannel; simulationInput; deconvolutionInput; signatureInput; deconvolutionWithSignature; metricsInput } from './functions'
 
 // The entry workflows call the processes directly instead of through sub-workflows, so that the
 // process names in the trace files stay as they are (e.g. 'subsampling:DECONVOLUTE');
@@ -26,24 +26,24 @@ workflow {
 
   ch_input = deconvolutionInput(datasetChannel(params.single_cell_list, params.data_dir_sc),
                                 datasetChannel(params.bulk_list, params.data_dir_bulk),
-                                false)
+                                false, true)
 
-  CREATE_SIGNATURE(ch_input)
+  CREATE_SIGNATURE(signatureInput(ch_input))
 
-  DECONVOLUTE(ch_input.join(CREATE_SIGNATURE.out.signature))
+  DECONVOLUTE(deconvolutionWithSignature(ch_input, CREATE_SIGNATURE.out.signature))
 
-  COMPUTE_METRICS(metricsInput(ch_input, CREATE_SIGNATURE.out.signature, DECONVOLUTE.out.deconvolution))
+  COMPUTE_METRICS(metricsInput(ch_input, DECONVOLUTE.out.results))
 }
 
 workflow deconv_only {
 
   ch_input = deconvolutionInput(datasetChannel(params.single_cell_list, params.data_dir_sc),
                                 datasetChannel(params.bulk_list, params.data_dir_bulk),
-                                false)
+                                false, true)
 
-  CREATE_SIGNATURE(ch_input)
+  CREATE_SIGNATURE(signatureInput(ch_input))
 
-  DECONVOLUTE(ch_input.join(CREATE_SIGNATURE.out.signature))
+  DECONVOLUTE(deconvolutionWithSignature(ch_input, CREATE_SIGNATURE.out.signature))
 }
 
 workflow simulation {
@@ -52,13 +52,13 @@ workflow simulation {
 
   ch_input = deconvolutionInput(datasetChannel(params.single_cell_list, params.data_dir_sc),
                                 SIMULATE_BULK.out.bulk,
-                                false)
+                                false, true)
 
-  CREATE_SIGNATURE(ch_input)
+  CREATE_SIGNATURE(signatureInput(ch_input))
 
-  DECONVOLUTE(ch_input.join(CREATE_SIGNATURE.out.signature))
+  DECONVOLUTE(deconvolutionWithSignature(ch_input, CREATE_SIGNATURE.out.signature))
 
-  COMPUTE_METRICS(metricsInput(ch_input, CREATE_SIGNATURE.out.signature, DECONVOLUTE.out.deconvolution))
+  COMPUTE_METRICS(metricsInput(ch_input, DECONVOLUTE.out.results))
 }
 
 workflow subsampling {
@@ -70,13 +70,15 @@ workflow subsampling {
   SIMULATE_BULK(simulationInput(['random'], ['expressed_genes']))
 
   // the subsampled reference is named after its directory, e.g. sc1_perc100_rep1
+  // Signatures are built for every bulk dataset and every method here, also where one signature
+  // could be shared: fig_s4.Rmd shows the resources of the signature step per bulk dataset.
   ch_input = deconvolutionInput(PREPROCESS_SINGLE_CELL.out.subsample.map { subsample -> [subsample.name, subsample] },
                                 SIMULATE_BULK.out.bulk,
-                                true)
+                                true, false)
 
-  CREATE_SIGNATURE_PREPROCESSED(ch_input)
+  CREATE_SIGNATURE_PREPROCESSED(signatureInput(ch_input))
 
-  DECONVOLUTE(ch_input.join(CREATE_SIGNATURE_PREPROCESSED.out.signature))
+  DECONVOLUTE(deconvolutionWithSignature(ch_input, CREATE_SIGNATURE_PREPROCESSED.out.signature))
 }
 
 workflow impact_missing_cell_types {

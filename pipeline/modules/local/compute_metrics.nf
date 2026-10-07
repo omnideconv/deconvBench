@@ -1,9 +1,11 @@
+include { publishedResult } from '../../functions'
+
 // Compare the estimated cell-type fractions of one result with the ground truth of the bulk dataset.
 process COMPUTE_METRICS {
 
       tag "${meta.id}"
 
-      publishDir path: { "${params.results_dir_general}/${meta.result_dir}" }, mode: 'copy', saveAs: { filename -> filename.replaceFirst('^out/', '') }
+      publishDir path: { "${params.results_dir_general}/${meta.result_dir}" }, mode: 'copy', saveAs: { filename -> publishedResult(filename) }
 
       input:
       tuple val(meta), path(bulk_dir, stageAs: 'bulk/*'), path(results, stageAs: 'out/*')

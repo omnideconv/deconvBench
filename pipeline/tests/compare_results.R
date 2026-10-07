@@ -7,8 +7,8 @@
 # 2) every .rds/.RData/.csv has to have equal content, up to a numeric tolerance (default 1e-8;
 #    two runs of the same code on different cluster nodes differ by about 1e-13)
 #
-# Not compared: tmp/ directories (method scratch), runtime_*.rds and the runtimes entry of
-# results_metric.rds (timings), and the content of scaden model/ directories (presence only).
+# Not compared: tmp/ directories (method scratch), runtime_*.rds and the timing columns of the
+# runtimes entry of results_metric.rds, and the content of scaden model/ directories (presence only).
 # Scaden is not reproducible (no seed can be passed through omnideconv), so for scaden results
 # only the structure is compared: dimensions, row names and the set of column names.
 # Files matching a pattern in the list of known differences (default: known_unstable.txt next to
@@ -89,8 +89,11 @@ compare_file <- function(f) {
     obj_a <- readRDS(a)
     obj_b <- readRDS(b)
     if (grepl("(^|/)results_metric\\.rds$", f)) {
-      obj_a$runtimes <- NULL
-      obj_b$runtimes <- NULL
+      # the runtimes table names method and datasets of the result (used by the figure scripts);
+      # only its timing columns differ between runs
+      timing <- c("user.time", "sys.time", "elapsed")
+      obj_a$runtimes <- obj_a$runtimes[, setdiff(colnames(obj_a$runtimes), timing), drop = FALSE]
+      obj_b$runtimes <- obj_b$runtimes[, setdiff(colnames(obj_b$runtimes), timing), drop = FALSE]
     }
     return(compare_objects(obj_a, obj_b, structure_only = is_scaden(f)))
   }

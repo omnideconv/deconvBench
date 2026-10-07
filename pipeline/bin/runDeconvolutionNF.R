@@ -8,7 +8,7 @@ sessionInfo()
 reticulate::py_config()
 
 "Usage:
-  runDeconvolutionNF.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <results_dir> <run_preprocessing> <replicate> <subset_value> <species> <ncores> <baseDir>
+  runDeconvolutionNF.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <results_dir> <run_preprocessing> <replicate> <subset_value> <species> <ncores> <baseDir> <signature_dir>
 Options:
 <sc_name> name of sc datasets
 <sc_path> path to sc dataset
@@ -21,7 +21,8 @@ Options:
 <subset_value> if < 1: fraction of cell type; if > 1: number of cells per cell type
 <species> type of species
 <ncores> number of cores to use for method (if available)
-<baseDir> nextflow base directory" -> doc
+<baseDir> nextflow base directory
+<signature_dir> directory with the files of the signature step; does not exist if no signature step was run" -> doc
 
 args <- docopt::docopt(doc)
 
@@ -73,6 +74,52 @@ sc_batch <- readRDS(file.path(sc_path, sc_dataset, 'batch.rds'))
 # read bulk expression matrix
 bulk_matrix <- readRDS(file.path(args$bulk_path, bulk_name, paste0(bulk_name, '_', bulk_norm, '.rds')))
 bulk_matrix <- as.matrix(bulk_matrix)
+
+# take over the files of the signature step, so that the result directory is complete
+if(dir.exists(args$signature_dir)){
+  signature_files <- setdiff(list.files(args$signature_dir), 'tmp')
+  file.copy(file.path(args$signature_dir, signature_files), res_path, recursive = TRUE)
+}
+
+if(file.exists(paste0(res_path, "/runtime_signature.rds"))){
+  # a signature that is shared between bulk datasets gets the name of the bulk dataset of this result
+  runtime_signature <- readRDS(paste0(res_path, "/runtime_signature.rds"))
+  runtime_signature[[4]] <- bulk_name
+  saveRDS(runtime_signature, file = paste0(res_path, "/runtime_signature.rds"))
+} else {
+  # no signature step was run, because this method does not build a signature;
+  # the (empty) signature and its runtime are recorded here
+  runtime <- system.time({
+    signature <- signature_workflow_general(
+      sc_matrix, 
+      sc_celltype_annotations, 
+      'normal', 
+      sc_dataset, 
+      sc_norm, 
+      sc_batch, 
+      method, 
+      bulk_matrix,
+      bulk_name, 
+      bulk_norm, 
+      ncores, 
+      res_path,
+      baseDir=baseDir
+    )
+  })
+  saveRDS(signature, file=paste0(res_path, "/signature.rds"))
+  runtime_text <- data.frame(method, 
+                        args$sc_name, 
+                        sc_norm, 
+                        bulk_name, 
+                        bulk_norm, 
+                        subset_value, 
+                        replicate, 
+                        'SIGNATURE', 
+                        runtime[['user.self']],
+                        runtime[['sys.self']], 
+                        runtime[['elapsed']])
+  saveRDS(runtime_text, file = paste0(res_path, "/runtime_signature.rds"))
+}
 
 # load signature
 signature <- readRDS(paste0(res_path, "/signature.rds"))

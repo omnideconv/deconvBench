@@ -12,7 +12,7 @@ reticulate::py_config()
 Options:
 <sc_name> name of sc datasets
 <sc_path> path to sc dataset
-<bulk_name> name of simulated bulk RNAseq dataset
+<bulk_name> name of simulated bulk RNAseq dataset, or '-' to build a signature without bulk dataset
 <bulk_path> path to simulated bulk datasets
 <deconv_method>  deconv method
 <results_dir> directory of this result; signature and deconvolution files are read from and written to it
@@ -73,8 +73,13 @@ sc_celltype_annotations <- readRDS(file.path(sc_path, sc_dataset, 'celltype_anno
 sc_batch <- readRDS(file.path(sc_path, sc_dataset, 'batch.rds'))
 
 # read bulk expression matrix
-bulk_matrix <- readRDS(file.path(args$bulk_path, bulk_name, paste0(bulk_name, '_', bulk_norm, '.rds')))
-bulk_matrix <- as.matrix(bulk_matrix)
+# bulk_name is '-' if the signature does not depend on the bulk dataset and is built once for all of them
+if(bulk_name == '-'){
+  bulk_matrix <- NULL
+} else {
+  bulk_matrix <- readRDS(file.path(args$bulk_path, bulk_name, paste0(bulk_name, '_', bulk_norm, '.rds')))
+  bulk_matrix <- as.matrix(bulk_matrix)
+}
 
 
 

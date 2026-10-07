@@ -4,7 +4,6 @@ docker/.nextflow.log*
 docker/work/
 pipeline/.nextflow/
 pipeline/work
-pipeline/.nextlow.log*
 pipeline/*.Rproj
 pipeline/nextflow_*
 *.Rproj
@@ -12,7 +11,7 @@ pipeline/nextflow_*
 .Rhistory
 reports_traces/
 work/
-visualization/plots
+visualisation/plots
 .RData
 data/results/*
 revision/scdownstream/null/
@@ -20,7 +19,7 @@ docker/omnideconv_benchmark*
 revision/
 docker_rectangle/
 revision2/
-visualization/*/*.html
+visualisation/*/*.html
 pipeline/*.sh
 old_scripts/
 data/*

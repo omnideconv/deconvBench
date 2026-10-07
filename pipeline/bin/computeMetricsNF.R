@@ -34,9 +34,9 @@ replicate <- as.numeric(args$replicate)
 baseDir <- args$baseDir
 
 source(paste0(baseDir, '/bin/utils.R'))
-method_normalizations <- read.table(paste0(baseDir, '/optimal_normalizations.csv'), sep = ',', header = TRUE)
-sc_norm <- method_normalizations[method_normalizations$method == method, 2]
-bulk_norm <- method_normalizations[method_normalizations$method == method, 3]
+normalization <- method_normalization(baseDir, method)
+sc_norm <- normalization$sc_norm
+bulk_norm <- normalization$bulk_norm
 print(paste0('Method: ', method, '; sc-norm: ', sc_norm, '; bulk-norm: ', bulk_norm))
 
 # load ground truth data
@@ -46,72 +46,8 @@ res_path <- res_base_path
 
 deconvolution <- readRDS(paste0(res_path, '/deconvolution.rds'))
 
-# sum up fractions of T cell subtypes in this dataset
-if(args$bulk_name=='hoek' | args$bulk_name=='hoek-simulation' | args$bulk_name=='hoek-simulation-nobias' | args$bulk_name=='hoek_purified'){
-  deconvolution <- as.data.frame(deconvolution)
-  deconvolution$`T cell` <- deconvolution$`T cells CD4 conv` + deconvolution$`T cells CD8` + deconvolution$`Tregs`
-}
-
-if(args$bulk_name == 'morandini'){
-  deconvolution <- as.data.frame(deconvolution)
-
-  deconvolution$`T cells CD4` <- deconvolution$`T cells CD4 conv`
-  deconvolution$`T cells` <- deconvolution$`T cells CD4` + deconvolution$`T cells CD8` + deconvolution$`Tregs`
-
-  if('ILC' %in% colnames(deconvolution)){
-    deconvolution$`Lymphocytes` <- deconvolution$`T cells` + deconvolution$`B cells` + deconvolution$`ILC` + deconvolution$`NK cells`
-  }else{
-    deconvolution$`Lymphocytes` <- deconvolution$`T cells` + deconvolution$`B cells` + deconvolution$`NK cells`
-  }  
-
-  if('Plasma cells' %in% colnames(deconvolution)){
-    deconvolution$`Lymphocytes` <- deconvolution$`Lymphocytes` + deconvolution$`Plasma cells`
-  }
-
-  #deconvolution$`Monocytes_solo` <- deconvolution$`Monocytes`
-  #if('pDC' %in% colnames(deconvolution)){
-  #  deconvolution$`Monocytes` <- deconvolution$`Monocytes_solo` + deconvolution$`mDC` + deconvolution$`pDC`
-  #}else{
-  #  deconvolution$`Monocytes` <- deconvolution$`Monocytes_solo` + deconvolution$`mDC`
-  #}
-}
-
-if(args$bulk_name == 'dietrich'){
-  deconvolution <- as.data.frame(deconvolution)
-  deconvolution$`T cells` <- deconvolution$`T cells CD4` + deconvolution$`T cells CD8` + deconvolution$`Tregs`
-
-  if('pDC' %in% colnames(deconvolution) && 'mDC' %in% colnames(deconvolution)){
-    deconvolution$`DCs` <- deconvolution$`mDC` + deconvolution$`pDC`
-  }else if ('mDC' %in% colnames(deconvolution)) {
-    deconvolution$`DCs` <- deconvolution$`mDC`
-  }else if ('pDC' %in% colnames(deconvolution)) {
-    deconvolution$`DCs` <- deconvolution$`pDC`
-  }else{
-    deconvolution$`DCs` <- 0
-  }
-
-}
-
-if(args$bulk_name == 'altman' | args$bulk_name == 'altman-simulation' | args$bulk_name == 'altman-simulation-nobias'){
-  deconvolution <- as.data.frame(deconvolution)
-
-  if('ILC' %in% colnames(deconvolution)){
-    deconvolution$`Lymphocytes` <- deconvolution$`T cells CD4 conv` + deconvolution$`T cells CD8` + deconvolution$`Tregs` + deconvolution$`B cells` + deconvolution$`NK cells` + deconvolution$`ILC`
-  }else{
-    deconvolution$`Lymphocytes` <- deconvolution$`T cells CD4 conv` + deconvolution$`T cells CD8` + deconvolution$`Tregs` + deconvolution$`B cells` + deconvolution$`NK cells`
-  }   
-
-  if('Plasma cells' %in% colnames(deconvolution)){
-    deconvolution$`Lymphocytes` <- deconvolution$`Lymphocytes` + deconvolution$`Plasma cells`
-  }
-
-  deconvolution$`Monocytes_solo` <- deconvolution$`Monocytes`
-  if('pDC' %in% colnames(deconvolution)){
-    deconvolution$`Monocytes` <- deconvolution$`Monocytes_solo` + deconvolution$`mDC` + deconvolution$`pDC`
-  }else{
-    deconvolution$`Monocytes` <- deconvolution$`Monocytes_solo` + deconvolution$`mDC`
-  }
-}
+# add the cell-type sums that the ground truth of this bulk dataset needs
+deconvolution <- aggregate_cell_types(deconvolution, args$bulk_name, baseDir)
 
 
 #########################

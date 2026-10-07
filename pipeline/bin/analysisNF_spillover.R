@@ -33,16 +33,12 @@ ncores <- as.numeric(args$ncores) # in case a method can use multiple cores
 baseDir <- args$baseDir
 
 source(paste0(baseDir, '/bin/utils.R'))
-method_normalizations <- read.table(paste0(baseDir, '/optimal_normalizations.csv'), sep = ',', header = TRUE)
-sc_norm <- method_normalizations[method_normalizations$method == method, 2]
-bulk_norm <- method_normalizations[method_normalizations$method == method, 3]
+normalization <- method_normalization(baseDir, method)
+sc_norm <- normalization$sc_norm
+bulk_norm <- normalization$bulk_norm
 print(paste0('Method: ', method, '; sc-norm: ', sc_norm, '; bulk-norm: ', bulk_norm))
 
-if(sc_norm == 'counts'){
-    sc_matrix <- readRDS(file.path(sc_path, sc_dataset, 'matrix_counts.rds'))
-} else {
-    sc_matrix <- readRDS(file.path(sc_path, sc_dataset, 'matrix_norm_counts.rds'))
-}
+sc_matrix <- read_sc_matrix(sc_path, sc_dataset, sc_norm)
 
 sc_celltype_annotations <- readRDS(file.path(sc_path, sc_dataset, 'celltype_annotations.rds'))
 sc_batch <- readRDS(file.path(sc_path, sc_dataset, 'batch.rds'))
@@ -50,8 +46,7 @@ sc_batch <- readRDS(file.path(sc_path, sc_dataset, 'batch.rds'))
 # Here we need to filter for those cell types that are in the simulated dataset. 
 cat(paste0('Number of cells in sc dataset before filtering for target types: ', length(sc_celltype_annotations), '\n'))
 
-cell_types_simulation <- gsub('\\[|]', '', args$cell_types)
-cell_types_simulation <- strsplit(cell_types_simulation, ", ")[[1]]
+cell_types_simulation <- parse_list_argument(args$cell_types, split = ', ')
 
 position_vector <- (sc_celltype_annotations %in% cell_types_simulation)
 sc_matrix <- sc_matrix[, position_vector]
@@ -60,7 +55,7 @@ sc_celltype_annotations <- sc_celltype_annotations[position_vector]
 
 cat(paste0('Number of cells in sc dataset before filtering for target types: ', length(sc_celltype_annotations), '\n'))
 
-bulk_matrix <- as.matrix(readRDS(file.path(bulk_path, paste0(bulk_name, '_', bulk_norm, '.rds'))))
+bulk_matrix <- read_bulk_matrix(bulk_path, bulk_name, bulk_norm)
 
 res_path_normal <- paste0(res_base_path, '/', method, "_", sc_dataset, '_', bulk_name)
 
@@ -85,10 +80,7 @@ signature <- signature_workflow_general(
 
 if(method == 'rectangle'){
   # do not incluce anndata creation in runtime measurement
-  ad <- anndata::AnnData(X = t(sc_matrix),
-                        obs = data.frame('cell_type' = gsub(' ','_',sc_celltype_annotations), row.names = colnames(sc_matrix)),
-                        var = data.frame('genes' = rownames(sc_matrix), row.names = rownames(sc_matrix)))
-  sc_matrix <- ad 
+  sc_matrix <- rectangle_reference(sc_matrix, gsub(' ','_',sc_celltype_annotations))
 }
 
 deconvolution <- deconvolution_workflow_general(

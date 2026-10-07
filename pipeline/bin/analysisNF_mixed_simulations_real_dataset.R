@@ -34,7 +34,7 @@ ncores <- as.numeric(args$ncores) # in case a method can use multiple cores
 baseDir <- args$baseDir
 
 source(paste0(baseDir, '/bin/utils.R'))
-method_normalizations <- read.table(paste0(baseDir, '/optimal_normalizations.csv'), sep = ',', header = TRUE)
+normalization <- method_normalization(baseDir, method)
 # Here we need to filter for those cell types that are in the simulated dataset. 
 
 #common.cells <- c('B cells', 'Tregs', 'T cells CD8', 'Macrophages', 'Mast cells', 'Monocytes', 'T cells CD4 conv', 'NK cells', 'Neutrophils', 'Stromal cells')
@@ -42,14 +42,10 @@ sc_celltype_annotations <- readRDS(file.path(sc_path, sc_dataset, 'celltype_anno
 #position_vector <- sc_celltype_annotations %in% common.cells
 #sc_celltype_annotations <- sc_celltype_annotations[position_vector]
 
-sc_norm <- method_normalizations[method_normalizations$method == method, 2]
-bulk_norm <- method_normalizations[method_normalizations$method == method, 3]
+sc_norm <- normalization$sc_norm
+bulk_norm <- normalization$bulk_norm
 
-if(sc_norm == 'counts'){
-    sc_matrix <- readRDS(file.path(sc_path, sc_dataset, 'matrix_counts.rds'))#[, position_vector] 
-} else {
-    sc_matrix <- readRDS(file.path(sc_path, sc_dataset, 'matrix_norm_counts.rds'))#[, position_vector] 
-}
+sc_matrix <- read_sc_matrix(sc_path, sc_dataset, sc_norm)
 
 sc_batch <- readRDS(file.path(sc_path, sc_dataset, 'batch.rds'))#[position_vector]
 
@@ -69,8 +65,7 @@ dir.create(res_path_normal, recursive = TRUE, showWarnings = TRUE)
 # We need a bulk for the creation of the signature matrix, because some methods filter for the common genes between sc and bulk. 
 # In this case it is not relevant to compute the signature n times for each replicate
 
-bulk_matrix <- readRDS(file.path(bulk_path, bulk_name, paste0(bulk_name, '_', bulk_norm, '.rds')))
-bulk_matrix <- as.matrix(bulk_matrix)
+bulk_matrix <- read_bulk_matrix(file.path(bulk_path, bulk_name), bulk_name, bulk_norm)
 
 signature <- signature_workflow_general(
   sc_matrix, 

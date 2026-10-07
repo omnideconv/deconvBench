@@ -33,20 +33,15 @@ ncores <- as.numeric(args$ncores) # in case a method can use multiple cores
 baseDir <- args$baseDir
 
 source(paste0(baseDir, '/bin/utils.R'))
-method_normalizations <- read.table(paste0(baseDir, '/optimal_normalizations.csv'), sep = ',', header = TRUE)
-sc_norm <- method_normalizations[method_normalizations$method == method, 2]
-bulk_norm <- method_normalizations[method_normalizations$method == method, 3]
+normalization <- method_normalization(baseDir, method)
+sc_norm <- normalization$sc_norm
+bulk_norm <- normalization$bulk_norm
 
-if(sc_norm == 'counts'){
-    sc_matrix <- readRDS(file.path(sc_path, sc_dataset, 'matrix_counts.rds'))
-} else {
-    sc_matrix <- readRDS(file.path(sc_path, sc_dataset, 'matrix_norm_counts.rds'))
-}
+sc_matrix <- read_sc_matrix(sc_path, sc_dataset, sc_norm)
 sc_celltype_annotations <- readRDS(file.path(sc_path, sc_dataset, 'celltype_annotations.rds'))
 sc_batch <- readRDS(file.path(sc_path, sc_dataset, 'batch.rds'))
 
-bulk_matrix <- readRDS(file.path(bulk_path, bulk_name, paste0(bulk_name, '_', bulk_norm, '.rds')))
-bulk_matrix <- as.matrix(bulk_matrix)
+bulk_matrix <- read_bulk_matrix(file.path(bulk_path, bulk_name), bulk_name, bulk_norm)
 
 # Here we need to filter for those cell types that are in the simulated dataset. 
 

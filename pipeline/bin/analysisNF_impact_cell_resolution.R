@@ -35,15 +35,11 @@ replicates <- as.numeric(args$replicates)
 baseDir <- args$baseDir
 
 source(paste0(baseDir, '/bin/utils.R'))
-method_normalizations <- read.table(paste0(baseDir, '/optimal_normalizations.csv'), sep = ',', header = TRUE)
-sc_norm <- method_normalizations[method_normalizations$method == method, 2]
-bulk_norm <- method_normalizations[method_normalizations$method == method, 3]
+normalization <- method_normalization(baseDir, method)
+sc_norm <- normalization$sc_norm
+bulk_norm <- normalization$bulk_norm
 
-if(sc_norm == 'counts'){
-  sc_matrix <- readRDS(file.path(sc_path, sc_dataset, 'matrix_counts.rds'))
-} else {
-  sc_matrix <- readRDS(file.path(sc_path, sc_dataset, 'matrix_norm_counts.rds'))
-}
+sc_matrix <- read_sc_matrix(sc_path, sc_dataset, sc_norm)
 
 annotation_path <- file.path(sc_path, sc_dataset, 'celltype_annotations_normal.rds')
 sc_celltype_annotations <- readRDS(annotation_path)
@@ -58,9 +54,7 @@ coarse_file <- file.path(sc_path, sc_dataset, 'celltype_annotations_coarse.rds')
 # Here we need to filter for those cell types that are in the simulated dataset. 
 # NOTE: in the resolution analysis the cell types are specified in terms of finest cell types
 
-cell_types_fine <- gsub('\\[|]', '', args$cell_types_fine)
-cell_types_fine <- strsplit(cell_types_fine, ",")[[1]]
-cell_types_fine <- unlist(lapply(cell_types_fine, trimws))
+cell_types_fine <- parse_list_argument(args$cell_types_fine, trim = TRUE)
 
 position_vector <- sc_celltype_annotations_fine %in% cell_types_fine
 sc_matrix <- sc_matrix[, position_vector]
@@ -68,7 +62,6 @@ sc_batch <- sc_batch[position_vector]
 sc_celltype_annotations_fine <- sc_celltype_annotations_fine[position_vector]
 sc_celltype_annotations <- sc_celltype_annotations[position_vector]
 
-bulk_matrix <- readRDS(file.path(bulk_path, paste0('replicate_1'), paste0(bulk_name, '_', bulk_norm, '.rds'))) %>% as.matrix(.)
 
 res_path_normal <- paste0(res_base_path, '/', method, '/', bulk_name, "_normal_annot")
 res_path_fine <- paste0(res_base_path, '/', method, '/', bulk_name, "_fine_annot")
@@ -109,127 +102,58 @@ sc_celltype_annotations_fine <- subset_list$annotations_fine
 
 # Normal deconv
 ##############################################################################################
-signature <- signature_workflow_general(
-  sc_matrix, 
-  sc_celltype_annotations,
-  'normal', 
-  sc_dataset, 
-  sc_norm, 
-  sc_batch,
-  method, 
-  bulk_matrix,
-  bulk_name, 
-  bulk_norm, 
-  ncores, 
-  res_path_normal,
-  baseDir=baseDir
-)
 
-for(r in 1:replicates){
+# Build the signature with the reference annotated at one level and deconvolve every replicate.
+# signature_bulk is only used by methods that build their signature with a bulk matrix (Scaden).
+deconvolve_at_resolution <- function(annotations, level, res_path, signature_bulk){
 
-  cur_res_path <- file.path(res_path_normal, paste0('replicate_', r))
-  dir.create(cur_res_path, recursive = TRUE, showWarnings = TRUE)
-
-  bulk_matrix <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0(bulk_name, '_', bulk_norm, '.rds')))
-  bulk_matrix <- as.matrix(bulk_matrix)
-
-  if(method == 'rectangle'){
-    # do not incluce anndata creation in runtime measurement
-    ad <- anndata::AnnData(X = t(sc_matrix),
-                          obs = data.frame('cell_type' = gsub(' ','_',sc_celltype_annotations), row.names = colnames(sc_matrix)),
-                          var = data.frame('genes' = rownames(sc_matrix), row.names = rownames(sc_matrix)))
-    sc_matrix <- ad 
-  }
-
-  deconvolution <- deconvolution_workflow_general(
+  signature <- signature_workflow_general(
     sc_matrix, 
-    sc_celltype_annotations, 
-    'normal', 
-    sc_dataset, 
-    sc_norm, 
-    sc_batch, 
-    signature, 
-    method, 
-    bulk_matrix, 
-    bulk_name, 
-    bulk_norm, 
-    ncores, 
-    res_path_normal,
-    baseDir=baseDir
-  )
-
-  sc_matrix <- subset_list$data
-
-  true_fractions <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0(bulk_name, '_normal_annot_facs.rds')))
-
-  results_list = list(
-    'deconvolution' = deconvolution, 
-    'true_cell_fractions' = true_fractions
-  )
-
-  saveRDS(results_list, file=paste0(cur_res_path, "/deconvolution.rds"))
-
-}
-
-if(method =='autogenes' | method == 'scaden'){
-  unlink(signature)
-}
-
-if(run_coarse) {
-  # Coarse deconv
-  ###############################################################################################
-  signature_coarse <- signature_workflow_general(
-    sc_matrix, 
-    sc_celltype_annotations_coarse,
-    'coarse', 
+    annotations,
+    level, 
     sc_dataset, 
     sc_norm, 
     sc_batch,
     method, 
-    bulk_matrix,
+    signature_bulk,
     bulk_name, 
     bulk_norm, 
     ncores, 
-    res_path_coarse,
+    res_path,
     baseDir=baseDir
-  )                                               
+  )
 
   for(r in 1:replicates){
 
-    cur_res_path <- file.path(res_path_coarse, paste0('replicate_', r))
+    cur_res_path <- file.path(res_path, paste0('replicate_', r))
     dir.create(cur_res_path, recursive = TRUE, showWarnings = TRUE)
 
-    bulk_matrix <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0(bulk_name, '_', bulk_norm, '.rds')))
-    bulk_matrix <- as.matrix(bulk_matrix)
+    bulk_matrix <- read_bulk_matrix(file.path(bulk_path, paste0('replicate_', r)), bulk_name, bulk_norm)
 
+    reference <- sc_matrix
     if(method == 'rectangle'){
       # do not incluce anndata creation in runtime measurement
-      ad <- anndata::AnnData(X = t(sc_matrix),
-                            obs = data.frame('cell_type' = gsub(' ','_',sc_celltype_annotations_coarse), row.names = colnames(sc_matrix)),
-                            var = data.frame('genes' = rownames(sc_matrix), row.names = rownames(sc_matrix)))
-      sc_matrix <- ad 
+      reference <- rectangle_reference(sc_matrix, gsub(' ','_',annotations))
     }
 
     deconvolution <- deconvolution_workflow_general(
-      sc_matrix, 
-      sc_celltype_annotations_coarse, 
-      'coarse', 
+      reference, 
+      annotations, 
+      level, 
       sc_dataset, 
       sc_norm, 
       sc_batch, 
-      signature_coarse, 
+      signature, 
       method, 
       bulk_matrix, 
       bulk_name, 
       bulk_norm, 
       ncores, 
-      res_path_coarse,
+      res_path,
       baseDir=baseDir
     )
 
-    sc_matrix <- subset_list$data
-
-    true_fractions <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0(bulk_name, '_coarse_annot_facs.rds')))
+    true_fractions <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0(bulk_name, '_', level, '_annot_facs.rds')))
 
     results_list = list(
       'deconvolution' = deconvolution, 
@@ -237,81 +161,23 @@ if(run_coarse) {
     )
 
     saveRDS(results_list, file=paste0(cur_res_path, "/deconvolution.rds"))
-
   }
 
   if(method =='autogenes' | method == 'scaden'){
-    unlink(signature_coarse)
+    unlink(signature)
   }
-
 }
 
+# The signature at normal resolution is built with the bulk matrix of the first replicate, the
+# coarse and fine ones with that of the last replicate. This is how the script has always run;
+# only Scaden uses the bulk matrix for its signature.
+bulk_first_replicate <- read_bulk_matrix(file.path(bulk_path, 'replicate_1'), bulk_name, bulk_norm)
+bulk_last_replicate <- read_bulk_matrix(file.path(bulk_path, paste0('replicate_', replicates)), bulk_name, bulk_norm)
 
-# Fine deconv 
-###############################################################################################
+deconvolve_at_resolution(sc_celltype_annotations, 'normal', res_path_normal, bulk_first_replicate)
 
-signature_fine <- signature_workflow_general(
-  sc_matrix, 
-  sc_celltype_annotations_fine,
-  'fine', 
-  sc_dataset, 
-  sc_norm, 
-  sc_batch,
-  method, 
-  bulk_matrix,
-  bulk_name, 
-  bulk_norm, 
-  ncores, 
-  res_path_fine,
-  baseDir=baseDir
-) 
-
-for(r in 1:replicates){
-
-  cur_res_path <- file.path(res_path_fine, paste0('replicate_', r))
-  dir.create(cur_res_path, recursive = TRUE, showWarnings = TRUE)
-
-  bulk_matrix <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0(bulk_name, '_', bulk_norm, '.rds')))
-  bulk_matrix <- as.matrix(bulk_matrix)
-
-  if(method == 'rectangle'){
-    # do not incluce anndata creation in runtime measurement
-    ad <- anndata::AnnData(X = t(sc_matrix),
-                          obs = data.frame('cell_type' = gsub(' ','_',sc_celltype_annotations_fine), row.names = colnames(sc_matrix)),
-                          var = data.frame('genes' = rownames(sc_matrix), row.names = rownames(sc_matrix)))
-    sc_matrix <- ad 
-  }
-
-  deconvolution <- deconvolution_workflow_general(
-    sc_matrix, 
-    sc_celltype_annotations_fine, 
-    'fine', 
-    sc_dataset, 
-    sc_norm, 
-    sc_batch, 
-    signature_fine, 
-    method, 
-    bulk_matrix, 
-    bulk_name, 
-    bulk_norm, 
-    ncores, 
-    res_path_fine,
-    baseDir=baseDir
-  )
-
-  sc_matrix <- subset_list$data
-
-  true_fractions <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0(bulk_name, '_fine_annot_facs.rds')))
-
-  results_list = list(
-    'deconvolution' = deconvolution, 
-    'true_cell_fractions' = true_fractions
-  )
-
-  saveRDS(results_list, file=paste0(cur_res_path, "/deconvolution.rds"))
-
+if(run_coarse){
+  deconvolve_at_resolution(sc_celltype_annotations_coarse, 'coarse', res_path_coarse, bulk_last_replicate)
 }
 
-if(method =='autogenes' | method == 'scaden'){
-  unlink(signature_fine)
-}
+deconvolve_at_resolution(sc_celltype_annotations_fine, 'fine', res_path_fine, bulk_last_replicate)

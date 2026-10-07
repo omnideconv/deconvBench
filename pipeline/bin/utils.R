@@ -1,3 +1,63 @@
+# normalizations that a method expects for the single-cell reference and the bulk data
+method_normalization <- function(baseDir, method){
+  normalizations <- read.table(paste0(baseDir, '/optimal_normalizations.csv'), sep = ',', header = TRUE)
+  if(!method %in% normalizations$method){
+    stop(paste0('No entry in optimal_normalizations.csv for method: ', method))
+  }
+  as.list(normalizations[normalizations$method == method, c('sc_norm', 'bulk_norm')])
+}
+
+# expression matrix of a single-cell dataset stored in <sc_path>/<sc_dataset>/
+read_sc_matrix <- function(sc_path, sc_dataset, sc_norm){
+  matrix_file <- if(sc_norm == 'counts') 'matrix_counts.rds' else 'matrix_norm_counts.rds'
+  readRDS(file.path(sc_path, sc_dataset, matrix_file))
+}
+
+# expression matrix <bulk_dir>/<bulk_name>_<bulk_norm>.rds
+read_bulk_matrix <- function(bulk_dir, bulk_name, bulk_norm){
+  as.matrix(readRDS(file.path(bulk_dir, paste0(bulk_name, '_', bulk_norm, '.rds'))))
+}
+
+# elements of a list parameter that Nextflow passes as text, e.g. '[B cells, T cells CD8]'
+parse_list_argument <- function(x, split = ',', trim = FALSE){
+  elements <- strsplit(gsub('\\[|]', '', x), split)[[1]]
+  if(trim){
+    elements <- trimws(elements)
+  }
+  elements
+}
+
+# rectangle takes the single-cell reference as AnnData object
+rectangle_reference <- function(sc_matrix, annotations){
+  anndata::AnnData(X = t(sc_matrix),
+                   obs = data.frame('cell_type' = annotations, row.names = colnames(sc_matrix)),
+                   var = data.frame('genes' = rownames(sc_matrix), row.names = rownames(sc_matrix)))
+}
+
+# Add the cell-type sums that the ground truth of some bulk datasets needs (e.g. all T cell
+# subtypes as 'T cell'). The rules are listed in assets/celltype_aggregation.csv and applied in
+# the order of the file; a cell type marked with '?' is added only if the method estimated it.
+aggregate_cell_types <- function(deconvolution, bulk_name, baseDir){
+  rules <- read.table(paste0(baseDir, '/assets/celltype_aggregation.csv'), sep = ',', header = TRUE, check.names = FALSE, stringsAsFactors = FALSE)
+  rules <- rules[sapply(strsplit(rules$bulk, ';'), function(names) bulk_name %in% names), ]
+  if(nrow(rules) == 0){
+    return(deconvolution)
+  }
+  deconvolution <- as.data.frame(deconvolution)
+  for(i in seq_len(nrow(rules))){
+    parts <- strsplit(rules$sum_of[i], ';')[[1]]
+    optional <- grepl('\\?$', parts)
+    parts <- sub('\\?$', '', parts)
+    parts <- parts[!optional | parts %in% colnames(deconvolution)]
+    total <- 0
+    for(part in parts){
+      total <- total + deconvolution[[part]]
+    }
+    deconvolution[[rules$cell_type[i]]] <- total
+  }
+  deconvolution
+}
+
 escapeCelltypesAutogenes <- function(celltype){
   celltype <- gsub("\\+", "21b2c6e87f8711ec9bf265fb9bf6ab9c", celltype)
   celltype <- gsub("-", "21b2c7567f8711ec9bf265fb9bf6ab9a", celltype)

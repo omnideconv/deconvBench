@@ -63,3 +63,9 @@ def metricsInput(ch_input, ch_signature, ch_deconvolution) {
         .join(ch_deconvolution)
         .map { meta, bulk_dir, runtime_signature, deconvolution -> [meta, bulk_dir, [runtime_signature] + deconvolution] }
 }
+
+// Name under which a file from the out/ directory of a task is published.
+// Scratch files of the methods (tmp/ directories) are not published.
+def publishedResult(filename) {
+    return filename.contains('/tmp/') ? null : filename.replaceFirst('^out/', '')
+}

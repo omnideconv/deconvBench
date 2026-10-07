@@ -11,8 +11,8 @@
 # results_metric.rds (timings), and the content of scaden model/ directories (presence only).
 # Scaden is not reproducible (no seed can be passed through omnideconv), so for scaden results
 # only the structure is compared: dimensions, row names and the set of column names.
-# Files matching a pattern in the known-unstable list (default: known_unstable.txt next to this
-# script) are reported but do not fail the comparison.
+# Files matching a pattern in the list of known differences (default: known_unstable.txt next to
+# this script) are reported but do not fail the comparison.
 # With --only, the comparison is restricted to files whose relative path matches the regular
 # expression, e.g. --only='^(main|simulation)/' to check some workflows only.
 # Exit status 0 if the trees are equivalent, 1 otherwise.
@@ -121,7 +121,7 @@ report <- rbind(
 report$workflow <- sub("/.*", "", report$file)
 report$ok <- !grepl("^(DIFFERENT|MISSING|ADDITIONAL)", report$status)
 unstable <- Reduce(`|`, lapply(unstable_patterns, grepl, x = report$file), rep(FALSE, nrow(report)))
-report$status[unstable & !report$ok] <- paste("known unstable,", report$status[unstable & !report$ok])
+report$status[unstable & !report$ok] <- paste("known difference,", report$status[unstable & !report$ok])
 report$ok <- report$ok | unstable
 
 if (!is.na(report_file)) write.csv(report, report_file, row.names = FALSE)

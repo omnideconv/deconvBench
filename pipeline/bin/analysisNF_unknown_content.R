@@ -70,10 +70,8 @@ sc_celltype_annotations <- sc_celltype_annotations[position_vector]
 bulk_matrix <- readRDS(file.path(bulk_path, 'replicate_1', paste0(bulk_name, '_', fractions_unknown[1], '_', bulk_norm, '.rds')))
 bulk_matrix <- as.matrix(bulk_matrix)
 
-res_path_normal <- paste0(res_base_path, '/', method, '_', bulk_name)
-
-# Docker needs that
-res_path_normal <- tolower(res_path_normal)
+# Docker needs lower-case names
+res_path_normal <- paste0(res_base_path, '/', tolower(paste0(method, '_', bulk_name)))
 
 dir.create(res_path_normal, recursive = TRUE, showWarnings = TRUE)
 

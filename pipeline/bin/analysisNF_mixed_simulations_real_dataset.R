@@ -61,10 +61,8 @@ sc_celltype_annotations <- subset_list$annotations
 sc_batch <- subset_list$batch_id
 
 
-res_path_normal <- paste0(res_base_path, '/', method, '_', bulk_name, '/', bulk_name, '_bulk_', sc_dataset, '_signature')
-
-# Docker needs that
-res_path_normal <- tolower(res_path_normal)
+# Docker needs lower-case names
+res_path_normal <- paste0(res_base_path, '/', tolower(paste0(method, '_', bulk_name, '/', bulk_name, '_bulk_', sc_dataset, '_signature')))
 
 dir.create(res_path_normal, recursive = TRUE, showWarnings = TRUE)
 

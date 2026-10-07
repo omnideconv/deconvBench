@@ -1,4 +1,7 @@
 #!/bin/bash
+# With Java 21 on this cluster, copying a file larger than about 2 MB to an NFS share never returns,
+# which blocks Nextflow when it publishes results. Java 17 is not affected.
+export NXF_JAVA_HOME=${NXF_JAVA_HOME:-/usr/lib/jvm/java-17-openjdk-amd64}
 
 # Rerun of the main workflow on the corrected (full NCBI) morandini bulk data with HaoCleaned-sampled.
 # Usage: run_morandini_ncbi.sh <apptainer|autogenes|cibersortx> [further nextflow options]

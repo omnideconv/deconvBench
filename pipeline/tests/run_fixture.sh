@@ -9,6 +9,8 @@
 #
 # Environment:
 #   CODE_DIR    pipeline directory whose main.nf is tested (default: the one this script is in)
+#   CONF_DIR    directory with one config per workflow (default: conf/ next to this script;
+#               conf_real/ runs the real-data check on an input of make_real_input.sh)
 #   PROFILES    default: "apptainer autogenes rectangle cibersortx"
 #   WORKFLOWS   default: all eight
 #   NF_ARGS     additional nextflow run options, e.g. "-resume"
@@ -37,6 +39,7 @@ run_dir=$(realpath "$2")
 
 tests_dir=$(dirname "$(realpath "$0")")
 code_dir=$(realpath "${CODE_DIR:-$tests_dir/..}")
+conf_dir=$(realpath "${CONF_DIR:-$tests_dir/conf}")
 profiles=${PROFILES:-"apptainer autogenes rectangle cibersortx"}
 workflows=${WORKFLOWS:-"main simulation subsampling impact_missing_cell_types simulation_spillover simulation_unknown_content simulation_resolution_analysis simulation_impact_technology"}
 nf_args=${NF_ARGS:-}
@@ -57,7 +60,7 @@ run_workflow() {
     mkdir -p "$launch_dir" "$run_dir/results/$wf"
     cd "$launch_dir" || return 1
     TEST_INPUT=$run_dir/input/$wf TEST_OUT=$run_dir/results/$wf NXF_ANSI_LOG=false \
-        nextflow -C "$tests_dir/conf/$wf.config" run "$code_dir/main.nf" \
+        nextflow -C "$conf_dir/$wf.config" run "$code_dir/main.nf" \
         -profile "$profile" $entry \
         -work-dir "$work_dir" \
         -with-trace "$launch_dir/trace.csv" $nf_args > nextflow.out 2>&1

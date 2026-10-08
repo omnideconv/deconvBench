@@ -89,6 +89,10 @@ signature <- signature_workflow_general(
 print('Signature built')
 # Deconvolution
 
+if(method == 'rectangle'){
+  sc_matrix <- rectangle_reference(sc_matrix, sc_celltype_annotations)
+}
+
 true_fractions <- readRDS(file.path(bulk_path, bulk_name, paste0(bulk_name, '_facs.rds')))
 
 deconvolution <- deconvolution_workflow_general(

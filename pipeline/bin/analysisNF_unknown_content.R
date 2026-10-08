@@ -91,6 +91,10 @@ signature <- signature_workflow_general(
   baseDir=baseDir
 )
 
+if(method == 'rectangle'){
+  sc_matrix <- rectangle_reference(sc_matrix, sc_celltype_annotations)
+}
+
 for(cur_cell_fraction in fractions_unknown){
   
   for (r in 1:replicates){

@@ -1,5 +1,13 @@
 // Helper functions shared by the workflows in main.nf.
 
+// Stop with a clear message if the config does not set a parameter that the workflow needs.
+def requireParams(names) {
+    def missing = names.findAll { name -> !params.containsKey(name) || params[name] == null }
+    if (missing) {
+        error "The config does not set: ${missing.join(', ')}"
+    }
+}
+
 // rows of optimal_normalizations.csv for the methods selected in params.method_list
 // signature_input says what the signature of a method is built from:
 //   none     the method builds no signature

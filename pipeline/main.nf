@@ -16,13 +16,15 @@ include { ANALYSIS_BULK_RESOLUTION_ANALYSIS                 } from './modules/lo
 include { SIMULATE_PSEUDOBULK_MIRRORDB                      } from './modules/local/simulate_pseudobulk_mirrordb'
 include { ANALYSIS_PSEUDOBULK_MIRRORDB                      } from './modules/local/analysis_pseudobulk_mirrordb'
 include { ANALYSIS_BULK_MIRRORDB                            } from './modules/local/analysis_bulk_mirrordb'
-include { datasetChannel; simulationInput; deconvolutionInput; signatureInput; deconvolutionWithSignature; metricsInput } from './functions'
+include { requireParams; datasetChannel; simulationInput; deconvolutionInput; signatureInput; deconvolutionWithSignature; metricsInput } from './functions'
 
 // The entry workflows call the processes directly instead of through sub-workflows, so that the
 // process names in the trace files stay as they are (e.g. 'subsampling:DECONVOLUTE');
 // visualisation/supplement/fig_s4.Rmd selects tasks by these names.
 
 workflow {
+
+  requireParams(['data_dir_sc', 'data_dir_bulk', 'results_dir_general', 'single_cell_list', 'bulk_list', 'method_list', 'ncores', 'species_sc'])
 
   ch_input = deconvolutionInput(datasetChannel(params.single_cell_list, params.data_dir_sc),
                                 datasetChannel(params.bulk_list, params.data_dir_bulk),
@@ -37,6 +39,8 @@ workflow {
 
 workflow deconv_only {
 
+  requireParams(['data_dir_sc', 'data_dir_bulk', 'results_dir_general', 'single_cell_list', 'bulk_list', 'method_list', 'ncores', 'species_sc'])
+
   ch_input = deconvolutionInput(datasetChannel(params.single_cell_list, params.data_dir_sc),
                                 datasetChannel(params.bulk_list, params.data_dir_bulk),
                                 false, true)
@@ -47,6 +51,8 @@ workflow deconv_only {
 }
 
 workflow simulation {
+
+  requireParams(['data_dir_sc', 'data_dir_bulk', 'results_dir_general', 'single_cell_list', 'simulation_sc_dataset', 'simulation_n_cells', 'simulation_n_samples', 'simulation_scenario', 'simulation_bias_type', 'method_list', 'ncores', 'species_sc'])
 
   SIMULATE_BULK(simulationInput(params.simulation_scenario, params.simulation_bias_type))
 
@@ -62,6 +68,8 @@ workflow simulation {
 }
 
 workflow subsampling {
+
+  requireParams(['data_dir_sc', 'data_dir_bulk', 'results_dir_general', 'preProcess_dir', 'single_cell_list', 'ct_fractions', 'replicates', 'simulation_sc_dataset', 'simulation_n_cells', 'simulation_n_samples', 'method_list', 'ncores', 'species_sc'])
 
   PREPROCESS_SINGLE_CELL(datasetChannel(params.single_cell_list, params.data_dir_sc)
                            .combine(channel.fromList(params.ct_fractions))
@@ -83,6 +91,8 @@ workflow subsampling {
 
 workflow impact_missing_cell_types {
 
+  requireParams(['data_dir_sc', 'data_dir_bulk', 'results_dir_missing_cell_types', 'single_cell_list', 'bulk_list', 'cell_types_to_exclude', 'method_list', 'ncores'])
+
   ANALYSIS_BULK_MISSING_CELL_TYPES(datasetChannel(params.single_cell_list, params.data_dir_sc)
                                      .combine(datasetChannel(params.bulk_list, params.data_dir_bulk))
                                      .combine(channel.fromList(params.method_list))
@@ -90,6 +100,8 @@ workflow impact_missing_cell_types {
 }
 
 workflow simulation_spillover {
+
+  requireParams(['data_dir_sc', 'results_dir_spillover', 'preProcess_dir', 'single_cell_list', 'simulation_sc_dataset', 'simulation_n_cells', 'simulation_n_samples', 'spillover_celltypes', 'method_list', 'ncores'])
 
   SIMULATE_BULK_SPILLOVER(datasetChannel(params.simulation_sc_dataset, params.data_dir_sc)
                             .combine(channel.fromList(params.simulation_n_cells))
@@ -101,6 +113,8 @@ workflow simulation_spillover {
 }
 
 workflow simulation_unknown_content {
+
+  requireParams(['data_dir_sc', 'results_dir_unknown_content', 'preProcess_dir', 'simulation_sc_dataset', 'simulation_n_cells', 'simulation_n_samples', 'known_cell_types', 'unknown_cell_type', 'fractions_unknown_cells', 'replicates_unknown_content', 'method_list', 'ncores'])
 
   ch_sc = datasetChannel(params.simulation_sc_dataset, params.data_dir_sc)
 
@@ -118,6 +132,8 @@ workflow simulation_unknown_content {
 
 workflow simulation_resolution_analysis {
 
+  requireParams(['data_dir_sc', 'results_dir_resolution', 'preProcess_dir', 'simulation_sc_dataset', 'simulation_n_cells', 'simulation_n_samples', 'cell_types_finer_res', 'replicates_simulation', 'method_list', 'ncores'])
+
   ch_sc = datasetChannel(params.simulation_sc_dataset, params.data_dir_sc)
 
   SIMULATE_BULK_RESOLUTION_ANALYSIS(ch_sc
@@ -133,6 +149,8 @@ workflow simulation_resolution_analysis {
 }
 
 workflow simulation_impact_technology {
+
+  requireParams(['data_dir_sc', 'data_dir_bulk', 'results_dir_impact_technology', 'preProcess_dir', 'simulation_sc_dataset', 'simulation_n_cells', 'simulation_n_samples', 'sc_datasets_impact_technology', 'bulk_impact_technology', 'replicates_simulation', 'method_list', 'ncores'])
 
   ch_sc = datasetChannel(params.simulation_sc_dataset, params.data_dir_sc)
 

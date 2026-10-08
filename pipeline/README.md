@@ -13,7 +13,7 @@ In case you are working on a setup that does not allow the use of Docker, you ca
 docker pull alexd13/omnideconv_benchmark:latest
 apptainer build /location/of/new/image/omnideconv_benchmark.sif docker-daemon://alexd13/omnideconv_benchmark:latest
 ```
-Then adapt the path in the Apptainer profile of `nextflow.config` to the one specified above (i.e. `/location/of/new/image/omnideconv_benchmark.sif`) and use the 'apptainer' profile when running the pipeline. `docker/docker_to_singularity.sh` does both steps.
+Then adapt the path in the Apptainer profile of `nextflow.config` to the one specified above (i.e. `/location/of/new/image/omnideconv_benchmark.sif`) and use the 'apptainer' profile when running the pipeline. `docker/docker_to_singularity.sh` does both steps. `docker/update_rectangle.sh` creates a new rectangle image from an existing one with another version of rectanglepy.
 
 With Apptainer, the directories that hold your data, your results and the Nextflow work directory have to be bound into the container (`apptainer.runOptions = '--bind ...'`), because tasks read the outputs of other tasks from the work directory.
 

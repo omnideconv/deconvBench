@@ -77,7 +77,7 @@ for (cur_cell_fraction in fractions_unknown){
     set.seed(r * 1000 + round(cur_cell_fraction * 100))
     simulated_bulk <- SimBu::simulate_bulk(
       data =  simbu_ds,
-      whitelist = ,
+      whitelist = cell_types_simulation,
       scenario = 'weighted',
       weighted_cell_type = unknown_cell_type,
       weighted_amount = cur_cell_fraction,

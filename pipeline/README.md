@@ -393,7 +393,7 @@ Rscript tests/compare_results.R <reference_run>/results <run_dir>/results
 
 Our own runs use the files in `conf/`, `configs/` and `scripts/`:
 
-- `conf/norm.config` - resources, containers and profiles of the cluster. There is one profile per container image: `apptainer` (standard image; bayesprism, bisque, dwls, music, scaden, scdc), `autogenes`, `rectangle`, and `cibersortx` (local Docker). Simulation and subsampling always run in the standard image, so that all methods deconvolve the same simulated datasets.
+- `conf/norm.config` - resources, containers and profiles of the cluster. There is one profile per container image: `apptainer` (standard image; bayesprism, bisque, dwls, music, scaden, scdc), `autogenes`, `rectangle`, and `cibersortx` (local Docker). Simulation and subsampling always run in the standard image, so that all methods deconvolve the same simulated datasets. All Slurm jobs go to the `exbio-cpu` partition: AutoGeneS gives different results on `compms-cpu-1`, the other node of the default partition.
 - `configs/<experiment>.config` - the parameters of one experiment; includes `conf/norm.config`.
 - `scripts/run.sh <config> <profile> [<workflow>] [nextflow options]` - starts a workflow, e.g. `scripts/run.sh nextflow_norm_resolution rectangle simulation_resolution_analysis -resume`.
 

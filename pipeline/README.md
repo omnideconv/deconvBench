@@ -151,6 +151,8 @@ The **impact_missing_cell_types** workflow is run by using nextflow with the `-e
 
 This workflow excludes cell types from the scRNA-seq datasets (`single_cell_list`) and then deconvolves the bulk RNA-seq datasets(`bulk_list`) using the created signature matrices. The cell types to be excluded are controlled by the `cell_types_to_exclude` parameter. The workflow is repeated for each cell type in the list, where each time one cell type is excluded. `"-"` stands for a run in which no cell type is excluded.
 
+With `simulation_missing_cell_types = true` the workflow also simulates pseudo-bulk datasets (SIMULATE_BULK, with the same `simulation_*` parameters as the **simulation** workflow) and analyses them together with the datasets of `bulk_list`. A copy of the pseudo-bulk datasets is stored in `<preProcess_dir>/pseudo_bulk_missing_cell_types`.
+
 In the **impact_missing_cell_types** workflow following process is run:
 1. ANALYSIS_BULK_MISSING_CELL_TYPES - Excludes `cell_types_to_exclude` cell types from the `single_cell_list` scRNA-seq datasets and deconvolves the bulk RNA-seq datasets using the created signature matrices. Finally, the metrics for the deconvolution results are calculated.
 
@@ -318,6 +320,7 @@ The following sets of parameters are only used in the specified workflow.
 | ---------- | ------ | ---------------------------------- | -------------------------------- |
 | `results_dir_missing_cell_types` | path | absolute path to directory in which final results of the `impact_missing_cell_types` workflow are stored | `/path/to/impact_missing_cell_types/results/` |
 | `cell_types_to_exclude` | [string] | each of the cell types in the list will be a candidate for exclusion from the scRNA-seq dataset once; `"-"` excludes none | `["B cells","mDC","Monocytes","NK cells","T cells CD4 conv","-"]` |
+| `simulation_missing_cell_types` | boolean | optional; `true` also analyses pseudo-bulk datasets simulated from `simulation_sc_dataset` with `simulation_n_cells`, `simulation_n_samples`, `simulation_scenario` and `simulation_bias_type` | `false` |
 
 ## Input Formats
 The pipeline expects the input data to be in a specific format. The following sections describe the expected format for the scRNA-seq and bulk RNA-seq datasets.

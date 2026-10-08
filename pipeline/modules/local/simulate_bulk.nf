@@ -4,8 +4,9 @@ process SIMULATE_BULK {
       tag "${sc_name}-ncells${n_cells}-nsamples${n_samples}-${scenario}-${bias_type}"
       label 'process_default'
 
-      // simulated datasets are kept next to the real bulk datasets, as before
-      publishDir "${params.data_dir_bulk}", mode: 'copy'
+      // Simulated datasets are kept next to the real bulk datasets, as before. The missing-cell-types
+      // workflow simulates from any reference and keeps them with the other preprocessed datasets.
+      publishDir path: { task.process.startsWith('impact_missing_cell_types:') ? "${params.preProcess_dir}/pseudo_bulk_missing_cell_types" : params.data_dir_bulk }, mode: 'copy'
 
       input:
       tuple val(sc_name), path(sc_dir, stageAs: 'sc/*'), val(n_cells), val(n_samples), val(scenario), val(bias_type)

@@ -93,8 +93,17 @@ workflow impact_missing_cell_types {
 
   requireParams(['data_dir_sc', 'data_dir_bulk', 'results_dir_missing_cell_types', 'single_cell_list', 'bulk_list', 'cell_types_to_exclude', 'method_list', 'ncores'])
 
+  ch_bulk = datasetChannel(params.bulk_list, params.data_dir_bulk)
+
+  // optional: also deconvolve the pseudo-bulks that SIMULATE_BULK creates from simulation_sc_dataset
+  if (params.containsKey('simulation_missing_cell_types') && params.simulation_missing_cell_types) {
+    requireParams(['preProcess_dir', 'simulation_sc_dataset', 'simulation_n_cells', 'simulation_n_samples', 'simulation_scenario', 'simulation_bias_type'])
+    SIMULATE_BULK(simulationInput(params.simulation_scenario, params.simulation_bias_type))
+    ch_bulk = ch_bulk.mix(SIMULATE_BULK.out.bulk)
+  }
+
   ANALYSIS_BULK_MISSING_CELL_TYPES(datasetChannel(params.single_cell_list, params.data_dir_sc)
-                                     .combine(datasetChannel(params.bulk_list, params.data_dir_bulk))
+                                     .combine(ch_bulk)
                                      .combine(channel.fromList(params.method_list))
                                      .combine(channel.fromList(params.cell_types_to_exclude)))
 }

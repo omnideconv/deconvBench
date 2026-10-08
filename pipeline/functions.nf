@@ -56,9 +56,29 @@ def deconvolutionMeta(method, sc_name, bulk_name, preprocessed, share_signatures
     ]
 }
 
-// [name, directory] of datasets that are stored as <base_dir>/<name>
+// File whose name carries the state of the files of a dataset (paths, sizes, modification times).
+// Nextflow notices a change of a directory input only when files are added to or removed from it.
+// With this file among the inputs, -resume also re-runs the tasks of a dataset in which a file
+// was replaced.
+def datasetStamp(dir) {
+    def entries = []
+    dir.eachFileRecurse { f -> entries << "${dir.relativize(f)}:${f.size()}:${f.lastModified()}".toString() }
+    def listing = entries.sort().join('\n') + '\n'
+    def stamp = file("${workflow.workDir}/dataset_stamps/${dir.name}.${listing.md5()}.stamp")
+    if (!stamp.exists()) {
+        stamp.parent.mkdirs()
+        stamp.text = listing
+    }
+    return stamp
+}
+
+// [name, [directory, stamp file]] of datasets that are stored as <base_dir>/<name>
+// The processes stage both next to each other, e.g. sc/<name>/ and sc/<name>.<hash>.stamp.
 def datasetChannel(names, base_dir) {
-    return channel.fromList(names).map { name -> [name, datasetDir(base_dir, name)] }
+    return channel.fromList(names).map { name ->
+        def dir = datasetDir(base_dir, name)
+        [name, [dir, datasetStamp(dir)]]
+    }
 }
 
 // input of SIMULATE_BULK: every combination of simulation dataset, number of cells and number of samples

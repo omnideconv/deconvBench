@@ -81,9 +81,47 @@ def datasetChannel(names, base_dir) {
     }
 }
 
+// Is a dataset that is used for the simulation and as reference split by donor?
+def splitEnabled() {
+    return params.containsKey('split_reference') && params.split_reference
+}
+
+// value of a split parameter, or its default if the config does not set it
+def splitSetting(name) {
+    def defaults = [split_fraction_simulation: 0.5, split_min_cells: 50, split_min_cells_action: 'error', split_seed: 1, split_reference_cells_fraction: 1]
+    return params.containsKey(name) && params[name] != null ? params[name] : defaults[name]
+}
+
+// folder of a split in <preProcess_dir>/reference_split; the same parameters give the same folder
+def splitFolder(sc_name) {
+    return "${sc_name}_simulation${splitSetting('split_fraction_simulation')}_mincells${splitSetting('split_min_cells')}_seed${splitSetting('split_seed')}_cells${splitSetting('split_reference_cells_fraction')}"
+}
+
+// Names of the datasets from which pseudo-bulks are simulated. With split_reference the
+// references are used if simulation_sc_dataset is not set.
+def simulationDatasets() {
+    if (params.containsKey('simulation_sc_dataset') && params.simulation_sc_dataset != null) {
+        return params.simulation_sc_dataset
+    }
+    if (splitEnabled() && params.containsKey('single_cell_list') && params.single_cell_list != null) {
+        return params.single_cell_list
+    }
+    error "The config does not set: simulation_sc_dataset"
+}
+
+// names of the datasets that have both roles and are therefore split; none without split_reference
+def datasetsToSplit(simulation_names, reference_names) {
+    if (!splitEnabled()) {
+        return []
+    }
+    requireParams(['preProcess_dir'])
+    return simulation_names.intersect(reference_names)
+}
+
 // input of SIMULATE_BULK: every combination of simulation dataset, number of cells and number of samples
-def simulationInput(scenarios, bias_types) {
-    return datasetChannel(params.simulation_sc_dataset, params.data_dir_sc)
+// ch_simulation emits [name, directory]
+def simulationInput(ch_simulation, scenarios, bias_types) {
+    return ch_simulation
         .combine(channel.fromList(params.simulation_n_cells))
         .combine(channel.fromList(params.simulation_n_samples))
         .combine(channel.fromList(scenarios))

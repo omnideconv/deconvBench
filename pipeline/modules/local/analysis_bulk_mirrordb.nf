@@ -1,4 +1,4 @@
-include { publishedResult } from '../../functions'
+include { publishedResult; methodSettings } from '../../functions'
 
 // Deconvolve a real bulk dataset with each reference of the impact-technology analysis.
 process ANALYSIS_BULK_MIRRORDB {
@@ -18,6 +18,6 @@ process ANALYSIS_BULK_MIRRORDB {
 
       script:
       """
-      analysisNF_mixed_simulations_real_dataset.R '${sc_name}' 'sc' '${bulk_name}' 'bulk' 'preprocess' '${method}' "\$PWD/out" '${params.ncores}' '${projectDir}'
+      analysisNF_mixed_simulations_real_dataset.R '${sc_name}' 'sc' '${bulk_name}' 'bulk' 'preprocess' '${method}' "\$PWD/out" '${params.ncores}' '${projectDir}'${methodSettings(method)}
       """
 }

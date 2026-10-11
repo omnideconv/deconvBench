@@ -34,6 +34,116 @@ rectangle_reference <- function(sc_matrix, annotations){
                    var = data.frame('genes' = rownames(sc_matrix), row.names = rownames(sc_matrix)))
 }
 
+# Settings of a method that the workflow passes as text, e.g. 'marker_fraction=0.1;other=x',
+# as a named list. An absent argument gives an empty list.
+parse_method_settings <- function(x){
+  if(is.null(x) || is.na(x) || x == ''){
+    return(list())
+  }
+  pairs <- strsplit(strsplit(x, ';')[[1]], '=')
+  setNames(lapply(pairs, function(pair) pair[2]), sapply(pairs, function(pair) pair[1]))
+}
+
+# Groups of cell types for the hierarchical MuSiC (method 'music-hc'): a named vector
+# cell type -> group, derived from two annotations of the same cells. Returns NULL if the coarser
+# annotation does not group the cell types (a cell type in two groups, or no group with more than
+# one cell type).
+celltype_group_map <- function(annotations, coarser_annotations){
+  if(length(annotations) != length(coarser_annotations)){
+    return(NULL)
+  }
+  pairs <- unique(data.frame(cell_type = as.character(annotations), group = as.character(coarser_annotations), stringsAsFactors = FALSE))
+  if(any(duplicated(pairs$cell_type)) || length(unique(pairs$group)) == nrow(pairs)){
+    return(NULL)
+  }
+  setNames(pairs$group, pairs$cell_type)
+}
+
+# Group map for the annotation of a single-cell dataset, taken from the coarsest annotation level
+# stored with it (celltype_annotations_coarse.rds, then celltype_annotations_normal.rds).
+# Only read for 'music-hc'; NULL for every other method.
+read_celltype_groups <- function(method, sc_dir, annotations){
+  if(method != 'music-hc'){
+    return(NULL)
+  }
+  for(level in c('coarse', 'normal')){
+    level_file <- file.path(sc_dir, paste0('celltype_annotations_', level, '.rds'))
+    if(file.exists(level_file)){
+      groups <- celltype_group_map(annotations, readRDS(level_file))
+      if(!is.null(groups)){
+        message('music-hc: cell types are grouped by the ', level, ' annotation level')
+        return(groups)
+      }
+    }
+  }
+  stop(paste0('music-hc needs a coarser annotation level that groups the cell types ',
+              '(celltype_annotations_coarse.rds or celltype_annotations_normal.rds) in ', sc_dir))
+}
+
+# Hierarchical MuSiC (music_prop.cluster): the proportions of the groups are estimated first,
+# then the cell types inside each group. As in the MuSiC paper, genes with similar expression in
+# the cell types of a group are used for the first step and the remaining genes for the second.
+# The paper gives no threshold: for each group, the share marker_fraction of its expressed genes
+# with the highest coefficient of variation between the cell-type means goes to the second step
+# (parameter music_hc_marker_fraction). With very small shares the second step can fail with a
+# singular matrix (seen at 0.01 and 0.02 with the lambrechts reference).
+deconvolute_music_hc <- function(bulk_matrix, sc_matrix, annotations, sc_batch, celltype_groups,
+                                 marker_fraction = 0.1){
+  if(is.null(celltype_groups)){
+    stop('music-hc: no groups of cell types were passed (argument celltype_groups)')
+  }
+  cell_types <- unique(as.character(annotations))
+  if(!all(cell_types %in% names(celltype_groups))){
+    stop(paste0('music-hc: no group for cell type(s): ', paste(setdiff(cell_types, names(celltype_groups)), collapse = ', ')))
+  }
+  if(is.na(marker_fraction) || marker_fraction <= 0 || marker_fraction >= 1){
+    stop('music-hc: music_hc_marker_fraction has to be between 0 and 1')
+  }
+
+  # MuSiC calls Biobase functions without their namespace
+  require(Biobase)
+
+  sc_matrix <- as.matrix(sc_matrix)
+  pheno <- data.frame(batchId = sc_batch, cellType = as.character(annotations),
+                      cellGroup = unname(celltype_groups[as.character(annotations)]),
+                      row.names = colnames(sc_matrix), check.names = FALSE, stringsAsFactors = FALSE)
+  sc_eset <- Biobase::ExpressionSet(assayData = sc_matrix, phenoData = Biobase::AnnotatedDataFrame(pheno))
+  bulk_eset <- Biobase::ExpressionSet(assayData = as.matrix(bulk_matrix))
+
+  # group -> cell types
+  clusters_type <- split(cell_types, celltype_groups[cell_types])
+
+  # mean relative abundance of every gene in every cell type
+  theta <- MuSiC::music_basis(sc_eset, clusters = 'cellType', samples = 'batchId', select.ct = cell_types, verbose = FALSE)$M.theta
+  bulk_genes <- rownames(bulk_matrix)[rowMeans(as.matrix(bulk_matrix)) != 0]
+  theta <- theta[rownames(theta) %in% bulk_genes, , drop = FALSE]
+
+  group_markers <- lapply(clusters_type, function(types){
+    if(length(types) < 2){
+      return(NULL)
+    }
+    means <- theta[, types, drop = FALSE]
+    variation <- apply(means, 1, sd) / rowMeans(means)
+    variation <- sort(variation[is.finite(variation)], decreasing = TRUE)
+    names(variation)[seq_len(ceiling(marker_fraction * length(variation)))]
+  })
+  for(group in names(clusters_type)){
+    message('music-hc: group ', group, ' = ', paste(clusters_type[[group]], collapse = ', '),
+            ' (', length(group_markers[[group]]), ' genes for the cell types inside the group)')
+  }
+
+  MuSiC::music_prop.cluster(
+    bulk.eset = bulk_eset,
+    sc.eset = sc_eset,
+    group.markers = group_markers,
+    groups = 'cellGroup',
+    clusters = 'cellType',
+    samples = 'batchId',
+    clusters.type = clusters_type,
+    verbose = TRUE
+  )$Est.prop.weighted.cluster
+}
+
 # Add the cell-type sums that the ground truth of some bulk datasets needs (e.g. all T cell
 # subtypes as 'T cell'). The rules are listed in assets/celltype_aggregation.csv and applied in
 # the order of the file; a cell type marked with '?' is added only if the method estimated it.
@@ -342,7 +452,7 @@ signature_workflow_general <- function(sc_matrix, annotations, annotation_catego
       model_path = paste0(res_path, '/model'),
       verbose = TRUE
     )
-  } else if (method %in% c('autogenes', 'bayesprism', 'bisque', 'music', 'rectangle')){
+  } else if (method %in% c('autogenes', 'bayesprism', 'bisque', 'music', 'music-hc', 'rectangle')){
     signature <- NULL
       
   } else {
@@ -367,7 +477,8 @@ read_cibersortx_credentials <- function(credentials_file){
 # This function contains all the necessary steps to adapt omnideconv to the benchmarking workflow
 deconvolution_workflow_general <- function(sc_matrix, annotations, annotation_category, sc_ds, sc_norm, sc_batch, 
                                            signature, method, bulk_matrix, bulk_name, bulk_norm, ncores, res_path,
-                                           rmbatch_B_mode = FALSE, rmbatch_S_mode = FALSE, baseDir=NULL){
+                                           rmbatch_B_mode = FALSE, rmbatch_S_mode = FALSE, baseDir=NULL,
+                                           celltype_groups = NULL, method_settings = list()){
   
   # path to temporary directory that is inside results directory of one unique result 
   tmp_dir_path <- paste0(res_path, '/tmp/')
@@ -490,6 +601,11 @@ deconvolution_workflow_general <- function(sc_matrix, annotations, annotation_ca
       batch_ids = sc_batch,
       verbose = TRUE,
     )$Est.prop.weighted
+
+  } else if (method == "music-hc"){
+    marker_fraction <- if(is.null(method_settings$marker_fraction)) 0.1 else as.numeric(method_settings$marker_fraction)
+    deconvolution <- deconvolute_music_hc(bulk_matrix, sc_matrix, annotations, sc_batch, celltype_groups,
+                                          marker_fraction = marker_fraction)
 
   } else if (method == "scdc") {    
     deconvolution <- omnideconv::deconvolute_scdc(

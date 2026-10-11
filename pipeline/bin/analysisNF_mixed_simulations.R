@@ -9,7 +9,7 @@ library(tidyverse)
 reticulate::use_condaenv(condaenv = "r-omnideconv", required = TRUE)
 
 "Usage:
-  nalysisNF_mixed_simulations.R <sc_name> <sc_path> <bulk_name> <bulk_path> <preprocess_dir> <replicates> <deconv_method> <results_dir> <ncores> <baseDir>
+  analysisNF_mixed_simulations.R <sc_name> <sc_path> <bulk_name> <bulk_path> <preprocess_dir> <replicates> <deconv_method> <results_dir> <ncores> <baseDir> [<method_settings>]
 Options:
 <sc_name> name of sc datasets
 <sc_path> path to sc dataset
@@ -20,7 +20,8 @@ Options:
 <deconv_method>  deconv method
 <results_dir> results (base) directory
 <ncores> number of cores to use for method (if available)
-<baseDir> nextflow base directory" -> doc
+<baseDir> nextflow base directory
+<method_settings> settings of the method, e.g. marker_fraction=0.1 (optional)" -> doc
 
 
 args <- docopt::docopt(doc)
@@ -37,10 +38,13 @@ replicates <- as.numeric(args$replicates)
 baseDir <- args$baseDir
 
 source(paste0(baseDir, '/bin/utils.R'))
+method_settings <- parse_method_settings(args$method_settings)
 normalization <- method_normalization(baseDir, method)
 # Here we need to filter for those cell types that are in the simulated dataset. 
 common.cells <- readRDS(file.path(preprocess_dir, 'cell_types.rds'))
 sc_celltype_annotations <- readRDS(file.path(sc_path, sc_dataset, 'celltype_annotations.rds'))
+# groups of cell types, only used by the hierarchical MuSiC
+celltype_groups <- read_celltype_groups(method, file.path(sc_path, sc_dataset), sc_celltype_annotations)
 position_vector <- sc_celltype_annotations %in% common.cells
 sc_celltype_annotations <- sc_celltype_annotations[position_vector]
 
@@ -115,7 +119,9 @@ for(r in 1:replicates){
       ncores, 
       res_path_normal,
       rmbatch_S_mode = FALSE,
-      baseDir=baseDir
+      baseDir=baseDir,
+      celltype_groups = celltype_groups,
+      method_settings = method_settings
     )  
 
     true_fractions <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0('simulation_facs.rds')))

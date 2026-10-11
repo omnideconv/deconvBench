@@ -1,4 +1,4 @@
-include { publishedResult } from '../../functions'
+include { publishedResult; methodSettings } from '../../functions'
 
 // Deconvolve the single-cell-type pseudo-bulks with the full reference.
 process ANALYSIS_SPILLOVER {
@@ -18,6 +18,6 @@ process ANALYSIS_SPILLOVER {
 
       script:
       """
-      analysisNF_spillover.R '${sc_name}' 'sc' '${bulk_name}' 'bulk/${bulk_name}' '${method}' '${params.spillover_celltypes}' "\$PWD/out" '${params.ncores}' '${projectDir}'
+      analysisNF_spillover.R '${sc_name}' 'sc' '${bulk_name}' 'bulk/${bulk_name}' '${method}' '${params.spillover_celltypes}' "\$PWD/out" '${params.ncores}' '${projectDir}'${methodSettings(method)}
       """
 }

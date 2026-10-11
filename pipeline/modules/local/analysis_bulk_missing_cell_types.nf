@@ -1,4 +1,4 @@
-include { publishedResult } from '../../functions'
+include { publishedResult; methodSettings } from '../../functions'
 
 // Deconvolve a bulk dataset with a reference from which one cell type was removed.
 process ANALYSIS_BULK_MISSING_CELL_TYPES {
@@ -18,6 +18,6 @@ process ANALYSIS_BULK_MISSING_CELL_TYPES {
 
       script:
       """
-      analysisNF_missing_cell_type.R '${sc_name}' 'sc' '${bulk_name}' 'bulk' '${method}' '${cell_type}' "\$PWD/out" '${params.ncores}' '${projectDir}'
+      analysisNF_missing_cell_type.R '${sc_name}' 'sc' '${bulk_name}' 'bulk' '${method}' '${cell_type}' "\$PWD/out" '${params.ncores}' '${projectDir}'${methodSettings(method)}
       """
 }

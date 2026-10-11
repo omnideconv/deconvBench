@@ -1,4 +1,4 @@
-include { publishedResult } from '../../functions'
+include { publishedResult; methodSettings } from '../../functions'
 
 // Deconvolve the pseudo-bulks of SIMULATE_BULK_RESOLUTION_ANALYSIS with the reference annotated at each resolution.
 process ANALYSIS_BULK_RESOLUTION_ANALYSIS {
@@ -19,6 +19,6 @@ process ANALYSIS_BULK_RESOLUTION_ANALYSIS {
       script:
       bulk_name = "${sc_name}_resolution_analysis_sim"
       """
-      analysisNF_impact_cell_resolution.R '${sc_name}' 'sc' '${bulk_name}' 'bulk/${bulk_name}' '${method}' '${params.cell_types_finer_res}' '${replicates}' "\$PWD/out" '${params.ncores}' '${projectDir}'
+      analysisNF_impact_cell_resolution.R '${sc_name}' 'sc' '${bulk_name}' 'bulk/${bulk_name}' '${method}' '${params.cell_types_finer_res}' '${replicates}' "\$PWD/out" '${params.ncores}' '${projectDir}'${methodSettings(method)}
       """
 }

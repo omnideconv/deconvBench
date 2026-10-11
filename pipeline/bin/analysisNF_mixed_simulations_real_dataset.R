@@ -9,7 +9,7 @@ library(tidyverse)
 reticulate::use_condaenv(condaenv = "r-omnideconv", required = TRUE)
 
 "Usage:
-  analysisNF_mixed_simulations_real_dataset.R <sc_name> <sc_path> <bulk_name> <bulk_path> <preprocess_dir> <deconv_method> <results_dir> <ncores> <baseDir>
+  analysisNF_mixed_simulations_real_dataset.R <sc_name> <sc_path> <bulk_name> <bulk_path> <preprocess_dir> <deconv_method> <results_dir> <ncores> <baseDir> [<method_settings>]
 Options:
 <sc_name> name of sc datasets
 <sc_path> path to sc dataset
@@ -19,7 +19,8 @@ Options:
 <deconv_method>  deconv method
 <results_dir> results (base) directory
 <ncores> number of cores to use for method (if available)
-<baseDir> nextflow base directory" -> doc
+<baseDir> nextflow base directory
+<method_settings> settings of the method, e.g. marker_fraction=0.1 (optional)" -> doc
 
 args <- docopt::docopt(doc)
 
@@ -34,11 +35,14 @@ ncores <- as.numeric(args$ncores) # in case a method can use multiple cores
 baseDir <- args$baseDir
 
 source(paste0(baseDir, '/bin/utils.R'))
+method_settings <- parse_method_settings(args$method_settings)
 normalization <- method_normalization(baseDir, method)
 # Here we need to filter for those cell types that are in the simulated dataset. 
 
 #common.cells <- c('B cells', 'Tregs', 'T cells CD8', 'Macrophages', 'Mast cells', 'Monocytes', 'T cells CD4 conv', 'NK cells', 'Neutrophils', 'Stromal cells')
 sc_celltype_annotations <- readRDS(file.path(sc_path, sc_dataset, 'celltype_annotations.rds'))
+# groups of cell types, only used by the hierarchical MuSiC
+celltype_groups <- read_celltype_groups(method, file.path(sc_path, sc_dataset), sc_celltype_annotations)
 #position_vector <- sc_celltype_annotations %in% common.cells
 #sc_celltype_annotations <- sc_celltype_annotations[position_vector]
 
@@ -113,7 +117,9 @@ deconvolution <- deconvolution_workflow_general(
   res_path_normal,
   rmbatch_S_mode = FALSE,
   rmbatch_B_mode = FALSE,
-  baseDir=baseDir
+  baseDir=baseDir,
+  celltype_groups = celltype_groups,
+  method_settings = method_settings
 ) 
 
 true_fractions <- readRDS(file.path(bulk_path, bulk_name, paste0(bulk_name, '_facs.rds')))

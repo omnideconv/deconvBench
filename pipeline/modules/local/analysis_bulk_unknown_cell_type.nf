@@ -1,4 +1,4 @@
-include { publishedResult } from '../../functions'
+include { publishedResult; methodSettings } from '../../functions'
 
 // Deconvolve the pseudo-bulks of SIMULATE_BULK_UNKNOWN_CELL_TYPE with a reference of the known cell types.
 process ANALYSIS_BULK_UNKNOWN_CELL_TYPE {
@@ -18,6 +18,6 @@ process ANALYSIS_BULK_UNKNOWN_CELL_TYPE {
       script:
       bulk_name = "${sc_name}_unknown_content_sim"
       """
-      analysisNF_unknown_content.R '${sc_name}' 'sc' '${bulk_name}' 'bulk/${bulk_name}' '${replicates}' '${method}' '${params.fractions_unknown_cells}' '${params.known_cell_types}' '${unknown_cell_type}' "\$PWD/out" '${params.ncores}' '${projectDir}'
+      analysisNF_unknown_content.R '${sc_name}' 'sc' '${bulk_name}' 'bulk/${bulk_name}' '${replicates}' '${method}' '${params.fractions_unknown_cells}' '${params.known_cell_types}' '${unknown_cell_type}' "\$PWD/out" '${params.ncores}' '${projectDir}'${methodSettings(method)}
       """
 }

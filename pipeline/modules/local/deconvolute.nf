@@ -1,4 +1,4 @@
-include { publishedResult } from '../../functions'
+include { publishedResult; methodSettings } from '../../functions'
 
 // Deconvolve one bulk dataset with one method and publish the result directory.
 // The files of the signature step are staged in signature/ and copied into the result by the
@@ -19,6 +19,6 @@ process DECONVOLUTE {
 
       script:
       """
-	runDeconvolutionNF.R '${meta.sc}' 'sc' '${meta.bulk}' 'bulk' '${meta.method}' 'out' '${meta.preprocessed}' '0' '0' '${params.species_sc}' '${params.ncores}' '${projectDir}' 'signature'
+	runDeconvolutionNF.R '${meta.sc}' 'sc' '${meta.bulk}' 'bulk' '${meta.method}' 'out' '${meta.preprocessed}' '0' '0' '${params.species_sc}' '${params.ncores}' '${projectDir}' 'signature'${methodSettings(meta.method)}
 	"""
 }

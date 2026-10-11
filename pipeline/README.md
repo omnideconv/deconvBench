@@ -254,6 +254,7 @@ A dedicated description of the input file formats can be found [below](#input-fo
 | `single_cell_list` | [string] | list of scRNA-seq dataset names that will be used for deconvolution. Details for naming conventions are found [below](#input-formats). | `["hao-complete", "hao-sampled-3"]` |
 | `bulk_list` | [string] |   list of RNA-seq dataset names that will be used for deconvolution. Details for naming conventions are found [below](#input-formats).                        |    `["finotello", "finotello-simulation"]`      |
 | `method_list` | [string] |  list of method names that are used for deconvolution. Possible values are the methods in `optimal_normalizations.csv`: `["autogenes","bayesprism","bisque","cibersortx"` `,"dwls","music","rectangle","scaden","scdc"]`                         |    `["music","bayesprism"]`       |
+| `music_hc_marker_fraction` | float | optional, only for the method `music-hc`: share of the genes of a group that is used for the cell types inside the group (default 0.1) | `0.1` |
 
 ### Simulation Parameters
 
@@ -366,6 +367,7 @@ The scripts in `visualisation/` read method and dataset names from these folder 
 |cibersortx|cpm|tpm|sc|
 |dwls|counts|tpm|sc|
 |music|counts|tpm|none|
+|music-hc|counts|tpm|none|
 |scaden|counts|tpm|sc+bulk|
 |scdc|counts|tpm|sc|
 |rectangle|counts|tpm|none|
@@ -379,6 +381,14 @@ Each deconvolution method has a recommended set of normalization procedures, bot
 - `none` - the method does not build a signature. No signature task is run.
 
 To add a method, add a row to this table and a branch for it in `signature_workflow_general` and `deconvolution_workflow_general` in `bin/utils.R`.
+
+### music-hc
+
+`music-hc` is the hierarchical MuSiC (`music_prop.cluster`): it first estimates the proportions of groups of closely related cell types and then the proportions of the cell types inside each group.
+
+- **Groups.** They are taken from the annotation levels of the scRNA-seq dataset: the cell types of `celltype_annotations.rds` are grouped by `celltype_annotations_coarse.rds` or, if that file is missing or does not group them, by `celltype_annotations_normal.rds`. A dataset without such a level cannot be used with `music-hc`; the task stops with a message. In the **simulation_resolution_analysis** workflow each level is grouped by the coarsest of the coarser levels; at the coarsest level every cell type is its own group, which gives the result of `music`.
+- **Genes.** As in the MuSiC paper, genes with similar expression in the cell types of a group are used for the group proportions and the remaining genes for the cell types inside the group. The paper gives no threshold. Here, for each group, the 10 % of its expressed genes with the highest coefficient of variation between the cell-type means are used inside the group. Change the share with the parameter `music_hc_marker_fraction`. With very small shares (0.01 and 0.02 with the lambrechts reference) the step inside the groups can fail with a singular matrix.
+- **Running it.** `music-hc` runs in the standard image. Add it to `method_list`, e.g. `profiles { apptainer { params.method_list = ["music","music-hc"] } }`.
 
 ## Tests
 

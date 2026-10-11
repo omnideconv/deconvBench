@@ -9,7 +9,7 @@ library(tidyverse)
 reticulate::use_condaenv(condaenv = "r-omnideconv", required = TRUE)
 
 "Usage:
-  analysisNF_unknown_content.R <sc_name> <sc_path> <bulk_name> <bulk_path> <replicate> <deconv_method> <fraction_unknown_cells> <cell_types> <unknown_cell_type> <results_dir> <ncores> <baseDir>
+  analysisNF_unknown_content.R <sc_name> <sc_path> <bulk_name> <bulk_path> <replicate> <deconv_method> <fraction_unknown_cells> <cell_types> <unknown_cell_type> <results_dir> <ncores> <baseDir> [<method_settings>]
 Options:
 <sc_name> name of sc datasets
 <sc_path> path to sc dataset
@@ -22,7 +22,8 @@ Options:
 <unknown_cell_type> string, which cell type will be treated as unknown (i.e. not in the signature)
 <results_dir> results (base) directory
 <ncores> number of cores to use for method (if available)
-<baseDir> nextflow base directory" -> doc
+<baseDir> nextflow base directory
+<method_settings> settings of the method, e.g. marker_fraction=0.1 (optional)" -> doc
 
 args <- docopt::docopt(doc)
 
@@ -37,6 +38,7 @@ replicates <- as.numeric(args$replicate)
 baseDir <- args$baseDir
 
 source(paste0(baseDir, '/bin/utils.R'))
+method_settings <- parse_method_settings(args$method_settings)
 normalization <- method_normalization(baseDir, method)
 sc_norm <- normalization$sc_norm
 bulk_norm <- normalization$bulk_norm
@@ -44,6 +46,8 @@ bulk_norm <- normalization$bulk_norm
 sc_matrix <- read_sc_matrix(sc_path, sc_dataset, sc_norm)
 
 sc_celltype_annotations <- readRDS(file.path(sc_path, sc_dataset, 'celltype_annotations.rds'))
+# groups of cell types, only used by the hierarchical MuSiC
+celltype_groups <- read_celltype_groups(method, file.path(sc_path, sc_dataset), sc_celltype_annotations)
 sc_batch <- readRDS(file.path(sc_path, sc_dataset, 'batch.rds'))
 
 unknown_cell_type <- args$unknown_cell_type
@@ -117,7 +121,9 @@ for(cur_cell_fraction in fractions_unknown){
       bulk_norm, 
       ncores, 
       res_path_normal,
-      baseDir=baseDir
+      baseDir=baseDir,
+      celltype_groups = celltype_groups,
+      method_settings = method_settings
     )  
 
     results_list = list(

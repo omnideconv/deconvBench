@@ -9,7 +9,7 @@ library(tidyverse)
 reticulate::use_condaenv(condaenv = "r-omnideconv", required = TRUE)
 
 "Usage:
-  analysisNF_missing_cell_type.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <missing_cell_type> <results_dir> <ncores> <baseDir>
+  analysisNF_missing_cell_type.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <missing_cell_type> <results_dir> <ncores> <baseDir> [<method_settings>]
 Options:
 <sc_name> name of sc datasets
 <sc_path> path to sc dataset
@@ -19,7 +19,8 @@ Options:
 <missing_cell_type> cell type to be removed from the signature
 <results_dir> results (base) directory
 <ncores> number of cores to use for method (if available)
-<baseDir> nextflow base directory" -> doc
+<baseDir> nextflow base directory
+<method_settings> settings of the method, e.g. marker_fraction=0.1 (optional)" -> doc
 
 args <- docopt::docopt(doc)
 
@@ -33,12 +34,15 @@ ncores <- as.numeric(args$ncores) # in case a method can use multiple cores
 baseDir <- args$baseDir
 
 source(paste0(baseDir, '/bin/utils.R'))
+method_settings <- parse_method_settings(args$method_settings)
 normalization <- method_normalization(baseDir, method)
 sc_norm <- normalization$sc_norm
 bulk_norm <- normalization$bulk_norm
 
 sc_matrix <- read_sc_matrix(sc_path, sc_dataset, sc_norm)
 sc_celltype_annotations <- readRDS(file.path(sc_path, sc_dataset, 'celltype_annotations.rds'))
+# groups of cell types, only used by the hierarchical MuSiC
+celltype_groups <- read_celltype_groups(method, file.path(sc_path, sc_dataset), sc_celltype_annotations)
 sc_batch <- readRDS(file.path(sc_path, sc_dataset, 'batch.rds'))
 
 bulk_matrix <- read_bulk_matrix(file.path(bulk_path, bulk_name), bulk_name, bulk_norm)
@@ -110,7 +114,9 @@ deconvolution <- deconvolution_workflow_general(
   ncores, 
   res_path_normal,
   rmbatch_S_mode = FALSE,
-  baseDir=baseDir
+  baseDir=baseDir,
+  celltype_groups = celltype_groups,
+  method_settings = method_settings
 )
 
 colnames(deconvolution) <- gsub("xxxx", " ", colnames(deconvolution))

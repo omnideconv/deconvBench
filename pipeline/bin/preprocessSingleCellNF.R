@@ -95,5 +95,12 @@ saveRDS(subset_matrix_counts, paste0(output_dir,'/matrix_counts.rds'))
 saveRDS(subset_matrix_cpm, paste0(output_dir,'/matrix_norm_counts.rds'))
 saveRDS(subset_annot, paste0(output_dir,'/celltype_annotations.rds'))
 saveRDS(subset_batch, paste0(output_dir,'/batch.rds'))
+# further annotation levels of the dataset, for methods that use them (hierarchical MuSiC)
+for(level_file in list.files(file.path(sc_path, sc_dataset), pattern = '^celltype_annotations_.*\\.rds$')){
+  level_annotations <- readRDS(file.path(sc_path, sc_dataset, level_file))
+  if(length(level_annotations) == total_cells){
+    saveRDS(level_annotations[anno_subset$index], file.path(output_dir, level_file))
+  }
+}
 
 cat(paste0("Preprocessed sc_matrix file stored in '", output_dir, "'\n"))

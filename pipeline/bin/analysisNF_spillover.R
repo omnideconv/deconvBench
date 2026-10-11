@@ -8,7 +8,7 @@ sessionInfo()
 reticulate::py_config()
 
 "Usage:
-  analysisNF_spillover.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <cell_types> <results_dir> <ncores> <baseDir>
+  analysisNF_spillover.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <cell_types> <results_dir> <ncores> <baseDir> [<method_settings>]
 Options:
 <sc_name> name of sc datasets
 <sc_path> path to sc dataset
@@ -18,7 +18,8 @@ Options:
 <cell_types> cell types used in the simulation
 <results_dir> results (base) directory
 <ncores> number of cores to use for method (if available)
-<baseDir> nextflow base directory" -> doc
+<baseDir> nextflow base directory
+<method_settings> settings of the method, e.g. marker_fraction=0.1 (optional)" -> doc
 
 
 args <- docopt::docopt(doc)
@@ -33,6 +34,7 @@ ncores <- as.numeric(args$ncores) # in case a method can use multiple cores
 baseDir <- args$baseDir
 
 source(paste0(baseDir, '/bin/utils.R'))
+method_settings <- parse_method_settings(args$method_settings)
 normalization <- method_normalization(baseDir, method)
 sc_norm <- normalization$sc_norm
 bulk_norm <- normalization$bulk_norm
@@ -41,6 +43,8 @@ print(paste0('Method: ', method, '; sc-norm: ', sc_norm, '; bulk-norm: ', bulk_n
 sc_matrix <- read_sc_matrix(sc_path, sc_dataset, sc_norm)
 
 sc_celltype_annotations <- readRDS(file.path(sc_path, sc_dataset, 'celltype_annotations.rds'))
+# groups of cell types, only used by the hierarchical MuSiC
+celltype_groups <- read_celltype_groups(method, file.path(sc_path, sc_dataset), sc_celltype_annotations)
 sc_batch <- readRDS(file.path(sc_path, sc_dataset, 'batch.rds'))
 
 # Here we need to filter for those cell types that are in the simulated dataset. 
@@ -97,7 +101,9 @@ deconvolution <- deconvolution_workflow_general(
   bulk_norm, 
   ncores, 
   res_path_normal,
-  baseDir=baseDir
+  baseDir=baseDir,
+  celltype_groups = celltype_groups,
+  method_settings = method_settings
 )
 
 true_fractions <- readRDS(file.path(bulk_path, paste0(bulk_name, '_facs.rds')))

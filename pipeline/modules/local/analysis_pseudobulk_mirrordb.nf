@@ -1,4 +1,4 @@
-include { publishedResult } from '../../functions'
+include { publishedResult; methodSettings } from '../../functions'
 
 // Deconvolve the pseudo-bulks of one dataset with the reference of another (or the same) dataset.
 process ANALYSIS_PSEUDOBULK_MIRRORDB {
@@ -19,6 +19,6 @@ process ANALYSIS_PSEUDOBULK_MIRRORDB {
 
       script:
       """
-      analysisNF_mixed_simulations.R '${sc_name}' 'sc' '${bulk_name}' 'bulk/${bulk_name}' 'preprocess' '${replicates}' '${method}' "\$PWD/out" '${params.ncores}' '${projectDir}'
+      analysisNF_mixed_simulations.R '${sc_name}' 'sc' '${bulk_name}' 'bulk/${bulk_name}' 'preprocess' '${replicates}' '${method}' "\$PWD/out" '${params.ncores}' '${projectDir}'${methodSettings(method)}
       """
 }

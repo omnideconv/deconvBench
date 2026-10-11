@@ -136,6 +136,17 @@ def metricsInput(ch_input, ch_results) {
         .join(ch_results.map { meta, files -> [meta, files.findAll { f -> f.name in needed && f.parent.name == 'out' }] })
 }
 
+// Settings of a method, passed to its script as last argument, e.g. " 'marker_fraction=0.1'".
+// Empty for methods without settings, so that their commands stay as they are. Being part of the
+// command, a changed setting re-runs the tasks of the method.
+def methodSettings(method) {
+    if (method == 'music-hc') {
+        def fraction = params.containsKey('music_hc_marker_fraction') ? params.music_hc_marker_fraction : 0.1
+        return " 'marker_fraction=${fraction}'"
+    }
+    return ''
+}
+
 // Name under which a file from the out/ directory of a task is published.
 // Scratch files of the methods (tmp/ directories) are not published.
 def publishedResult(filename) {

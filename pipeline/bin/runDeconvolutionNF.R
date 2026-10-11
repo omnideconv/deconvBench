@@ -8,7 +8,7 @@ sessionInfo()
 reticulate::py_config()
 
 "Usage:
-  runDeconvolutionNF.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <results_dir> <run_preprocessing> <replicate> <subset_value> <species> <ncores> <baseDir> <signature_dir>
+  runDeconvolutionNF.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <results_dir> <run_preprocessing> <replicate> <subset_value> <species> <ncores> <baseDir> <signature_dir> [<method_settings>]
 Options:
 <sc_name> name of sc datasets
 <sc_path> path to sc dataset
@@ -22,7 +22,8 @@ Options:
 <species> type of species
 <ncores> number of cores to use for method (if available)
 <baseDir> nextflow base directory
-<signature_dir> directory with the files of the signature step; does not exist if no signature step was run" -> doc
+<signature_dir> directory with the files of the signature step; does not exist if no signature step was run
+<method_settings> settings of the method, e.g. marker_fraction=0.1 (optional)" -> doc
 
 args <- docopt::docopt(doc)
 
@@ -36,6 +37,7 @@ res_base_path <- args$results_dir
 baseDir <- args$baseDir
 
 source(paste0(baseDir, '/bin/utils.R'))
+method_settings <- parse_method_settings(args$method_settings)
 normalization <- method_normalization(baseDir, method)
 sc_norm <- normalization$sc_norm
 bulk_norm <- normalization$bulk_norm
@@ -65,6 +67,8 @@ if(args$run_preprocessing == 'true'){
 # read scRNA-seq count matrix
 sc_matrix <- read_sc_matrix(sc_path, sc_dataset, sc_norm)
 sc_celltype_annotations <- readRDS(file.path(sc_path, sc_dataset, 'celltype_annotations.rds'))
+# groups of cell types, only used by the hierarchical MuSiC
+celltype_groups <- read_celltype_groups(method, file.path(sc_path, sc_dataset), sc_celltype_annotations)
 sc_batch <- readRDS(file.path(sc_path, sc_dataset, 'batch.rds'))
 
 # read bulk expression matrix
@@ -173,7 +177,9 @@ runtime <- system.time({
     res_path,
     rmbatch_S_mode = FALSE,
     rmbatch_B_mode = FALSE,
-    baseDir=baseDir
+    baseDir=baseDir,
+    celltype_groups = celltype_groups,
+    method_settings = method_settings
   )
 
 })

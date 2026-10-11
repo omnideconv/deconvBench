@@ -9,7 +9,7 @@ library(tidyverse)
 reticulate::use_condaenv(condaenv = "r-omnideconv", required = TRUE)
 
 "Usage:
-  analysisNF_impact_cell_resolution.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <cell_types_fine> <replicates> <results_dir> <ncores> <baseDir>
+  analysisNF_impact_cell_resolution.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <cell_types_fine> <replicates> <results_dir> <ncores> <baseDir> [<method_settings>]
 Options:
 <sc_name> name of sc datasets
 <sc_path> path to sc dataset
@@ -20,7 +20,8 @@ Options:
 <replicates> number of replicates
 <results_dir> results (base) directory
 <ncores> number of cores to use for method (if available)
-<baseDir> nextflow base directory" -> doc
+<baseDir> nextflow base directory
+<method_settings> settings of the method, e.g. marker_fraction=0.1 (optional)" -> doc
 
 args <- docopt::docopt(doc)
 
@@ -35,6 +36,7 @@ replicates <- as.numeric(args$replicates)
 baseDir <- args$baseDir
 
 source(paste0(baseDir, '/bin/utils.R'))
+method_settings <- parse_method_settings(args$method_settings)
 normalization <- method_normalization(baseDir, method)
 sc_norm <- normalization$sc_norm
 bulk_norm <- normalization$bulk_norm
@@ -107,6 +109,27 @@ sc_celltype_annotations_fine <- subset_list$annotations_fine
 # signature_bulk is only used by methods that build their signature with a bulk matrix (Scaden).
 deconvolve_at_resolution <- function(annotations, level, res_path, signature_bulk){
 
+  # The hierarchical MuSiC groups the cell types by the coarsest of the coarser levels. At the
+  # coarsest level itself every cell type is its own group, which is the same as plain MuSiC.
+  celltype_groups <- NULL
+  if(method == 'music-hc'){
+    coarser_levels <- list()
+    if(level != 'coarse' && run_coarse){
+      coarser_levels$coarse <- sc_celltype_annotations_coarse
+    }
+    if(level == 'fine'){
+      coarser_levels$normal <- sc_celltype_annotations
+    }
+    for(coarser in coarser_levels){
+      if(is.null(celltype_groups)){
+        celltype_groups <- celltype_group_map(annotations, coarser)
+      }
+    }
+    if(is.null(celltype_groups)){
+      celltype_groups <- setNames(unique(annotations), unique(annotations))
+    }
+  }
+
   signature <- signature_workflow_general(
     sc_matrix, 
     annotations,
@@ -150,7 +173,9 @@ deconvolve_at_resolution <- function(annotations, level, res_path, signature_bul
       bulk_norm, 
       ncores, 
       res_path,
-      baseDir=baseDir
+      baseDir=baseDir,
+      celltype_groups = celltype_groups,
+      method_settings = method_settings
     )
 
     true_fractions <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0(bulk_name, '_', level, '_annot_facs.rds')))

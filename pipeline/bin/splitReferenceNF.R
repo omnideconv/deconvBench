@@ -139,6 +139,11 @@ for(file_name in per_cell_files){
     cat(paste0('Not split, because it does not have one entry per cell: ', file_name, '\n'))
     next
   }
+  # Factors are written as character vectors: a factor would keep the donors and cell types of the
+  # other part as empty levels, which several methods cannot handle.
+  if(is.factor(values)){
+    values <- as.character(values)
+  }
   for(part_name in names(part_dirs)){
     saveRDS(values[part == part_name], file.path(part_dirs[[part_name]], file_name))
   }

@@ -40,10 +40,11 @@ sc_norm <- normalization$sc_norm
 bulk_norm <- normalization$bulk_norm
 
 sc_matrix <- read_sc_matrix(sc_path, sc_dataset, sc_norm)
-sc_celltype_annotations <- readRDS(file.path(sc_path, sc_dataset, 'celltype_annotations.rds'))
+# as character: in a factor the removed cell type would stay as an empty level
+sc_celltype_annotations <- as.character(readRDS(file.path(sc_path, sc_dataset, 'celltype_annotations.rds')))
 # groups of cell types, only used by the hierarchical MuSiC
 celltype_groups <- read_celltype_groups(method, file.path(sc_path, sc_dataset), sc_celltype_annotations)
-sc_batch <- readRDS(file.path(sc_path, sc_dataset, 'batch.rds'))
+sc_batch <- as.character(readRDS(file.path(sc_path, sc_dataset, 'batch.rds')))
 
 bulk_matrix <- read_bulk_matrix(file.path(bulk_path, bulk_name), bulk_name, bulk_norm)
 

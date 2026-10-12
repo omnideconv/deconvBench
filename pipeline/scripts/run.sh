@@ -49,6 +49,11 @@ fi
 # CIBERSORTx runs in Docker on this node and needs a work directory on a local disk
 if [ "$profile" == "cibersortx" ]; then
     work_dir=/localscratch/omnideconv_work
+    # The container user is not the owner of the pipeline files and has to read them and execute
+    # the scripts; a git checkout resets these permissions.
+    chmod o+rx "$pipeline_dir" "$pipeline_dir/bin" "$pipeline_dir/assets" 2> /dev/null
+    chmod o+r "$pipeline_dir"/*.csv "$pipeline_dir"/assets/* 2> /dev/null
+    chmod a+rx "$pipeline_dir"/bin/* 2> /dev/null
 else
     work_dir=/nfs/scratch/nf-core_work/omnideconv.benchmark
 fi

@@ -271,13 +271,13 @@ These parameters describe the pseudo-bulk datasets of all workflows that simulat
 
 ### Reference split by donor
 
-A workflow that simulates pseudo-bulks from the scRNA-seq dataset it also deconvolves with lets the same cells contribute to both. With `split_reference = true`, every dataset that has both roles (named in `simulation_sc_dataset` and in `single_cell_list`, or the one dataset of the **simulation_unknown_content** and **simulation_resolution_analysis** workflows) is split by donor: the cells of one part of the donors are used for the simulation, the cells of the other donors as reference of the methods. A dataset with only one role is used completely. If `simulation_sc_dataset` is not set, the datasets of `single_cell_list` are used for the simulation.
+A workflow that simulates pseudo-bulks from the scRNA-seq dataset it also deconvolves with lets the same cells contribute to both. With `split_reference = true`, every dataset that has both roles (named in `simulation_sc_dataset` and in `single_cell_list`, or the one dataset of the **simulation_unknown_content** and **simulation_resolution_analysis** workflows) is split by donor: the cells of one part of the donors are used for the simulation, the cells of the other donors as reference of the methods. A dataset with only one role is used completely. The **impact_missing_cell_types** workflow is the exception: there the references are split whenever the split is on, also if no pseudo-bulks are simulated, so that the methods get the same part of the reference as in the other workflows. If `simulation_sc_dataset` is not set, the datasets of `single_cell_list` are used for the simulation.
 
 | Name       | Type   | Description                             | Default                      |
 | ---------- | ------ | ---------------------------------- | -------------------------------- |
 | `split_reference` | boolean | split datasets that have both roles | `false` |
 | `split_fraction_simulation` | float | share of the donors whose cells go to the simulation, rounded to whole donors with at least one donor per part | `0.5` |
-| `split_min_cells` | int | minimum number of cells that every cell type needs in each part | `50` |
+| `split_min_cells` | int | minimum number of cells that every cell type needs in each part, at every annotation level of the dataset | `50` |
 | `split_min_cells_action` | string | what happens if a cell type has fewer cells: `error` stops the run, `warn` continues | `error` |
 | `split_seed` | int | seed of the donor assignment | `1` |
 | `split_reference_cells_fraction` | float | share of the cells of the method part that is kept, drawn within every cell type; use it for datasets that are too large for the methods | `1` |

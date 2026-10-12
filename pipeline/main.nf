@@ -127,15 +127,24 @@ workflow impact_missing_cell_types {
   ch_reference = datasetChannel(params.single_cell_list, params.data_dir_sc)
 
   // optional: also deconvolve the pseudo-bulks that SIMULATE_BULK creates from simulation_sc_dataset
-  if (params.containsKey('simulation_missing_cell_types') && params.simulation_missing_cell_types) {
+  simulate = params.containsKey('simulation_missing_cell_types') && params.simulation_missing_cell_types
+  simulation_names = []
+  if (simulate) {
     requireParams(['preProcess_dir', 'simulation_n_cells', 'simulation_n_samples', 'simulation_scenario', 'simulation_bias_type'])
     simulation_names = simulationDatasets()
-    SPLIT_DATASETS(datasetChannel(simulation_names, params.data_dir_sc),
-                   ch_reference,
-                   datasetChannel(datasetsToSplit(simulation_names, params.single_cell_list), params.data_dir_sc))
+  }
+
+  // With split_reference the references are split by donor in any case and the methods get the
+  // method part, as in the workflows that simulate; without pseudo-bulks the other part is not used.
+  split_names = simulate ? datasetsToSplit(simulation_names, params.single_cell_list) : datasetsToSplit(params.single_cell_list, params.single_cell_list)
+  SPLIT_DATASETS(datasetChannel(simulation_names, params.data_dir_sc),
+                 ch_reference,
+                 datasetChannel(split_names, params.data_dir_sc))
+  ch_reference = SPLIT_DATASETS.out.reference
+
+  if (simulate) {
     SIMULATE_BULK(simulationInput(SPLIT_DATASETS.out.simulation, params.simulation_scenario, params.simulation_bias_type))
     ch_bulk = ch_bulk.mix(SIMULATE_BULK.out.bulk)
-    ch_reference = SPLIT_DATASETS.out.reference
   }
 
   ANALYSIS_BULK_MISSING_CELL_TYPES(ch_reference

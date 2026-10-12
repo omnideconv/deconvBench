@@ -38,7 +38,13 @@ if(!min_cells_action %in% c('error', 'warn')){
   stop('split_min_cells_action has to be error or warn')
 }
 
-annotations <- as.character(readRDS(file.path(sc_dir, 'celltype_annotations.rds')))
+# The annotation of the dataset; datasets of the resolution analysis may only have the levels.
+annotation_files <- intersect(c('celltype_annotations.rds', 'celltype_annotations_normal.rds', 'celltype_annotations_fine.rds', 'celltype_annotations_coarse.rds'),
+                              list.files(sc_dir))
+if(length(annotation_files) == 0){
+  stop(paste0('No celltype_annotations file in ', sc_dir))
+}
+annotations <- as.character(readRDS(file.path(sc_dir, annotation_files[1])))
 n_cells <- length(annotations)
 
 # The donor of every cell: donor.rds if the dataset has one, otherwise batch.rds. A dataset whose
@@ -46,7 +52,7 @@ n_cells <- length(annotations)
 donor_file <- if(file.exists(file.path(sc_dir, 'donor.rds'))) 'donor.rds' else 'batch.rds'
 donors <- as.character(readRDS(file.path(sc_dir, donor_file)))
 if(length(donors) != n_cells){
-  stop(paste0(donor_file, ' has ', length(donors), ' entries, celltype_annotations.rds has ', n_cells))
+  stop(paste0(donor_file, ' has ', length(donors), ' entries, ', annotation_files[1], ' has ', n_cells))
 }
 donor_ids <- sort(unique(donors))
 if(length(donor_ids) < 2){
@@ -77,17 +83,29 @@ if(reference_cells_fraction < 1){
 part[!keep] <- 'not used'
 
 assignment <- data.frame(cell = seq_len(n_cells), donor = donors, cell_type = annotations, part = part, stringsAsFactors = FALSE)
-summary_table <- as.data.frame.matrix(table(factor(annotations), factor(part, levels = c('simulation', 'deconvolution', 'not used'))))
-summary_table <- cbind(cell_type = rownames(summary_table), summary_table)
+
+# cells of every cell type in each part, for every annotation level of the dataset
+summary_table <- NULL
+for(annotation_file in annotation_files){
+  level_annotations <- as.character(readRDS(file.path(sc_dir, annotation_file)))
+  if(length(level_annotations) != n_cells){
+    next
+  }
+  level_table <- as.data.frame.matrix(table(factor(level_annotations), factor(part, levels = c('simulation', 'deconvolution', 'not used'))))
+  summary_table <- rbind(summary_table, cbind(annotation = sub('\\.rds$', '', annotation_file), cell_type = rownames(level_table), level_table))
+}
+rownames(summary_table) <- NULL
 donor_table <- data.frame(donor = donor_ids, part = ifelse(donor_ids %in% simulation_donors, 'simulation', 'deconvolution'),
                           cells = as.vector(table(factor(donors, levels = donor_ids))))
 
 cat(paste0('Donors (', donor_file, '): ', n_simulation, ' for the simulation, ', length(donor_ids) - n_simulation, ' for the methods\n'))
 print(summary_table, row.names = FALSE)
 
-too_few <- summary_table$cell_type[summary_table$simulation < min_cells | summary_table$deconvolution < min_cells]
-if(length(too_few) > 0){
-  message_text <- paste0('Fewer than ', min_cells, ' cells in one part of the split of ', sc_dataset, ' for: ', paste(too_few, collapse = ', '),
+too_few <- summary_table[summary_table$simulation < min_cells | summary_table$deconvolution < min_cells, ]
+if(nrow(too_few) > 0){
+  too_few_text <- sapply(split(too_few$cell_type, too_few$annotation), paste, collapse = ', ')
+  message_text <- paste0('Fewer than ', min_cells, ' cells in one part of the split of ', sc_dataset, ' for: ',
+                         paste0(names(too_few_text), ': ', too_few_text, collapse = '; '),
                          '. Change split_seed, split_fraction_simulation or split_min_cells, or set split_min_cells_action to warn.')
   if(min_cells_action == 'error'){
     stop(message_text)
@@ -130,7 +148,7 @@ for(file_name in per_cell_files){
 for(file_name in c('matrix_counts.rds', 'matrix_norm_counts.rds')){
   expression <- readRDS(file.path(sc_dir, file_name))
   if(ncol(expression) != n_cells){
-    stop(paste0(file_name, ' has ', ncol(expression), ' columns, celltype_annotations.rds has ', n_cells, ' entries'))
+    stop(paste0(file_name, ' has ', ncol(expression), ' columns, ', annotation_files[1], ' has ', n_cells, ' entries'))
   }
   for(part_name in names(part_dirs)){
     saveRDS(expression[, part == part_name], file.path(part_dirs[[part_name]], file_name))
@@ -144,10 +162,10 @@ simbu_file <- file.path(sc_dir, 'simbu_ds.rds')
 if(file.exists(simbu_file)){
   simbu_ds <- readRDS(simbu_file)
   if(ncol(simbu_ds) != n_cells){
-    stop(paste0('simbu_ds.rds has ', ncol(simbu_ds), ' cells, celltype_annotations.rds has ', n_cells, ' entries'))
+    stop(paste0('simbu_ds.rds has ', ncol(simbu_ds), ' cells, ', annotation_files[1], ' has ', n_cells, ' entries'))
   }
   if(!all(as.character(SummarizedExperiment::colData(simbu_ds)$cell_type) == annotations)){
-    stop('The cell types in simbu_ds.rds are not in the order of celltype_annotations.rds')
+    stop(paste0('The cell types in simbu_ds.rds are not in the order of ', annotation_files[1]))
   }
   saveRDS(simbu_ds[, part == 'simulation'], file.path(part_dirs$simulation, 'simbu_ds.rds'))
 }

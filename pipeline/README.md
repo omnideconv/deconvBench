@@ -1,6 +1,6 @@
 # deconvBench: a nextflow pipeline to benchmark second-generation deconvolution methods using omnideconv
 
-For our effort to benchmark second-generation deconvolution methods, all included in [omnideconv](https://github.com/omnideconv/omnideconv), we implemented a nextflow pipeline that includes several workflows. These offer various simulation scenarios and the option to deconvolve real bulk RNA-seq datasets, all with different scRNA-seq datasets, deconvolution methods and other parameters.
+For our effort to benchmark second-generation deconvolution methods, most of them included in [omnideconv](https://github.com/omnideconv/omnideconv), we implemented a nextflow pipeline that includes several workflows. These offer various simulation scenarios and the option to deconvolve real bulk RNA-seq datasets, all with different scRNA-seq datasets, deconvolution methods and other parameters.
 A detailed description of the parameters and workflows follows below.
 
 ## Dependencies
@@ -13,7 +13,7 @@ In case you are working on a setup that does not allow the use of Docker, you ca
 docker pull alexd13/omnideconv_benchmark:latest
 apptainer build /location/of/new/image/omnideconv_benchmark.sif docker-daemon://alexd13/omnideconv_benchmark:latest
 ```
-Then adapt the path in the Apptainer profile of `nextflow.config` to the one specified above (i.e. `/location/of/new/image/omnideconv_benchmark.sif`) and use the 'apptainer' profile when running the pipeline. `docker/docker_to_singularity.sh` does both steps. `docker/update_rectangle.sh` creates a new rectangle image from an existing one with another version of rectanglepy.
+Then adapt the path in the Apptainer profile of `nextflow.config` to the one specified above (i.e. `/location/of/new/image/omnideconv_benchmark.sif`) and use the 'apptainer' profile when running the pipeline. `docker/docker_to_singularity.sh` does both steps. `docker/add_secret.sh` creates an image with the method SECRET from the standard image. `docker/update_rectangle.sh` creates a new rectangle image from an existing one with another version of rectanglepy.
 
 With Apptainer, the directories that hold your data, your results and the Nextflow work directory have to be bound into the container (`apptainer.runOptions = '--bind ...'`), because tasks read the outputs of other tasks from the work directory.
 
@@ -101,9 +101,9 @@ pipeline
 └── tests/                       regression tests
 ```
 
-Every process takes its datasets as input files and writes its results into its task directory; Nextflow then publishes them into the result directories. Because of this, `-resume` can be used safely: a task is run again if one of its input files changed.
+Every process takes its datasets as input files and writes its results into its task directory; Nextflow then publishes them into the result directories. Because of this, `-resume` can be used safely: a task is run again if one of its input files changed, also if a file was replaced inside a dataset directory.
 
-The processes are called directly from the workflows in `main.nf` and not through sub-workflows. This keeps the process names in the trace files short (e.g. `subsampling:DECONVOLUTE`), which `visualisation/supplement/fig_s4.Rmd` relies on. For the same reason the argument order of `computeSignaturesNF.R` and `runDeconvolutionNF.R` should not be changed.
+The processes are called directly from the workflows in `main.nf` and not through sub-workflows (the only exception is the optional [reference split](#reference-split-by-donor)). This keeps the process names in the trace files short (e.g. `subsampling:DECONVOLUTE`), which `visualisation/supplement/fig_s4.Rmd` relies on. For the same reason the argument order of `computeSignaturesNF.R` and `runDeconvolutionNF.R` should not be changed.
 
 ## Workflows
 
@@ -253,7 +253,7 @@ A dedicated description of the input file formats can be found [below](#input-fo
 | ---------- | ------ | ---------------------------------- | -------------------------------- |
 | `single_cell_list` | [string] | list of scRNA-seq dataset names that will be used for deconvolution. Details for naming conventions are found [below](#input-formats). | `["hao-complete", "hao-sampled-3"]` |
 | `bulk_list` | [string] |   list of RNA-seq dataset names that will be used for deconvolution. Details for naming conventions are found [below](#input-formats).                        |    `["finotello", "finotello-simulation"]`      |
-| `method_list` | [string] |  list of method names that are used for deconvolution. Possible values are the methods in `optimal_normalizations.csv`: `["autogenes","bayesprism","bisque","cibersortx"` `,"dwls","music","rectangle","scaden","scdc"]`                         |    `["music","bayesprism"]`       |
+| `method_list` | [string] |  list of method names that are used for deconvolution. Possible values are the methods in `optimal_normalizations.csv`: `["autogenes","bayesprism","bisque","cibersortx",` `"dwls","music","music-hc","rectangle","scaden","scdc","secret"]`                         |    `["music","bayesprism"]`       |
 | `music_hc_marker_fraction` | float | optional, only for the method `music-hc`: share of the genes of a group that is used for the cell types inside the group (default 0.1) | `0.1` |
 | `secret_with_unknown` | boolean | optional, only for the method `secret`: also estimate the proportion of cell types that are not in the reference (default `true`) | `true` |
 
@@ -400,7 +400,7 @@ Each deconvolution method has a recommended set of normalization procedures, bot
 - `sc+bulk` - from the scRNA-seq and the bulk dataset. One signature per combination.
 - `none` - the method does not build a signature. No signature task is run.
 
-To add a method, add a row to this table and a branch for it in `signature_workflow_general` and `deconvolution_workflow_general` in `bin/utils.R`.
+To add a method, add a row to this table and a branch for it in `signature_workflow_general` and `deconvolution_workflow_general` in `bin/utils.R`. A method that needs a setting from the config gets it through `methodSettings` in `functions.nf`, which passes it to the scripts as an optional last argument (see `music-hc` and `secret`).
 
 ### secret
 

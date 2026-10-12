@@ -255,6 +255,7 @@ A dedicated description of the input file formats can be found [below](#input-fo
 | `bulk_list` | [string] |   list of RNA-seq dataset names that will be used for deconvolution. Details for naming conventions are found [below](#input-formats).                        |    `["finotello", "finotello-simulation"]`      |
 | `method_list` | [string] |  list of method names that are used for deconvolution. Possible values are the methods in `optimal_normalizations.csv`: `["autogenes","bayesprism","bisque","cibersortx"` `,"dwls","music","rectangle","scaden","scdc"]`                         |    `["music","bayesprism"]`       |
 | `music_hc_marker_fraction` | float | optional, only for the method `music-hc`: share of the genes of a group that is used for the cell types inside the group (default 0.1) | `0.1` |
+| `secret_with_unknown` | boolean | optional, only for the method `secret`: also estimate the proportion of cell types that are not in the reference (default `true`) | `true` |
 
 ### Simulation Parameters
 
@@ -389,6 +390,7 @@ The scripts in `visualisation/` read method and dataset names from these folder 
 |scaden|counts|tpm|sc+bulk|
 |scdc|counts|tpm|sc|
 |rectangle|counts|tpm|none|
+|secret|counts|counts|sc|
 
 Each deconvolution method has a recommended set of normalization procedures, both for the scRNA-seq and bulk RNA-seq samples. Possible options currently are `counts` (un-normalized), `tpm` and `cpm`.
 
@@ -399,6 +401,13 @@ Each deconvolution method has a recommended set of normalization procedures, bot
 - `none` - the method does not build a signature. No signature task is run.
 
 To add a method, add a row to this table and a branch for it in `signature_workflow_general` and `deconvolution_workflow_general` in `bin/utils.R`.
+
+### secret
+
+`secret` is SECRET (Lu et al., NAR Genomics and Bioinformatics 2023, https://github.com/anlingUA/SECRET). It is not part of omnideconv and is called directly; it needs an image that contains the package (see `docker/add_secret.sh`; the repository of the package states no licence).
+
+- **Signature.** Built once per scRNA-seq dataset, as described in the paper: marker genes of every cell type against all others (`Seurat::FindAllMarkers`, likelihood-ratio test, genes detected in at least 25 % of the cells of one group, log fold change of at least 0.25), a weight of 1 / number of cell types a gene is a marker of, and the mean expression of every cell type (`SECRET::scRefer`) as reference.
+- **Unknown cell types.** By default SECRET also estimates the proportion of cell types that the reference does not contain: the result has an additional column `unknown`, and the proportions of the known cell types sum to at most 1. Set `secret_with_unknown = false` to switch this off; the known cell types then sum to 1.
 
 ### music-hc
 
@@ -426,7 +435,7 @@ The configs in `tests/conf_split/` run the workflows with the reference split by
 
 Our own runs use the files in `conf/`, `configs/` and `scripts/`:
 
-- `conf/norm.config` - the base config of the cluster: where the data are, the resources of the processes, and the profiles. There is one profile per container image, and each profile selects the methods that run in its image: `apptainer` (standard image; bayesprism, bisque, dwls, music, scaden, scdc), `autogenes`, `rectangle`, and `cibersortx` (local Docker). Simulation and subsampling always run in the standard image, so that all methods deconvolve the same simulated datasets. All Slurm jobs go to the `exbio-cpu` partition: AutoGeneS gives different results on `compms-cpu-1`, the other node of the default partition.
+- `conf/norm.config` - the base config of the cluster: where the data are, the resources of the processes, and the profiles. There is one profile per container image, and each profile selects the methods that run in its image: `apptainer` (standard image; bayesprism, bisque, dwls, music, scaden, scdc), `autogenes`, `rectangle`, `secret`, and `cibersortx` (local Docker). Simulation, subsampling and the reference split always run in the standard image, so that all methods deconvolve the same simulated datasets with the same references. All Slurm jobs go to the `exbio-cpu` partition: AutoGeneS gives different results on `compms-cpu-1`, the other node of the default partition.
 - `configs/<run>.config` - a run config: it includes the base config and then sets the parameters of one analysis. Everything defined in the base config can be overridden there, e.g. `data_dir_sc` or the memory of a method (`params.method_memory.dwls = 340`). To run only some of the methods of a profile, add `profiles { apptainer { params.method_list = ["dwls","scaden"] } }`. A workflow stops with a message if the run config does not set a parameter that it needs.
 - `scripts/run.sh <config> <profile> [<workflow>] [nextflow options]` - starts a workflow, e.g. `scripts/run.sh nextflow_norm_resolution rectangle simulation_resolution_analysis -resume`.
 

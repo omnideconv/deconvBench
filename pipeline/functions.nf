@@ -182,6 +182,10 @@ def methodSettings(method) {
         def fraction = params.containsKey('music_hc_marker_fraction') ? params.music_hc_marker_fraction : 0.1
         return " 'marker_fraction=${fraction}'"
     }
+    if (method == 'secret') {
+        def with_unknown = params.containsKey('secret_with_unknown') ? params.secret_with_unknown : true
+        return " 'with_unknown=${with_unknown}'"
+    }
     return ''
 }
 

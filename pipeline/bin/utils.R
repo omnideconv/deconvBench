@@ -144,6 +144,39 @@ deconvolute_music_hc <- function(bulk_matrix, sc_matrix, annotations, sc_batch, 
   )$Est.prop.weighted.cluster
 }
 
+# Reference and gene weights of SECRET (Lu et al. 2023, https://github.com/anlingUA/SECRET), built
+# as the paper and the vignette of the package describe:
+# - marker genes of every cell type against all others with Seurat::FindAllMarkers (likelihood-ratio
+#   test, genes detected in at least 25 % of the cells of one of the two groups);
+# - the weight of a gene is 1 / number of cell types it is a marker of;
+# - the reference is the mean expression of every cell type (SECRET::scRefer).
+build_secret_reference <- function(sc_matrix, annotations, sc_batch){
+  require(Biobase)
+  sc_matrix <- as.matrix(sc_matrix)
+  annotations <- as.character(annotations)
+
+  seurat_obj <- Seurat::CreateSeuratObject(counts = sc_matrix)
+  seurat_obj <- Seurat::NormalizeData(seurat_obj, verbose = FALSE)
+  Seurat::Idents(seurat_obj) <- factor(annotations)
+  markers <- Seurat::FindAllMarkers(seurat_obj, test.use = 'bimod', min.pct = 0.25, logfc.threshold = 0.25, verbose = FALSE)
+  marker_frequency <- table(markers$gene)
+
+  # scRefer collects the columns of a cell type by searching its name in the column names, which
+  # mixes cell types whose names contain each other ('Monocytes', 'Monocytes classical'). It is
+  # therefore called with placeholders of equal length instead of the names.
+  cell_types <- unique(annotations)
+  placeholders <- setNames(sprintf('celltype%04dx', seq_along(cell_types)), cell_types)
+  pheno <- data.frame(sampleID = as.character(sc_batch), cellType = unname(placeholders[annotations]),
+                      row.names = colnames(sc_matrix), stringsAsFactors = FALSE)
+  sc_eset <- Biobase::ExpressionSet(assayData = sc_matrix, phenoData = Biobase::AnnotatedDataFrame(pheno))
+  reference <- SECRET::scRefer(sc_eset, ct_var = 'cellType', sample_var = 'sampleID')
+  colnames(reference) <- names(placeholders)[match(colnames(reference), placeholders)]
+
+  genes <- intersect(rownames(reference), names(marker_frequency))
+  list(reference = reference[genes, , drop = FALSE],
+       weights = setNames(1 / as.numeric(marker_frequency[genes]), genes))
+}
+
 # Add the cell-type sums that the ground truth of some bulk datasets needs (e.g. all T cell
 # subtypes as 'T cell'). The rules are listed in assets/celltype_aggregation.csv and applied in
 # the order of the file; a cell type marked with '?' is added only if the method estimated it.
@@ -452,6 +485,9 @@ signature_workflow_general <- function(sc_matrix, annotations, annotation_catego
       model_path = paste0(res_path, '/model'),
       verbose = TRUE
     )
+  } else if (method == 'secret'){
+    signature <- build_secret_reference(sc_matrix, annotations, sc_batch)
+
   } else if (method %in% c('autogenes', 'bayesprism', 'bisque', 'music', 'music-hc', 'rectangle')){
     signature <- NULL
       
@@ -601,6 +637,20 @@ deconvolution_workflow_general <- function(sc_matrix, annotations, annotation_ca
       batch_ids = sc_batch,
       verbose = TRUE,
     )$Est.prop.weighted
+
+  } else if (method == "secret"){
+    # with_unknown: also estimate the proportion of cell types that the reference does not contain.
+    # The estimates of the known cell types then sum to at most 1 and the rest is 'unknown'.
+    with_unknown <- is.null(method_settings$with_unknown) || toupper(method_settings$with_unknown) == 'TRUE'
+    genes <- intersect(rownames(signature$reference), rownames(bulk_matrix))
+    deconvolution <- SECRET::SECRET(
+      bulk = bulk_matrix[genes, , drop = FALSE],
+      reference = signature$reference[genes, , drop = FALSE],
+      withUnknown = with_unknown,
+      w = signature$weights[genes],
+      yNorm = 'cpm',
+      bNorm = 'cpm'
+    )[[1]]
 
   } else if (method == "music-hc"){
     marker_fraction <- if(is.null(method_settings$marker_fraction)) 0.1 else as.numeric(method_settings$marker_fraction)

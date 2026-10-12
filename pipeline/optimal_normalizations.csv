@@ -9,3 +9,4 @@ music-hc,counts,tpm,none
 scaden,counts,tpm,sc+bulk
 scdc,counts,tpm,sc
 rectangle,counts,tpm,none
+secret,counts,counts,sc

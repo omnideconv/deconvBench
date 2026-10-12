@@ -60,6 +60,12 @@ for profile in $profiles; do
     "$scripts_dir/run.sh" "$config" "$profile" "$workflow" -resume > "nextflow_$profile.log" 2>&1
     code=$?
     echo "[$(date '+%F %T')] profile $profile finished with exit code $code (log: $launch_dir/nextflow_$profile.log)"
+    failed=$(grep -c "Error executing process" "nextflow_$profile.log")
+    if [ "$failed" -gt 0 ]; then
+        echo "    $failed failed task(s):"
+        grep "Error executing process" "nextflow_$profile.log" | sed "s/.*Error executing process > /      /" | sort -u
+        status=1
+    fi
     [ $code -eq 0 ] || status=1
 done
 exit $status

@@ -104,17 +104,33 @@ deconvolute_music_hc <- function(bulk_matrix, sc_matrix, annotations, sc_batch, 
   require(Biobase)
 
   sc_matrix <- as.matrix(sc_matrix)
-  pheno <- data.frame(batchId = sc_batch, cellType = as.character(annotations),
-                      cellGroup = unname(celltype_groups[as.character(annotations)]),
+  annotations <- as.character(annotations)
+  pheno <- data.frame(batchId = sc_batch, cellType = annotations,
+                      cellGroup = unname(celltype_groups[annotations]),
                       row.names = colnames(sc_matrix), check.names = FALSE, stringsAsFactors = FALSE)
   sc_eset <- Biobase::ExpressionSet(assayData = sc_matrix, phenoData = Biobase::AnnotatedDataFrame(pheno))
   bulk_eset <- Biobase::ExpressionSet(assayData = as.matrix(bulk_matrix))
+
+  # MuSiC (music_prop) leaves out cell types for which it cannot compute the variance between
+  # subjects, e.g. a cell type with cells from one subject only. music_prop.cluster has no such
+  # check and fails on them, so the same cell types are left out here.
+  basis <- MuSiC::music_basis(sc_eset, clusters = 'cellType', samples = 'batchId', select.ct = cell_types, verbose = FALSE)
+  valid <- (colSums(is.na(basis$Sigma)) == 0)[cell_types] & (colSums(is.na(basis$Disgn.mtx)) == 0)[cell_types] & !is.na(basis$M.S[cell_types])
+  if(!all(valid)){
+    message('music-hc: left out, as MuSiC does, because the variance between subjects cannot be computed: ',
+            paste(cell_types[!valid], collapse = ', '))
+    cell_types <- cell_types[valid]
+    sc_eset <- sc_eset[, annotations %in% cell_types]
+  }
+  if(length(cell_types) < 2){
+    stop('music-hc: fewer than two cell types with cells from more than one subject')
+  }
 
   # group -> cell types
   clusters_type <- split(cell_types, celltype_groups[cell_types])
 
   # mean relative abundance of every gene in every cell type
-  theta <- MuSiC::music_basis(sc_eset, clusters = 'cellType', samples = 'batchId', select.ct = cell_types, verbose = FALSE)$M.theta
+  theta <- basis$M.theta[, cell_types, drop = FALSE]
   bulk_genes <- rownames(bulk_matrix)[rowMeans(as.matrix(bulk_matrix)) != 0]
   theta <- theta[rownames(theta) %in% bulk_genes, , drop = FALSE]
 

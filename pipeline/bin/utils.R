@@ -134,30 +134,55 @@ deconvolute_music_hc <- function(bulk_matrix, sc_matrix, annotations, sc_batch, 
   bulk_genes <- rownames(bulk_matrix)[rowMeans(as.matrix(bulk_matrix)) != 0]
   theta <- theta[rownames(theta) %in% bulk_genes, , drop = FALSE]
 
-  group_markers <- lapply(clusters_type, function(types){
-    if(length(types) < 2){
-      return(NULL)
-    }
-    means <- theta[, types, drop = FALSE]
-    variation <- apply(means, 1, sd) / rowMeans(means)
-    variation <- sort(variation[is.finite(variation)], decreasing = TRUE)
-    names(variation)[seq_len(ceiling(marker_fraction * length(variation)))]
-  })
-  for(group in names(clusters_type)){
-    message('music-hc: group ', group, ' = ', paste(clusters_type[[group]], collapse = ', '),
-            ' (', length(group_markers[[group]]), ' genes for the cell types inside the group)')
+  # genes for the cell types inside every group with more than one cell type
+  select_markers <- function(fraction){
+    lapply(clusters_type, function(types){
+      if(length(types) < 2){
+        return(NULL)
+      }
+      means <- theta[, types, drop = FALSE]
+      variation <- apply(means, 1, sd) / rowMeans(means)
+      variation <- sort(variation[is.finite(variation)], decreasing = TRUE)
+      names(variation)[seq_len(ceiling(fraction * length(variation)))]
+    })
   }
 
-  MuSiC::music_prop.cluster(
-    bulk.eset = bulk_eset,
-    sc.eset = sc_eset,
-    group.markers = group_markers,
-    groups = 'cellGroup',
-    clusters = 'cellType',
-    samples = 'batchId',
-    clusters.type = clusters_type,
-    verbose = TRUE
-  )$Est.prop.weighted.cluster
+  # With few genes the step inside a group can fail with a singular matrix (seen with the fine
+  # annotation of wu at 0.1). The share is then raised, and the share that was used is stored
+  # with the result.
+  fractions <- unique(c(marker_fraction, c(0.25, 0.5)[c(0.25, 0.5) > marker_fraction]))
+  for(fraction in fractions){
+    group_markers <- select_markers(fraction)
+    for(group in names(clusters_type)){
+      message('music-hc: group ', group, ' = ', paste(clusters_type[[group]], collapse = ', '),
+              ' (', length(group_markers[[group]]), ' genes for the cell types inside the group)')
+    }
+    result <- tryCatch(
+      MuSiC::music_prop.cluster(
+        bulk.eset = bulk_eset,
+        sc.eset = sc_eset,
+        group.markers = group_markers,
+        groups = 'cellGroup',
+        clusters = 'cellType',
+        samples = 'batchId',
+        clusters.type = clusters_type,
+        verbose = TRUE
+      )$Est.prop.weighted.cluster,
+      error = function(e) e
+    )
+    if(!inherits(result, 'error')){
+      if(fraction != marker_fraction){
+        message('music-hc: used a share of ', fraction, ' instead of ', marker_fraction)
+        attr(result, 'marker_fraction') <- fraction
+      }
+      return(result)
+    }
+    message('music-hc: failed with a share of ', fraction, ': ', conditionMessage(result))
+    if(!grepl('singular', conditionMessage(result))){
+      stop(result)
+    }
+  }
+  stop(result)
 }
 
 # Reference and gene weights of SECRET (Lu et al. 2023, https://github.com/anlingUA/SECRET), built

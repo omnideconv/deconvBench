@@ -1,5 +1,5 @@
 # Missing cell types (as Fig. S7 of the omnideconv benchmark) with the results of the rectangle revision:
-# HaoCleaned split by donor as reference, hoek and finotello as bulks, eight omnideconv methods and rectangle.
+# HaoCleaned-sampled as reference, hoek and finotello as bulks, eight omnideconv methods and rectangle.
 # Based on supplement/fig_s7.R; the difference of the RMSE with and without the missing cell type is
 # the same, now for all methods and one reference.
 #

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Revision: missing-cell-types analysis with HaoCleaned as reference, split by donor.
+# Revision: missing-cell-types analysis with HaoCleaned-sampled as reference (no split).
 # Eight omnideconv methods and rectangle (configs/revision_missing_cell_types.config).
 # Usage: run_revision_missing_cell_types.sh [--check] [<profile> ...]
 scripts_dir=$(dirname "$(realpath "$0")")

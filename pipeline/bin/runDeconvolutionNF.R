@@ -8,20 +8,22 @@ sessionInfo()
 reticulate::py_config()
 
 "Usage:
-  runDeconvolutionNF.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <results_dir> <run_preprocessing> <replicate> <subset_value> <species> <ncores> <baseDir>
+  runDeconvolutionNF.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <results_dir> <run_preprocessing> <replicate> <subset_value> <species> <ncores> <baseDir> <signature_dir> [<method_settings>]
 Options:
 <sc_name> name of sc datasets
 <sc_path> path to sc dataset
 <bulk_name> name of simulated bulk RNAseq dataset
 <bulk_path> path to simulated bulk datasets
 <deconv_method>  deconv method
-<results_dir> results (base) directory
+<results_dir> directory of this result; signature and deconvolution files are read from and written to it
 <run_preprocessing> if pre-processing has been done
 <replicate> value of replicate number
 <subset_value> if < 1: fraction of cell type; if > 1: number of cells per cell type
 <species> type of species
 <ncores> number of cores to use for method (if available)
-<baseDir> nextflow base directory" -> doc
+<baseDir> nextflow base directory
+<signature_dir> directory with the files of the signature step; does not exist if no signature step was run
+<method_settings> settings of the method, e.g. marker_fraction=0.1 (optional)" -> doc
 
 args <- docopt::docopt(doc)
 
@@ -35,9 +37,10 @@ res_base_path <- args$results_dir
 baseDir <- args$baseDir
 
 source(paste0(baseDir, '/bin/utils.R'))
-method_normalizations <- read.table(paste0(baseDir, '/optimal_normalizations.csv'), sep = ',', header = TRUE)
-sc_norm <- method_normalizations[method_normalizations$method == method, 2]
-bulk_norm <- method_normalizations[method_normalizations$method == method, 3]
+method_settings <- parse_method_settings(args$method_settings)
+normalization <- method_normalization(baseDir, method)
+sc_norm <- normalization$sc_norm
+bulk_norm <- normalization$bulk_norm
 print(paste0('Method: ', method, '; sc-norm: ', sc_norm, '; bulk-norm: ', bulk_norm))
 
 # check if preprocessing has been performed
@@ -47,30 +50,75 @@ if(args$run_preprocessing == 'true'){
   replicate <- gsub('rep','',strsplit(sc_dataset,'_')[[1]][3])
 
   # create output directory
-  res_path <- paste0(res_base_path, '/', method, "_", sc_dataset, "_", sc_norm, "_", bulk_name, "_", bulk_norm)
-  dir.create(res_path, recursive = TRUE, showWarnings = TRUE)
+  res_path <- res_base_path
+  dir.create(res_path, recursive = TRUE, showWarnings = FALSE)
+  res_path <- normalizePath(res_path)
 }else{
   subset_value <- 0
   replicate <- 0
   sc_dataset <- args$sc_name
 
   # create output directory
-  res_path <- paste0(res_base_path, '/', method, "_", sc_dataset, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
-  dir.create(res_path, recursive = TRUE, showWarnings = TRUE)
+  res_path <- res_base_path
+  dir.create(res_path, recursive = TRUE, showWarnings = FALSE)
+  res_path <- normalizePath(res_path)
 }
 
 # read scRNA-seq count matrix
-if(sc_norm == 'counts'){
-    sc_matrix <- readRDS(file.path(sc_path, sc_dataset, 'matrix_counts.rds'))
-} else {
-    sc_matrix <- readRDS(file.path(sc_path, sc_dataset, 'matrix_norm_counts.rds'))
-}
+sc_matrix <- read_sc_matrix(sc_path, sc_dataset, sc_norm)
 sc_celltype_annotations <- readRDS(file.path(sc_path, sc_dataset, 'celltype_annotations.rds'))
+# groups of cell types, only used by the hierarchical MuSiC
+celltype_groups <- read_celltype_groups(method, file.path(sc_path, sc_dataset), sc_celltype_annotations)
 sc_batch <- readRDS(file.path(sc_path, sc_dataset, 'batch.rds'))
 
 # read bulk expression matrix
-bulk_matrix <- readRDS(file.path(args$bulk_path, bulk_name, paste0(bulk_name, '_', bulk_norm, '.rds')))
-bulk_matrix <- as.matrix(bulk_matrix)
+bulk_matrix <- read_bulk_matrix(file.path(args$bulk_path, bulk_name), bulk_name, bulk_norm)
+
+# take over the files of the signature step, so that the result directory is complete
+if(dir.exists(args$signature_dir)){
+  signature_files <- setdiff(list.files(args$signature_dir), 'tmp')
+  file.copy(file.path(args$signature_dir, signature_files), res_path, recursive = TRUE)
+}
+
+if(file.exists(paste0(res_path, "/runtime_signature.rds"))){
+  # a signature that is shared between bulk datasets gets the name of the bulk dataset of this result
+  runtime_signature <- readRDS(paste0(res_path, "/runtime_signature.rds"))
+  runtime_signature[[4]] <- bulk_name
+  saveRDS(runtime_signature, file = paste0(res_path, "/runtime_signature.rds"))
+} else {
+  # no signature step was run, because this method does not build a signature;
+  # the (empty) signature and its runtime are recorded here
+  runtime <- system.time({
+    signature <- signature_workflow_general(
+      sc_matrix, 
+      sc_celltype_annotations, 
+      'normal', 
+      sc_dataset, 
+      sc_norm, 
+      sc_batch, 
+      method, 
+      bulk_matrix,
+      bulk_name, 
+      bulk_norm, 
+      ncores, 
+      res_path,
+      baseDir=baseDir
+    )
+  })
+  saveRDS(signature, file=paste0(res_path, "/signature.rds"))
+  runtime_text <- data.frame(method, 
+                        args$sc_name, 
+                        sc_norm, 
+                        bulk_name, 
+                        bulk_norm, 
+                        subset_value, 
+                        replicate, 
+                        'SIGNATURE', 
+                        runtime[['user.self']],
+                        runtime[['sys.self']], 
+                        runtime[['elapsed']])
+  saveRDS(runtime_text, file = paste0(res_path, "/runtime_signature.rds"))
+}
 
 # load signature
 signature <- readRDS(paste0(res_path, "/signature.rds"))
@@ -108,10 +156,7 @@ if(method=='cibersortx'){
 
 if(method == 'rectangle'){
   # do not incluce anndata creation in runtime measurement
-  ad <- anndata::AnnData(X = t(sc_matrix),
-                        obs = data.frame('cell_type' = sc_celltype_annotations, row.names = colnames(sc_matrix)),
-                        var = data.frame('genes' = rownames(sc_matrix), row.names = rownames(sc_matrix)))
-  sc_matrix <- ad 
+  sc_matrix <- rectangle_reference(sc_matrix, sc_celltype_annotations)
 }
 
 runtime <- system.time({
@@ -132,7 +177,9 @@ runtime <- system.time({
     res_path,
     rmbatch_S_mode = FALSE,
     rmbatch_B_mode = FALSE,
-    baseDir=baseDir
+    baseDir=baseDir,
+    celltype_groups = celltype_groups,
+    method_settings = method_settings
   )
 
 })

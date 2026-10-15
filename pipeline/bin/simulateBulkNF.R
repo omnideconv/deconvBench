@@ -44,21 +44,25 @@ if(dir.exists(output_dir)){
 }
 
 sc_dir <- paste0(args$sc_dir, '/', sc_ds, '/')
-simbu_ds <- readRDS(paste0(sc_dir,'/simbu_ds.rds')) 
-#sc_matrix_raw <- readRDS(paste0(sc_dir,'/matrix_counts.rds')) 
-#sc_matrix_norm <- readRDS(paste0(sc_dir,'/matrix_norm_counts.rds')) 
-#sc_celltype_annotations <- readRDS(paste0(sc_dir,'/celltype_annotations.rds'))
-#sc_batch <- readRDS(paste0(sc_dir,'/batch.rds'))
+simbu_file <- paste0(sc_dir,'/simbu_ds.rds')
+if(file.exists(simbu_file)){
+  simbu_ds <- readRDS(simbu_file)
+}else{
+  # Datasets without a prepared SimBu dataset: build it from the expression matrices. They are
+  # stored as sparse matrices, as in the prepared datasets; with dense matrices the parallel
+  # workers of the simulation run out of memory.
+  sc_matrix_raw <- Matrix::Matrix(readRDS(paste0(sc_dir,'/matrix_counts.rds')), sparse = TRUE)
+  sc_matrix_norm <- Matrix::Matrix(readRDS(paste0(sc_dir,'/matrix_norm_counts.rds')), sparse = TRUE)
+  simbu_ds <- SimBu::dataset(
+    annotation = data.frame(ID = colnames(sc_matrix_raw), cell_type = readRDS(paste0(sc_dir,'/celltype_annotations.rds'))),
+    count_matrix = sc_matrix_raw,
+    tpm_matrix = sc_matrix_norm,
+    name = sc_ds
+  )
+  rm(sc_matrix_raw, sc_matrix_norm)
+}
 
 ncores <- as.numeric(args$ncores)
-
-#simbu_ds <- SimBu::dataset(
-#  annotation = data.frame(ID = colnames(sc_matrix_raw), cell_type = sc_celltype_annotations), 
-#  count_matrix = sc_matrix_raw,
-#  tpm_matrix = sc_matrix_norm,
-#  name = sc_ds, 
-#  filter_genes = FALSE,
-#)
 
 set.seed(1234)
 simulated_bulk <- SimBu::simulate_bulk(

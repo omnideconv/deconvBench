@@ -1,555 +1,246 @@
 #!/usr/bin/env nextflow
-nextflow.enable.dsl=2
 
-def container_map = [
-    'autogenes'      : '/nfs/proj/omnideconv_benchmarking/omnideconv/benchmark/docker/omnideconv_benchmark_1_3.sif'
-]
-
-
-process PREPROCESS_SINGLE_CELL {
-
-      label 'process_default'
-
-      input: 
-      each sc_ds
-      each ct_fractions
-      each replicate
-      /*
-      output: 
-      tuple val(sc_ds), 
-            val(method),
-            val(ct_fractions),
-            val(replicate)
-      */
-
-      output:
-      val("${sc_ds}_perc${ct_fractions}_rep${replicate}")
-
-      shell:
-      '''
-      preprocessSingleCellNF.R '!{sc_ds}' '!{params.data_dir_sc}' '!{ct_fractions}' '!{replicate}' '!{params.preProcess_dir}' '!{baseDir}'
-      '''
-}
-
-process SIMULATE_BULK {
-  
-      label 'process_default'
-
-      input:
-      each simulation_sc_dataset
-      each simulation_n_cells
-      each simulation_n_samples
-      each simulation_scenario
-      each simulation_bias_type
-
-      output:
-      val("${simulation_sc_dataset}-ncells${simulation_n_cells}-nsamples${simulation_n_samples}-${simulation_scenario}-${simulation_bias_type}-simulation")
-
-      shell:
-      '''
-      simulateBulkNF.R '!{simulation_sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{simulation_n_samples}' '!{simulation_scenario}' '!{simulation_bias_type}' '!{params.data_dir_bulk}' '!{params.ncores}'
-      '''
-}
-
-process ANALYSIS_BULK_MISSING_CELL_TYPES {
-
-      label 'process_default'
-
-      input:
-      each sc_dataset
-      each bulk_ds
-      each method 
-      each cell_types_missing
-           
-      output:
-      val("${sc_dataset}-missing_cell_types")
-      
-      beforeScript 'chmod o+rw .'
-      
-      shell:
-      '''
-      analysisNF_missing_cell_type.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{bulk_ds}' '!{params.data_dir_bulk}' '!{method}' '!{cell_types_missing}' '!{params.results_dir_missing_cell_types}' '!{params.ncores}' '!{baseDir}'
-      ''' 
-}
-
-process SIMULATE_BULK_SPILLOVER {
-
-      label 'process_default'
-      
-      publishDir "${params.preProcess_dir}/pseudo_bulk_spillover", mode: 'copy'
-
-      input:
-      each sc_dataset
-      each simulation_n_cells
-      each simulation_n_samples
-      val cell_types
-
-      output:
-      tuple val("${sc_dataset}_spillover_sim"),
-            val("${params.preProcess_dir}/pseudo_bulk_spillover/${sc_dataset}_spillover_sim")
-
-      beforeScript 'chmod o+rw .'      
-      shell:
-      '''
-      simulateBulkNF_spillover_analysis.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{simulation_n_samples}' '!{cell_types}' '!{params.preProcess_dir}' '!{params.ncores}' 
-      '''
-}
-
-process ANALYSIS_SPILLOVER {
-
-      label 'process_high'
-
-      input:
-      tuple val(sim_bulk_name),
-            val(sim_bulk_path)
-      val cell_types
-      each method 
-      each sc_reference
-     
-      output:
-      val("${sc_dataset}-spillover")
-      
-      beforeScript 'chmod o+rw .'
-      
-      shell:
-      '''
-      analysisNF_spillover.R '!{sc_reference}' '!{params.data_dir_sc}' '!{sim_bulk_name}' '!{sim_bulk_path}' '!{method}' '!{cell_types}' '!{params.results_dir_spillover}' '!{params.ncores}' '!{baseDir}'
-      ''' 
-}
-
-process SIMULATE_BULK_UNKNOWN_CELL_TYPE {
-      
-      publishDir "${params.preProcess_dir}/pseudo_bulk_unknown_content", mode: 'copy'
-
-      input:
-      each sc_dataset
-      each simulation_n_cells
-      each simulation_n_samples  
-      val(fraction_unknown_cell)
-      val(cell_types)
-      each unknown_cell_type
-      each replicates
-
-      output:
-      tuple val(sc_dataset),
-            val("${sc_dataset}_unknown_content_sim"),
-            val("${params.preProcess_dir}/pseudo_bulk_unknown_content/${sc_dataset}_unknown_content_sim")
-            val(replicates)
-
-      beforeScript 'chmod o+rw .'      
-      shell:
-      '''
-      simulateBulkNF_unknown_content_analysis.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{simulation_n_samples}' '!{fraction_unknown_cell}' '!{cell_types}' '!{unknown_cell_type}' '!{replicates}' '!{params.preProcess_dir}' '!{params.ncores}' 
-      '''
-}
-
-process ANALYSIS_BULK_UNKNOWN_CELL_TYPE {
-
-      input:
-      tuple val(sc_dataset), 
-            val(sim_bulk_name), 
-            val(sim_bulk_path)
-            val(replicates)
-      val fraction_unknown_cell
-      val cell_types
-      each unknown_cell_type
-      each method
-     
-      output:
-      val("${sc_dataset}-spillover")
-      
-      beforeScript 'chmod o+rw .'
-      
-      shell:
-      '''
-      analysisNF_unknown_content.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{sim_bulk_name}' '!{sim_bulk_path}' '!{replicates}' '!{method}' '!{fraction_unknown_cell}' '!{cell_types}' '!{unknown_cell_type}' '!{params.results_dir_unknown_content}' '!{params.ncores}' '!{baseDir}'
-      ''' 
-}
-
-process SIMULATE_BULK_RESOLUTION_ANALYSIS {
-  
-      publishDir "${params.preProcess_dir}/pseudo_bulk_resolution", mode: 'copy'
-
-      input:
-      each sc_dataset
-      each simulation_n_cells
-      each simulation_n_samples                   
-      each cell_types_fine
-      each replicates
-      output:
-      tuple val(sc_dataset),
-            val("${sc_dataset}_resolution_analysis_sim"),
-            val("${params.preProcess_dir}/pseudo_bulk_resolution/${sc_dataset}_resolution_analysis_sim"),
-            val(replicates)
-      
-      beforeScript 'chmod o+rw .'     
-
-      shell:
-      '''
-      simulateBulkNF_impact_cell_resolution.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{simulation_n_samples}' '!{cell_types_fine}' '!{replicates}' '!{params.preProcess_dir}' '!{params.ncores}' 
-      '''
-}
-
-process ANALYSIS_BULK_RESOLUTION_ANALYSIS {
-      
-      label 'process_high'
-
-      publishDir "${params.preProcess_dir}/pseudo_bulk_resolution", mode: 'copy'
-
-      input:
-      tuple val(sc_dataset), 
-            val(sim_bulk_name), 
-            val(sim_bulk_path),
-            val(replicates)
-      val cell_types_fine
-      each method
-     
-      output:
-      val("${params.simulation_sc_dataset}-resolution_analysis")
-      
-      beforeScript 'chmod o+rw .'
-      
-      shell:
-      '''
-      analysisNF_impact_cell_resolution.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{sim_bulk_name}' '!{sim_bulk_path}' '!{method}' '!{cell_types_fine}' '!{replicates}' '!{params.results_dir_resolution}' '!{params.ncores}' '!{baseDir}'
-      ''' 
-}
-
-process SIMULATE_PSEUDOBULK_MIRRORDB {
-
-      label 'process_high'
-      
-      publishDir "${params.preProcess_dir}/pseudo_bulk_impact_technology", mode: 'copy'
-
-      input:
-      each sc_dataset
-      each simulation_n_cells
-      each simulation_n_samples  
-      val(sc_dataset_list)
-      each replicates
-
-      output:
-      tuple val(sc_dataset),
-            val("${params.preProcess_dir}/pseudo_bulk_impact_technology/${sc_dataset}"),
-            val(replicates)
-
-      beforeScript 'chmod o+rw .'      
-      shell:
-      '''
-      simulateBulkNF_mirrordb.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{simulation_n_cells}' '!{simulation_n_samples}' '!{sc_dataset_list}' '!{replicates}' '!{params.preProcess_dir}' '!{params.ncores}' 
-      '''
-}
-
-process ANALYSIS_PSEUDOBULK_MIRRORDB {
-
-      label 'process_default'
-
-      input:
-      each sc_dataset
-      tuple val(sim_bulk_name), 
-            val(sim_bulk_path),
-            val(replicates)
-      each method
-     
-      output:
-      val("${sc_dataset}-impact_technology")
-      
-      beforeScript 'chmod o+rw .'
-      
-      shell:
-      '''
-      analysisNF_mixed_simulations.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{sim_bulk_name}' '!{sim_bulk_path}' '!{params.preProcess_dir}' '!{replicates}' '!{method}' '!{params.results_dir_impact_technology}' '!{params.ncores}' '!{baseDir}'
-      ''' 
-}
-
-process ANALYSIS_BULK_MIRRORDB {
-
-      label 'process_default'
-
-      input:
-      each sc_dataset
-      each bulk_name 
-      each method
-     
-      output:
-      val("${sc_dataset}-impact_technology")
-      
-      beforeScript 'chmod o+rw .'
-      
-      shell:
-      '''
-      analysisNF_mixed_simulations_real_dataset.R '!{sc_dataset}' '!{params.data_dir_sc}' '!{bulk_name}' '!{params.data_dir_bulk}' '!{params.preProcess_dir}' '!{method}' '!{params.results_dir_impact_technology}' '!{params.ncores}' '!{baseDir}'
-      ''' 
-}
-
-process CREATE_SIGNATURE {
-
-      label 'process_high'
-
-      input:
-      each sc_ds
-      each bulk_ds
-      each method 
-      each ct_fractions
-      each replicate
-      val run_preprocessing
-
-      output:
-      tuple val(sc_ds), 
-            val(bulk_ds),
-            val(method),
-            val(replicate), 
-            val(ct_fractions)
-
-      beforeScript 'chmod o+rw .'
-
-      shell:
-      '''
-      computeSignaturesNF.R '!{sc_ds}' '!{params.data_dir_sc}' '!{bulk_ds}' '!{params.data_dir_bulk}' '!{method}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.ncores}' '!{baseDir}'
-      ''' 
-}
-
-process CREATE_SIGNATURE_PREPROCESSED {
-
-      label 'process_high'
-
-      input:
-      each sc_ds
-      val sc_path
-      each bulk_ds
-      val bulk_path
-      each method 
-      each ct_fractions
-      each replicate
-      val run_preprocessing
-
-      output:
-      tuple val(sc_ds), 
-            val(bulk_ds),
-            val(method),
-            val(replicate), 
-            val(ct_fractions)
-
-      beforeScript 'chmod o+rw .'
-
-      shell:
-      '''
-      computeSignaturesNF.R '!{sc_ds}' '!{sc_path}' '!{bulk_ds}' '!{bulk_path}' '!{method}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.ncores}' '!{baseDir}'
-      ''' 
-}
-
-process DECONVOLUTE { 
-
-      label 'process_default'
-
-	input:
-      tuple val(sc_ds), 
-            val(bulk_ds),
-            val(method),
-            val(replicate), 
-            val(ct_fractions)
-      val sc_path
-	val run_preprocessing
-  
-	output:
-	tuple val(method),
-	      val(sc_ds), 
-	      val(bulk_ds), 
-	      val(replicate),
-	      val(ct_fractions)
-  
-	shell:
-	'''
-	runDeconvolutionNF.R '!{sc_ds}' '!{sc_path}' '!{bulk_ds}' '!{params.data_dir_bulk}' '!{method}' '!{params.results_dir_general}' '!{run_preprocessing}' '!{replicate}' '!{ct_fractions}' '!{params.species_sc}' '!{params.ncores}' '!{baseDir}'
-	''' 
-}
-
-process COMPUTE_METRICS { 
-
-	input:
-	tuple val(method),
-	      val(sc_ds), 
-	      val(bulk_ds), 
-	      val(replicate),
-	      val(ct_fractions)
-  
-	output:
-	tuple val(method),
-	      val(sc_ds), 
-	      val(bulk_ds), 
-	      val(replicate),
-	      val(ct_fractions)
-  
-	shell:
-	'''
-      
-      computeMetricsNF.R '!{sc_ds}' '!{params.data_dir_sc}' '!{bulk_ds}' '!{params.data_dir_bulk}' '!{method}' '!{replicate}' '!{ct_fractions}' '!{params.results_dir_general}' '!{baseDir}'
-	''' 
-}
-
-workflow impact_missing_cell_types {
-
-  deconvolution = ANALYSIS_BULK_MISSING_CELL_TYPES(params.single_cell_list,
-                                                   params.bulk_list,
-                                                   params.method_list,
-                                                   params.cell_types_to_exclude)
-
-}
-
-workflow simulation_impact_technology {
-
-  simulations = SIMULATE_PSEUDOBULK_MIRRORDB(params.simulation_sc_dataset,
-                                             params.simulation_n_cells,
-						         params.simulation_n_samples,
-						         params.sc_datasets_impact_technology, 
-                                             params.replicates_simulation)
-
-  deconvolution = ANALYSIS_PSEUDOBULK_MIRRORDB(params.simulation_sc_dataset,
-                                               simulations, 
-                                               params.method_list)
-
-  deconvolution_real = ANALYSIS_BULK_MIRRORDB(params.simulation_sc_dataset,
-                                              params.bulk_impact_technology,
-                                              params.method_list)                                                                                      
-}
-
-workflow simulation_spillover {
-
-  // spillover
-  simulations = SIMULATE_BULK_SPILLOVER(params.simulation_sc_dataset,
-                                        params.simulation_n_cells,
-						    params.simulation_n_samples,
-						    params.spillover_celltypes)
-  
-  deconvolution = ANALYSIS_SPILLOVER(simulations,
-                                     params.spillover_celltypes,
-                                     params.method_list,
-                                     params.single_cell_list)
-
-}
-
-workflow simulation_unknown_content {
-  // sensitivity to unknown content
-  simulations = SIMULATE_BULK_UNKNOWN_CELL_TYPE(params.simulation_sc_dataset,
-                                                params.simulation_n_cells,
-							      params.simulation_n_samples,
-							      params.fractions_unknown_cells,
-                                                params.known_cell_types,
-                                                params.unknown_cell_type, 
-                                                params.replicates_unknown_content)
-  
-  deconvolution = ANALYSIS_BULK_UNKNOWN_CELL_TYPE(simulations,
-                                             params.fractions_unknown_cells,
-							   params.known_cell_types,
-							   params.unknown_cell_type,
-                                             params.method_list)
-  
-}
-
-workflow simulation_resolution_analysis {
-  // sensitivity to unknown content
-  simulations = SIMULATE_BULK_RESOLUTION_ANALYSIS(params.simulation_sc_dataset,
-                                                    params.simulation_n_cells,
-							          params.simulation_n_samples,
-							          params.cell_types_finer_res,
-                                                    params.replicates_simulation)
-  
-  
-  
-  
-  deconvolution = ANALYSIS_BULK_RESOLUTION_ANALYSIS(simulations,
-                                                    params.cell_types_finer_res,
-                                                    params.method_list)
-  
-}
-
-workflow subsampling {
-
-  replicates = Channel.of(1..params.replicates).collect()
-    
-  preprocess = PREPROCESS_SINGLE_CELL(params.single_cell_list,
-                                      params.ct_fractions, 
-                                      replicates
-  )
-
-  simulations = SIMULATE_BULK(params.simulation_sc_dataset,
-                              params.simulation_n_cells,
-				      params.simulation_n_samples,
-					'random',
-                              'expressed_genes'
-  ) 
-  
-  signature = CREATE_SIGNATURE_PREPROCESSED(preprocess,
-                                            params.preProcess_dir,
-                                            simulations,
-                                            params.data_dir_bulk,
-                                            params.method_list,
-                                            0,
-                                            0,
-                                            'true')
-  
-  deconvolution = DECONVOLUTE(signature,
-                              params.preProcess_dir,
-                              'true')
-  
-}
-
-workflow deconv_only {
-
-  signature = CREATE_SIGNATURE(params.single_cell_list,
-                               params.bulk_list,
-                               params.method_list,
-                               0,
-                               0,
-                               'false'
-  )  
-  
-  deconvolution = DECONVOLUTE(signature,
-                              params.data_dir_sc,      
-                              'false'
-  )
+include { PREPROCESS_SINGLE_CELL                            } from './modules/local/preprocess_single_cell'
+include { SIMULATE_BULK                                     } from './modules/local/simulate_bulk'
+include { CREATE_SIGNATURE                                  } from './modules/local/create_signature'
+include { CREATE_SIGNATURE as CREATE_SIGNATURE_PREPROCESSED } from './modules/local/create_signature'
+include { DECONVOLUTE                                       } from './modules/local/deconvolute'
+include { COMPUTE_METRICS                                   } from './modules/local/compute_metrics'
+include { ANALYSIS_BULK_MISSING_CELL_TYPES                   } from './modules/local/analysis_bulk_missing_cell_types'
+include { SIMULATE_BULK_SPILLOVER                           } from './modules/local/simulate_bulk_spillover'
+include { ANALYSIS_SPILLOVER                                } from './modules/local/analysis_spillover'
+include { SIMULATE_BULK_UNKNOWN_CELL_TYPE                   } from './modules/local/simulate_bulk_unknown_cell_type'
+include { ANALYSIS_BULK_UNKNOWN_CELL_TYPE                   } from './modules/local/analysis_bulk_unknown_cell_type'
+include { SIMULATE_BULK_RESOLUTION_ANALYSIS                 } from './modules/local/simulate_bulk_resolution_analysis'
+include { ANALYSIS_BULK_RESOLUTION_ANALYSIS                 } from './modules/local/analysis_bulk_resolution_analysis'
+include { SIMULATE_PSEUDOBULK_MIRRORDB                      } from './modules/local/simulate_pseudobulk_mirrordb'
+include { ANALYSIS_PSEUDOBULK_MIRRORDB                      } from './modules/local/analysis_pseudobulk_mirrordb'
+include { ANALYSIS_BULK_MIRRORDB                            } from './modules/local/analysis_bulk_mirrordb'
+include { SPLIT_REFERENCE                                   } from './modules/local/split_reference'
+include { requireParams; datasetChannel; simulationInput; simulationDatasets; datasetsToSplit; deconvolutionInput; signatureInput; deconvolutionWithSignature; metricsInput } from './functions'
+
+// The entry workflows call the processes directly instead of through sub-workflows, so that the
+// process names in the trace files stay as they are (e.g. 'subsampling:DECONVOLUTE');
+// visualisation/supplement/fig_s4.Rmd selects tasks by these names.
+
+// Datasets for the simulation and for the methods. With split_reference, a dataset that has both
+// roles is split by donor: one part goes to the simulation, the other to the methods. Without it,
+// ch_to_split is empty and both channels pass through unchanged.
+// All channels emit [name, directory].
+workflow SPLIT_DATASETS {
+
+  take:
+  ch_simulation
+  ch_reference
+  ch_to_split
+
+  main:
+  SPLIT_REFERENCE(ch_to_split)
+
+  emit:
+  simulation = ch_simulation.join(SPLIT_REFERENCE.out.simulation, remainder: true).map { name, dir, part -> [name, part ?: dir] }
+  reference  = ch_reference.join(SPLIT_REFERENCE.out.deconvolution, remainder: true).map { name, dir, part -> [name, part ?: dir] }
 }
 
 workflow {
 
-  signature = CREATE_SIGNATURE(params.single_cell_list,
-                               params.bulk_list,
-                               params.method_list,
-                               0,
-                               0,
-                               'false'
-  )  
-  
-  deconvolution = DECONVOLUTE(signature,
-                              params.data_dir_sc,      
-                              'false'
-  )
+  requireParams(['data_dir_sc', 'data_dir_bulk', 'results_dir_general', 'single_cell_list', 'bulk_list', 'method_list', 'ncores', 'species_sc'])
 
-  metrics = COMPUTE_METRICS(deconvolution) 
+  ch_input = deconvolutionInput(datasetChannel(params.single_cell_list, params.data_dir_sc),
+                                datasetChannel(params.bulk_list, params.data_dir_bulk),
+                                false, true)
+
+  CREATE_SIGNATURE(signatureInput(ch_input))
+
+  DECONVOLUTE(deconvolutionWithSignature(ch_input, CREATE_SIGNATURE.out.signature))
+
+  COMPUTE_METRICS(metricsInput(ch_input, DECONVOLUTE.out.results))
+}
+
+workflow deconv_only {
+
+  requireParams(['data_dir_sc', 'data_dir_bulk', 'results_dir_general', 'single_cell_list', 'bulk_list', 'method_list', 'ncores', 'species_sc'])
+
+  ch_input = deconvolutionInput(datasetChannel(params.single_cell_list, params.data_dir_sc),
+                                datasetChannel(params.bulk_list, params.data_dir_bulk),
+                                false, true)
+
+  CREATE_SIGNATURE(signatureInput(ch_input))
+
+  DECONVOLUTE(deconvolutionWithSignature(ch_input, CREATE_SIGNATURE.out.signature))
 }
 
 workflow simulation {
-  
-  // Normal simulation
-  
-  simulations = SIMULATE_BULK(params.simulation_sc_dataset,
-                              params.simulation_n_cells,
-				      params.simulation_n_samples,
-					params.simulation_scenario,
-                              params.simulation_bias_type
-  )   
-  
-  signature = CREATE_SIGNATURE(params.single_cell_list,
-                               simulations,
-                               params.method_list,
-                               0,
-                               0,
-                               'false')
-  
-  deconvolution = DECONVOLUTE(signature,
-                              params.data_dir_sc,      
-                              'false'
-      )
-  
-  metrics = COMPUTE_METRICS(deconvolution)
+
+  requireParams(['data_dir_sc', 'data_dir_bulk', 'results_dir_general', 'single_cell_list', 'simulation_n_cells', 'simulation_n_samples', 'simulation_scenario', 'simulation_bias_type', 'method_list', 'ncores', 'species_sc'])
+
+  simulation_names = simulationDatasets()
+  SPLIT_DATASETS(datasetChannel(simulation_names, params.data_dir_sc),
+                 datasetChannel(params.single_cell_list, params.data_dir_sc),
+                 datasetChannel(datasetsToSplit(simulation_names, params.single_cell_list), params.data_dir_sc))
+
+  SIMULATE_BULK(simulationInput(SPLIT_DATASETS.out.simulation, params.simulation_scenario, params.simulation_bias_type))
+
+  ch_input = deconvolutionInput(SPLIT_DATASETS.out.reference,
+                                SIMULATE_BULK.out.bulk,
+                                false, true)
+
+  CREATE_SIGNATURE(signatureInput(ch_input))
+
+  DECONVOLUTE(deconvolutionWithSignature(ch_input, CREATE_SIGNATURE.out.signature))
+
+  COMPUTE_METRICS(metricsInput(ch_input, DECONVOLUTE.out.results))
+}
+
+workflow subsampling {
+
+  requireParams(['data_dir_sc', 'data_dir_bulk', 'results_dir_general', 'preProcess_dir', 'single_cell_list', 'ct_fractions', 'replicates', 'simulation_n_cells', 'simulation_n_samples', 'method_list', 'ncores', 'species_sc'])
+
+  simulation_names = simulationDatasets()
+  SPLIT_DATASETS(datasetChannel(simulation_names, params.data_dir_sc),
+                 datasetChannel(params.single_cell_list, params.data_dir_sc),
+                 datasetChannel(datasetsToSplit(simulation_names, params.single_cell_list), params.data_dir_sc))
+
+  PREPROCESS_SINGLE_CELL(SPLIT_DATASETS.out.reference
+                           .combine(channel.fromList(params.ct_fractions))
+                           .combine(channel.of(1..params.replicates)))
+
+  SIMULATE_BULK(simulationInput(SPLIT_DATASETS.out.simulation, ['random'], ['expressed_genes']))
+
+  // the subsampled reference is named after its directory, e.g. sc1_perc100_rep1
+  // Signatures are built for every bulk dataset and every method here, also where one signature
+  // could be shared: fig_s4.Rmd shows the resources of the signature step per bulk dataset.
+  ch_input = deconvolutionInput(PREPROCESS_SINGLE_CELL.out.subsample.map { subsample -> [subsample.name, subsample] },
+                                SIMULATE_BULK.out.bulk,
+                                true, false)
+
+  CREATE_SIGNATURE_PREPROCESSED(signatureInput(ch_input))
+
+  DECONVOLUTE(deconvolutionWithSignature(ch_input, CREATE_SIGNATURE_PREPROCESSED.out.signature))
+}
+
+workflow impact_missing_cell_types {
+
+  requireParams(['data_dir_sc', 'data_dir_bulk', 'results_dir_missing_cell_types', 'single_cell_list', 'bulk_list', 'cell_types_to_exclude', 'method_list', 'ncores'])
+
+  ch_bulk = datasetChannel(params.bulk_list, params.data_dir_bulk)
+  ch_reference = datasetChannel(params.single_cell_list, params.data_dir_sc)
+
+  // optional: also deconvolve the pseudo-bulks that SIMULATE_BULK creates from simulation_sc_dataset
+  simulate = params.containsKey('simulation_missing_cell_types') && params.simulation_missing_cell_types
+  simulation_names = []
+  if (simulate) {
+    requireParams(['preProcess_dir', 'simulation_n_cells', 'simulation_n_samples', 'simulation_scenario', 'simulation_bias_type'])
+    simulation_names = simulationDatasets()
+  }
+
+  // With split_reference the references are split by donor in any case and the methods get the
+  // method part, as in the workflows that simulate; without pseudo-bulks the other part is not used.
+  split_names = simulate ? datasetsToSplit(simulation_names, params.single_cell_list) : datasetsToSplit(params.single_cell_list, params.single_cell_list)
+  SPLIT_DATASETS(datasetChannel(simulation_names, params.data_dir_sc),
+                 ch_reference,
+                 datasetChannel(split_names, params.data_dir_sc))
+  ch_reference = SPLIT_DATASETS.out.reference
+
+  if (simulate) {
+    SIMULATE_BULK(simulationInput(SPLIT_DATASETS.out.simulation, params.simulation_scenario, params.simulation_bias_type))
+    ch_bulk = ch_bulk.mix(SIMULATE_BULK.out.bulk)
+  }
+
+  ANALYSIS_BULK_MISSING_CELL_TYPES(ch_reference
+                                     .combine(ch_bulk)
+                                     .combine(channel.fromList(params.method_list))
+                                     .combine(channel.fromList(params.cell_types_to_exclude)))
+}
+
+workflow simulation_spillover {
+
+  requireParams(['data_dir_sc', 'results_dir_spillover', 'preProcess_dir', 'single_cell_list', 'simulation_n_cells', 'simulation_n_samples', 'spillover_celltypes', 'method_list', 'ncores'])
+
+  simulation_names = simulationDatasets()
+  SPLIT_DATASETS(datasetChannel(simulation_names, params.data_dir_sc),
+                 datasetChannel(params.single_cell_list, params.data_dir_sc),
+                 datasetChannel(datasetsToSplit(simulation_names, params.single_cell_list), params.data_dir_sc))
+
+  SIMULATE_BULK_SPILLOVER(SPLIT_DATASETS.out.simulation
+                            .combine(channel.fromList(params.simulation_n_cells))
+                            .combine(channel.fromList(params.simulation_n_samples)))
+
+  ANALYSIS_SPILLOVER(SIMULATE_BULK_SPILLOVER.out.bulk
+                       .combine(channel.fromList(params.method_list))
+                       .combine(SPLIT_DATASETS.out.reference))
+}
+
+workflow simulation_unknown_content {
+
+  requireParams(['data_dir_sc', 'results_dir_unknown_content', 'preProcess_dir', 'simulation_sc_dataset', 'simulation_n_cells', 'simulation_n_samples', 'known_cell_types', 'unknown_cell_type', 'fractions_unknown_cells', 'replicates_unknown_content', 'method_list', 'ncores'])
+
+  // the dataset is used for the simulation and as reference
+  ch_sc = datasetChannel(params.simulation_sc_dataset, params.data_dir_sc)
+  SPLIT_DATASETS(ch_sc, ch_sc, datasetChannel(datasetsToSplit(params.simulation_sc_dataset, params.simulation_sc_dataset), params.data_dir_sc))
+
+  SIMULATE_BULK_UNKNOWN_CELL_TYPE(SPLIT_DATASETS.out.simulation
+                                    .combine(channel.fromList(params.simulation_n_cells))
+                                    .combine(channel.fromList(params.simulation_n_samples))
+                                    .combine(channel.fromList(params.unknown_cell_type))
+                                    .combine(channel.fromList(params.replicates_unknown_content)))
+
+  // the pseudo-bulks are deconvolved with the dataset they were simulated from
+  ANALYSIS_BULK_UNKNOWN_CELL_TYPE(SIMULATE_BULK_UNKNOWN_CELL_TYPE.out.bulk
+                                    .combine(SPLIT_DATASETS.out.reference, by: 0)
+                                    .combine(channel.fromList(params.method_list)))
+}
+
+workflow simulation_resolution_analysis {
+
+  requireParams(['data_dir_sc', 'results_dir_resolution', 'preProcess_dir', 'simulation_sc_dataset', 'simulation_n_cells', 'simulation_n_samples', 'cell_types_finer_res', 'replicates_simulation', 'method_list', 'ncores'])
+
+  // the dataset is used for the simulation and as reference
+  ch_sc = datasetChannel(params.simulation_sc_dataset, params.data_dir_sc)
+  SPLIT_DATASETS(ch_sc, ch_sc, datasetChannel(datasetsToSplit(params.simulation_sc_dataset, params.simulation_sc_dataset), params.data_dir_sc))
+
+  SIMULATE_BULK_RESOLUTION_ANALYSIS(SPLIT_DATASETS.out.simulation
+                                      .combine(channel.fromList(params.simulation_n_cells))
+                                      .combine(channel.fromList(params.simulation_n_samples))
+                                      .combine(channel.fromList(params.cell_types_finer_res))
+                                      .combine(channel.fromList(params.replicates_simulation)))
+
+  // the pseudo-bulks are deconvolved with the dataset they were simulated from
+  ANALYSIS_BULK_RESOLUTION_ANALYSIS(SIMULATE_BULK_RESOLUTION_ANALYSIS.out.bulk
+                                      .combine(SPLIT_DATASETS.out.reference, by: 0)
+                                      .combine(channel.fromList(params.method_list)))
+}
+
+workflow simulation_impact_technology {
+
+  requireParams(['data_dir_sc', 'data_dir_bulk', 'results_dir_impact_technology', 'preProcess_dir', 'simulation_sc_dataset', 'simulation_n_cells', 'simulation_n_samples', 'sc_datasets_impact_technology', 'bulk_impact_technology', 'replicates_simulation', 'method_list', 'ncores'])
+
+  // sc_datasets_impact_technology is a list with one entry of comma-separated dataset names
+  all_names = params.sc_datasets_impact_technology.collectMany { names -> names.tokenize(',') }
+
+  // pseudo-bulks are simulated from all datasets; simulation_sc_dataset are the references
+  SPLIT_DATASETS(datasetChannel(all_names, params.data_dir_sc),
+                 datasetChannel(params.simulation_sc_dataset, params.data_dir_sc),
+                 datasetChannel(datasetsToSplit(all_names, params.simulation_sc_dataset), params.data_dir_sc))
+
+  ch_sc = SPLIT_DATASETS.out.reference
+  ch_all_sc_dirs = SPLIT_DATASETS.out.simulation
+                     .map { _name, sc_dir -> sc_dir }
+                     .collect()
+
+  SIMULATE_PSEUDOBULK_MIRRORDB(channel.fromList(params.simulation_sc_dataset)
+                                 .combine(channel.fromList(params.simulation_n_cells))
+                                 .combine(channel.fromList(params.simulation_n_samples))
+                                 .combine(channel.fromList(params.replicates_simulation)),
+                               ch_all_sc_dirs)
+
+  // every reference is used on the pseudo-bulks of every dataset
+  ANALYSIS_PSEUDOBULK_MIRRORDB(ch_sc
+                                 .combine(SIMULATE_PSEUDOBULK_MIRRORDB.out.bulk)
+                                 .combine(channel.fromList(params.method_list)),
+                               SIMULATE_PSEUDOBULK_MIRRORDB.out.cell_types.first())
+
+  ANALYSIS_BULK_MIRRORDB(ch_sc
+                           .combine(datasetChannel(params.bulk_impact_technology, params.data_dir_bulk))
+                           .combine(channel.fromList(params.method_list)))
 }

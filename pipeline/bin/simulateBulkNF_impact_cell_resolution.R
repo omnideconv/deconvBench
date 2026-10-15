@@ -28,6 +28,7 @@ fraction_unknown <- as.numeric(args$fraction_unknown_cells)
 
 cell_types_simulation <- gsub('\\[|]', '', args$cell_types_minor)
 cell_types_simulation <- strsplit(cell_types_simulation, ",")[[1]]
+cell_types_simulation <- lapply(cell_types_simulation, trimws)
 print(cell_types_simulation)
 
 pseudobulk_name <- paste0(sc_ds, '_resolution_analysis_sim')

@@ -9,7 +9,7 @@ library(tidyverse)
 reticulate::use_condaenv(condaenv = "r-omnideconv", required = TRUE)
 
 "Usage:
-  analysisNF_missing_cell_type.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <missing_cell_type> <results_dir> <ncores> <baseDir>
+  analysisNF_missing_cell_type.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <missing_cell_type> <results_dir> <ncores> <baseDir> [<method_settings>]
 Options:
 <sc_name> name of sc datasets
 <sc_path> path to sc dataset
@@ -19,7 +19,8 @@ Options:
 <missing_cell_type> cell type to be removed from the signature
 <results_dir> results (base) directory
 <ncores> number of cores to use for method (if available)
-<baseDir> nextflow base directory" -> doc
+<baseDir> nextflow base directory
+<method_settings> settings of the method, e.g. marker_fraction=0.1 (optional)" -> doc
 
 args <- docopt::docopt(doc)
 
@@ -33,20 +34,19 @@ ncores <- as.numeric(args$ncores) # in case a method can use multiple cores
 baseDir <- args$baseDir
 
 source(paste0(baseDir, '/bin/utils.R'))
-method_normalizations <- read.table(paste0(baseDir, '/optimal_normalizations.csv'), sep = ',', header = TRUE)
-sc_norm <- method_normalizations[method_normalizations$method == method, 2]
-bulk_norm <- method_normalizations[method_normalizations$method == method, 3]
+method_settings <- parse_method_settings(args$method_settings)
+normalization <- method_normalization(baseDir, method)
+sc_norm <- normalization$sc_norm
+bulk_norm <- normalization$bulk_norm
 
-if(sc_norm == 'counts'){
-    sc_matrix <- readRDS(file.path(sc_path, sc_dataset, 'matrix_counts.rds'))
-} else {
-    sc_matrix <- readRDS(file.path(sc_path, sc_dataset, 'matrix_norm_counts.rds'))
-}
-sc_celltype_annotations <- readRDS(file.path(sc_path, sc_dataset, 'celltype_annotations.rds'))
-sc_batch <- readRDS(file.path(sc_path, sc_dataset, 'batch.rds'))
+sc_matrix <- read_sc_matrix(sc_path, sc_dataset, sc_norm)
+# as character: in a factor the removed cell type would stay as an empty level
+sc_celltype_annotations <- as.character(readRDS(file.path(sc_path, sc_dataset, 'celltype_annotations.rds')))
+# groups of cell types, only used by the hierarchical MuSiC
+celltype_groups <- read_celltype_groups(method, file.path(sc_path, sc_dataset), sc_celltype_annotations)
+sc_batch <- as.character(readRDS(file.path(sc_path, sc_dataset, 'batch.rds')))
 
-bulk_matrix <- readRDS(file.path(bulk_path, bulk_name, paste0(bulk_name, '_', bulk_norm, '.rds')))
-bulk_matrix <- as.matrix(bulk_matrix)
+bulk_matrix <- read_bulk_matrix(file.path(bulk_path, bulk_name), bulk_name, bulk_norm)
 
 # Here we need to filter for those cell types that are in the simulated dataset. 
 
@@ -94,6 +94,10 @@ signature <- signature_workflow_general(
 print('Signature built')
 # Deconvolution
 
+if(method == 'rectangle'){
+  sc_matrix <- rectangle_reference(sc_matrix, sc_celltype_annotations)
+}
+
 true_fractions <- readRDS(file.path(bulk_path, bulk_name, paste0(bulk_name, '_facs.rds')))
 
 deconvolution <- deconvolution_workflow_general(
@@ -111,10 +115,14 @@ deconvolution <- deconvolution_workflow_general(
   ncores, 
   res_path_normal,
   rmbatch_S_mode = FALSE,
-  baseDir=baseDir
+  baseDir=baseDir,
+  celltype_groups = celltype_groups,
+  method_settings = method_settings
 )
 
 colnames(deconvolution) <- gsub("xxxx", " ", colnames(deconvolution))
+# Scaden returns the cell-type names with dots instead of spaces
+colnames(deconvolution) <- gsub('\\.', ' ', colnames(deconvolution))
 
 if(bulk_name=='hoek' | bulk_name=='hoek-simulation'){
   deconvolution <- as.data.frame(deconvolution)

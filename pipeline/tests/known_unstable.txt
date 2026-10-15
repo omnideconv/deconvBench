@@ -1,0 +1,19 @@
+# Result files with a known, explained difference. One regular expression per line, matched
+# against the path relative to the result tree. Matching files are reported but do not fail the
+# comparison.
+
+# --- files that differ between two runs of the same code ---
+
+# simulation_impact_technology: jobs that deconvolve the same pseudo-bulk with different references
+# share one result folder (<method>_<pseudobulk>). Which job writes last, or survives, is a matter
+# of timing: DWLS intermediate files, CIBERSORTx and Scaden runs.
+^simulation_impact_technology/results_impact_technology/dwls_[^/]+/[^/]+\.(csv|RData)$
+^simulation_impact_technology/results_impact_technology/cibersortx_[^/]+/
+^simulation_impact_technology/results_impact_technology/scaden_[^/]+/
+
+# --- files of the pre-refactor reference that the file-based pipeline does not produce ---
+
+# impact_missing_cell_types: Scaden fails for the hoek bulk after its model is trained (its column
+# names contain dots, the hoek-specific code expects spaces). The old scripts had already written
+# the model into the result folder; a failed task now publishes nothing.
+^impact_missing_cell_types/results_missing_cell_types/scaden/[^/]+_hoek_no_[^/]+/model/

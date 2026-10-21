@@ -88,13 +88,19 @@ def splitEnabled() {
 
 // value of a split parameter, or its default if the config does not set it
 def splitSetting(name) {
-    def defaults = [split_fraction_simulation: 0.5, split_min_cells: 50, split_min_cells_action: 'error', split_seed: 1, split_reference_cells_fraction: 1]
+    def defaults = [split_by: 'donor', split_fraction_simulation: 0.5, split_min_cells: 50, split_min_cells_action: 'error', split_seed: 1, split_reference_cells_fraction: 1]
     return params.containsKey(name) && params[name] != null ? params[name] : defaults[name]
 }
 
 // folder of a split in <preProcess_dir>/reference_split; the same parameters give the same folder
+// (a split by donor keeps the folder name it had before split_by existed)
 def splitFolder(sc_name) {
-    return "${sc_name}_simulation${splitSetting('split_fraction_simulation')}_mincells${splitSetting('split_min_cells')}_seed${splitSetting('split_seed')}_cells${splitSetting('split_reference_cells_fraction')}"
+    def split_by = splitSetting('split_by')
+    if (!(split_by in ['donor', 'cell'])) {
+        error "split_by has to be 'donor' or 'cell', not '${split_by}'"
+    }
+    def suffix = split_by == 'donor' ? '' : "_by${split_by}"
+    return "${sc_name}_simulation${splitSetting('split_fraction_simulation')}_mincells${splitSetting('split_min_cells')}_seed${splitSetting('split_seed')}_cells${splitSetting('split_reference_cells_fraction')}${suffix}"
 }
 
 // Names of the datasets from which pseudo-bulks are simulated. With split_reference the

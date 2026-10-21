@@ -1,7 +1,8 @@
 include { splitSetting; splitFolder } from '../../functions'
 
-// Split a single-cell dataset by donor into a part for the simulation of pseudo-bulks and a part
-// that the methods use as reference, so that no donor contributes to both.
+// Split a single-cell dataset into a part for the simulation of pseudo-bulks and a part that the
+// methods use as reference: by donor, so that no donor contributes to both (split_by 'donor'), or
+// within every cell type, so that no cell contributes to both (split_by 'cell').
 process SPLIT_REFERENCE {
 
       tag "${sc_name}"
@@ -20,6 +21,6 @@ process SPLIT_REFERENCE {
 
       script:
       """
-      splitReferenceNF.R '${sc_name}' 'sc' '${splitSetting('split_fraction_simulation')}' '${splitSetting('split_min_cells')}' '${splitSetting('split_min_cells_action')}' '${splitSetting('split_seed')}' '${splitSetting('split_reference_cells_fraction')}' '.'
+      splitReferenceNF.R '${sc_name}' 'sc' '${splitSetting('split_fraction_simulation')}' '${splitSetting('split_min_cells')}' '${splitSetting('split_min_cells_action')}' '${splitSetting('split_seed')}' '${splitSetting('split_reference_cells_fraction')}' '.' '${splitSetting('split_by')}'
       """
 }

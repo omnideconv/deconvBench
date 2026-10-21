@@ -269,22 +269,23 @@ These parameters describe the pseudo-bulk datasets of all workflows that simulat
 | `simulation_scenario` | [string] | SimBu scenario; used by the `simulation` workflow | `['mirror_db']` |
 | `simulation_bias_type` | [string] | SimBu scaling factor (mRNA bias); used by the `simulation` workflow | `['expressed_genes']` |
 
-### Reference split by donor
+### Reference split by donor or by cell
 
-A workflow that simulates pseudo-bulks from the scRNA-seq dataset it also deconvolves with lets the same cells contribute to both. With `split_reference = true`, every dataset that has both roles (named in `simulation_sc_dataset` and in `single_cell_list`, or the one dataset of the **simulation_unknown_content** and **simulation_resolution_analysis** workflows) is split by donor: the cells of one part of the donors are used for the simulation, the cells of the other donors as reference of the methods. A dataset with only one role is used completely. The **impact_missing_cell_types** workflow is the exception: there the references are split whenever the split is on, also if no pseudo-bulks are simulated, so that the methods get the same part of the reference as in the other workflows. If `simulation_sc_dataset` is not set, the datasets of `single_cell_list` are used for the simulation.
+A workflow that simulates pseudo-bulks from the scRNA-seq dataset it also deconvolves with lets the same cells contribute to both. With `split_reference = true`, every dataset that has both roles (named in `simulation_sc_dataset` and in `single_cell_list`, or the one dataset of the **simulation_unknown_content** and **simulation_resolution_analysis** workflows) is split by donor: the cells of one part of the donors are used for the simulation, the cells of the other donors as reference of the methods. With `split_by = 'cell'` the cells are split within every cell type instead: no cell is used twice, but every donor can be in both parts. A dataset with only one role is used completely. The **impact_missing_cell_types** workflow is the exception: there the references are split whenever the split is on, also if no pseudo-bulks are simulated, so that the methods get the same part of the reference as in the other workflows. If `simulation_sc_dataset` is not set, the datasets of `single_cell_list` are used for the simulation.
 
 | Name       | Type   | Description                             | Default                      |
 | ---------- | ------ | ---------------------------------- | -------------------------------- |
 | `split_reference` | boolean | split datasets that have both roles | `false` |
-| `split_fraction_simulation` | float | share of the donors whose cells go to the simulation, rounded to whole donors with at least one donor per part | `0.5` |
+| `split_by` | string | `donor`: whole donors go to one part; `cell`: the cells of every cell type of the finest annotation level (`celltype_annotations_fine.rds` if the dataset has one) are split | `donor` |
+| `split_fraction_simulation` | float | share of the donors whose cells go to the simulation, rounded to whole donors with at least one donor per part; with `split_by = 'cell'` the share of the cells of every cell type | `0.5` |
 | `split_min_cells` | int | minimum number of cells that every cell type needs in each part, at every annotation level of the dataset | `50` |
 | `split_min_cells_action` | string | what happens if a cell type has fewer cells: `error` stops the run, `warn` continues | `error` |
-| `split_seed` | int | seed of the donor assignment | `1` |
+| `split_seed` | int | seed of the donor or cell assignment | `1` |
 | `split_reference_cells_fraction` | float | share of the cells of the method part that is kept, drawn within every cell type; use it for datasets that are too large for the methods | `1` |
 
 The donor of a cell is taken from `donor.rds` if the dataset has that file, otherwise from `batch.rds`. A dataset whose batches are several samples of the same donor needs a `donor.rds`.
 
-The split is done by the process SPLIT_REFERENCE. Its description is stored in `<preProcess_dir>/reference_split/<dataset>_simulation<share>_mincells<n>_seed<seed>_cells<share>/`: the part of every cell (`assignment.csv`) and of every donor (`donors.csv`), the cells per cell type in each part (`cells_per_cell_type.csv`) and the parameters. The same parameters give the same folder and the same content; other parameters give another folder.
+The split is done by the process SPLIT_REFERENCE. Its description is stored in `<preProcess_dir>/reference_split/<dataset>_simulation<share>_mincells<n>_seed<seed>_cells<share>/` (with the suffix `_bycell` for `split_by = 'cell'`): the part of every cell (`assignment.csv`) and of every donor (`donors.csv`; for a split by cell the cells of every donor in each part), the cells per cell type in each part (`cells_per_cell_type.csv`) and the parameters. The same parameters give the same folder and the same content; other parameters give another folder.
 
 ### Workflow-specific Parameters:
 
@@ -429,7 +430,7 @@ Rscript tests/compare_results.R <reference_run>/results <run_dir>/results
 
 `tests/known_unstable.txt` lists result files with a known, explained difference. Scaden cannot be given a seed through omnideconv, so its results are only compared by structure. The profiles in `tests/conf/` are those of our cluster; adapt them to yours. `tests/conf_real/` and `tests/make_real_input.sh` run the same comparison on real datasets, `tests/replay_metrics.R` compares two versions of the metrics script on stored results, and `tests/check_trace_parsing.R` checks that a trace file can still be read by `fig_s4.Rmd`.
 
-The configs in `tests/conf_split/` run the workflows with the reference split by donor (`CONF_DIR=tests/conf_split tests/run_fixture.sh <fixture_dir> <run_dir>`), and the profile `musichc` of the test configs runs the method `music-hc`.
+The configs in `tests/conf_split/` run the workflows with the reference split by donor (`CONF_DIR=tests/conf_split tests/run_fixture.sh <fixture_dir> <run_dir>`), those in `tests/conf_split_cell/` with the split within every cell type, and the profile `musichc` of the test configs runs the method `music-hc`.
 
 ## Running on the DaisyBio cluster
 

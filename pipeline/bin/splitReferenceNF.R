@@ -6,16 +6,17 @@ library(docopt)
 library(Matrix)
 
 "Usage:
-  splitReferenceNF.R <sc_name> <sc_path> <fraction_simulation> <min_cells> <min_cells_action> <seed> <reference_cells_fraction> <output_dir>
+  splitReferenceNF.R <sc_name> <sc_path> <fraction_simulation> <min_cells> <min_cells_action> <seed> <reference_cells_fraction> <output_dir> [<split_by>]
 Options:
 <sc_name> name of sc dataset
 <sc_path> path to sc dataset
-<fraction_simulation> share of the donors whose cells are used for the simulation of pseudo-bulks
+<fraction_simulation> share of the donors (split_by donor) or of the cells of every cell type (split_by cell) that is used for the simulation of pseudo-bulks
 <min_cells> minimum number of cells that every cell type needs in each part
 <min_cells_action> what to do if a cell type has fewer cells in a part: error or warn
 <seed> seed of the donor assignment
 <reference_cells_fraction> share of the cells of the method part that is kept (1 keeps all)
-<output_dir> output directory" -> doc
+<output_dir> output directory
+<split_by> donor (default): whole donors go to one part; cell: the cells of every cell type are split, so every donor can be in both parts" -> doc
 
 args <- docopt::docopt(doc)
 
@@ -27,6 +28,7 @@ min_cells_action <- args$min_cells_action
 seed <- as.integer(args$seed)
 reference_cells_fraction <- as.numeric(args$reference_cells_fraction)
 output_dir <- args$output_dir
+split_by <- if(is.null(args$split_by)) 'donor' else args$split_by
 
 if(is.na(fraction_simulation) || fraction_simulation <= 0 || fraction_simulation >= 1){
   stop('split_fraction_simulation has to be between 0 and 1')
@@ -36,6 +38,9 @@ if(is.na(reference_cells_fraction) || reference_cells_fraction <= 0 || reference
 }
 if(!min_cells_action %in% c('error', 'warn')){
   stop('split_min_cells_action has to be error or warn')
+}
+if(!split_by %in% c('donor', 'cell')){
+  stop('split_by has to be donor or cell')
 }
 
 # The annotation of the dataset; datasets of the resolution analysis may only have the levels.
@@ -55,19 +60,32 @@ if(length(donors) != n_cells){
   stop(paste0(donor_file, ' has ', length(donors), ' entries, ', annotation_files[1], ' has ', n_cells))
 }
 donor_ids <- sort(unique(donors))
-if(length(donor_ids) < 2){
+if(split_by == 'donor' && length(donor_ids) < 2){
   stop(paste0('The dataset has only one donor in ', donor_file, ' and cannot be split'))
 }
 
-###########################
-#### assign the donors ####
-###########################
+##########################################
+#### assign the donors or the cells ####
+##########################################
 
 set.seed(seed)
-shuffled <- sample(donor_ids)
-n_simulation <- min(max(round(fraction_simulation * length(donor_ids)), 1), length(donor_ids) - 1)
-simulation_donors <- shuffled[seq_len(n_simulation)]
-part <- ifelse(donors %in% simulation_donors, 'simulation', 'deconvolution')
+if(split_by == 'donor'){
+  shuffled <- sample(donor_ids)
+  n_simulation <- min(max(round(fraction_simulation * length(donor_ids)), 1), length(donor_ids) - 1)
+  simulation_donors <- shuffled[seq_len(n_simulation)]
+  part <- ifelse(donors %in% simulation_donors, 'simulation', 'deconvolution')
+} else {
+  # The cells of every cell type of the finest annotation level are split on their own, so that
+  # every cell type, also a rare one, has the same share in both parts. The coarser levels follow.
+  finest_file <- intersect(c('celltype_annotations_fine.rds', annotation_files[1]), annotation_files)[1]
+  finest <- as.character(readRDS(file.path(sc_dir, finest_file)))
+  part <- rep('deconvolution', n_cells)
+  for(cell_type in sort(unique(finest))){
+    cells <- which(finest == cell_type)
+    n_simulation <- round(fraction_simulation * length(cells))
+    part[cells[sample.int(length(cells), n_simulation)]] <- 'simulation'
+  }
+}
 
 # optionally keep only a share of the cells of the method part, drawn within every cell type
 keep <- rep(TRUE, n_cells)
@@ -95,10 +113,17 @@ for(annotation_file in annotation_files){
   summary_table <- rbind(summary_table, cbind(annotation = sub('\\.rds$', '', annotation_file), cell_type = rownames(level_table), level_table))
 }
 rownames(summary_table) <- NULL
-donor_table <- data.frame(donor = donor_ids, part = ifelse(donor_ids %in% simulation_donors, 'simulation', 'deconvolution'),
-                          cells = as.vector(table(factor(donors, levels = donor_ids))))
-
-cat(paste0('Donors (', donor_file, '): ', n_simulation, ' for the simulation, ', length(donor_ids) - n_simulation, ' for the methods\n'))
+if(split_by == 'donor'){
+  donor_table <- data.frame(donor = donor_ids, part = ifelse(donor_ids %in% simulation_donors, 'simulation', 'deconvolution'),
+                            cells = as.vector(table(factor(donors, levels = donor_ids))))
+  cat(paste0('Donors (', donor_file, '): ', n_simulation, ' for the simulation, ', length(donor_ids) - n_simulation, ' for the methods\n'))
+} else {
+  # every donor can have cells in both parts
+  donor_table <- data.frame(donor = donor_ids, cells = as.vector(table(factor(donors, levels = donor_ids))),
+                            as.data.frame.matrix(table(factor(donors, levels = donor_ids), factor(part, levels = c('simulation', 'deconvolution', 'not used')))),
+                            row.names = NULL, check.names = FALSE)
+  cat(paste0('Cells split within every cell type of ', finest_file, ': ', sum(part == 'simulation'), ' for the simulation, ', sum(part != 'simulation'), ' for the methods\n'))
+}
 print(summary_table, row.names = FALSE)
 
 too_few <- summary_table[summary_table$simulation < min_cells | summary_table$deconvolution < min_cells, ]
@@ -122,9 +147,12 @@ dir.create(split_dir, recursive = TRUE, showWarnings = FALSE)
 write.csv(assignment, file.path(split_dir, 'assignment.csv'), row.names = FALSE)
 write.csv(summary_table, file.path(split_dir, 'cells_per_cell_type.csv'), row.names = FALSE)
 write.csv(donor_table, file.path(split_dir, 'donors.csv'), row.names = FALSE)
-write.csv(data.frame(parameter = c('dataset', 'donors_from', 'split_fraction_simulation', 'split_min_cells', 'split_min_cells_action', 'split_seed', 'split_reference_cells_fraction'),
-                     value = c(sc_dataset, donor_file, fraction_simulation, min_cells, min_cells_action, seed, reference_cells_fraction)),
-          file.path(split_dir, 'parameters.csv'), row.names = FALSE)
+parameters <- data.frame(parameter = c('dataset', 'donors_from', 'split_fraction_simulation', 'split_min_cells', 'split_min_cells_action', 'split_seed', 'split_reference_cells_fraction'),
+                         value = c(sc_dataset, donor_file, fraction_simulation, min_cells, min_cells_action, seed, reference_cells_fraction))
+if(split_by != 'donor'){
+  parameters <- rbind(parameters, data.frame(parameter = c('split_by', 'cell_types_from'), value = c(split_by, finest_file)))
+}
+write.csv(parameters, file.path(split_dir, 'parameters.csv'), row.names = FALSE)
 
 part_dirs <- list(simulation = file.path(output_dir, 'simulation', sc_dataset), deconvolution = file.path(output_dir, 'deconvolution', sc_dataset))
 for(part_dir in part_dirs){

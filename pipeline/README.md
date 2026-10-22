@@ -103,11 +103,13 @@ pipeline
 
 Every process takes its datasets as input files and writes its results into its task directory; Nextflow then publishes them into the result directories. Because of this, `-resume` can be used safely: a task is run again if one of its input files changed, also if a file was replaced inside a dataset directory.
 
-The processes are called directly from the workflows in `main.nf` and not through sub-workflows (the only exception is the optional [reference split](#reference-split-by-donor)). This keeps the process names in the trace files short (e.g. `subsampling:DECONVOLUTE`), which `visualisation/supplement/fig_s4.Rmd` relies on. For the same reason the argument order of `computeSignaturesNF.R` and `runDeconvolutionNF.R` should not be changed.
+The processes are called directly from the workflows in `main.nf` and not through sub-workflows (the only exception is the optional [reference split](#reference-split-by-donor-or-by-cell)). This keeps the process names in the trace files short (e.g. `subsampling:DECONVOLUTE`), which `visualisation/supplement/fig_s4.Rmd` relies on. For the same reason the argument order of `computeSignaturesNF.R` and `runDeconvolutionNF.R` should not be changed.
 
 ## Workflows
 
 This is a basic overview of the workflows that are offered in this pipeline. The parameters can be adapted in the `nextflow.config` file and are described below.
+
+The workflows **impact_missing_cell_types**, **simulation_unknown_content**, **simulation_resolution_analysis** and **simulation_impact_technology** downsample the reference of the methods to at most 500 cells per cell type (`subset_cells` in `bin/utils.R`, seed 22); the resolution analysis does so per fine cell type. The **main**, **simulation**, **deconv_only** and **simulation_spillover** workflows use the reference as it is.
 
 ![Alt text](workflows.png)
 
@@ -120,7 +122,7 @@ This workflow does signature creation, deconvolution and result metric calculati
 In the **main** workflow following processes are run:
 1. CREATE_SIGNATURE - Creates the signature matrix (or model) from the scRNA-seq datasets set in `single_cell_list`. How often this runs depends on the method, see [Methods](#methods): once per scRNA-seq dataset, once per combination of scRNA-seq and bulk dataset, or not at all.
 2. DECONVOLUTE - Deconvolves the bulk RNA-seq datasets set in `bulk_list` using the created signature matrices.
-3. COMPUTE_METRICS - Calculates the metrics for the deconvolution results.
+3. COMPUTE_METRICS - Calculates the metrics for the deconvolution results. A bulk dataset without ground truth (`<bulk>_facs.rds`, e.g. a tumour cohort) is deconvolved, but has no metrics; the run prints a warning for it.
 
 The results of the **main** workflow are stored in the `results_dir_general` directory, one folder per combination of method, scRNA-seq dataset and bulk dataset (see [Results](#results)).
 
@@ -154,7 +156,7 @@ This workflow excludes cell types from the scRNA-seq datasets (`single_cell_list
 With `simulation_missing_cell_types = true` the workflow also simulates pseudo-bulk datasets (SIMULATE_BULK, with the same `simulation_*` parameters as the **simulation** workflow) and analyses them together with the datasets of `bulk_list`. A copy of the pseudo-bulk datasets is stored in `<preProcess_dir>/pseudo_bulk_missing_cell_types`.
 
 In the **impact_missing_cell_types** workflow following process is run:
-1. ANALYSIS_BULK_MISSING_CELL_TYPES - Excludes `cell_types_to_exclude` cell types from the `single_cell_list` scRNA-seq datasets and deconvolves the bulk RNA-seq datasets using the created signature matrices. Finally, the metrics for the deconvolution results are calculated.
+1. ANALYSIS_BULK_MISSING_CELL_TYPES - Excludes `cell_types_to_exclude` cell types from the `single_cell_list` scRNA-seq datasets and deconvolves the bulk RNA-seq datasets using the created signature matrices. Finally, the metrics for the deconvolution results are calculated. The cell type is removed before the reference is downsampled to 500 cells per cell type, so the other cell types with more than 500 cells get a different subsample in every run.
 
 The results of the **impact_missing_cell_types** workflow are stored in the `results_dir_missing_cell_types` directory.
 
@@ -354,7 +356,7 @@ The pipeline expects the input data to be in a specific format. The following se
 ### bulk RNA-seq datasets
 - `bulk_counts.rds` - a matrix with the raw counts of each gene in each sample. Columns are samples, rows are genes. Is used by methods whose `bulk_norm` is "*counts*". 'bulk' is a placeholder for the name of the bulk RNA-seq dataset, e.g. `finotello`.
 - `bulk_tpm.rds` - a matrix with the TPM of each gene in each sample. Columns are samples, rows are genes. Is used by methods whose `bulk_norm` is "*tpm*".
-- `bulk_facs.rds` - a matrix of true fractions for each cell type. Columns are samples, rows are cell types.
+- `bulk_facs.rds` - a matrix of true fractions for each cell type. Columns are samples, rows are cell types. Optional in the **main** workflow: without it no metrics are computed.
 
 If the ground truth of a bulk dataset contains cell types that are sums of cell types in the reference (e.g. all T cells), add a row for it to `assets/celltype_aggregation.csv`.
 
@@ -366,7 +368,7 @@ The **main**, **simulation** and **subsampling** workflows write one folder per 
 <method>_<sc dataset>_<sc_norm>_<bulk dataset>_<bulk_norm>_ct0_rep0
 ├── signature.rds                signature of the method (empty for methods without signature)
 ├── deconvolution.rds            estimated cell-type fractions
-├── results_metric.rds           metrics, ground truth, estimated fractions and runtimes (main and simulation)
+├── results_metric.rds           metrics, ground truth, estimated fractions and runtimes (main and simulation; only with a ground truth)
 ├── runtime_signature.rds
 └── runtime_deconvolution.rds
 ```
@@ -439,6 +441,8 @@ Our own runs use the files in `conf/`, `configs/` and `scripts/`:
 - `conf/norm.config` - the base config of the cluster: where the data are, the resources of the processes, and the profiles. There is one profile per container image, and each profile selects the methods that run in its image: `apptainer` (standard image; bayesprism, bisque, dwls, music, scaden, scdc), `autogenes`, `rectangle`, `secret`, and `cibersortx` (local Docker). Simulation, subsampling and the reference split always run in the standard image, so that all methods deconvolve the same simulated datasets with the same references. All Slurm jobs go to the `exbio-cpu` partition: AutoGeneS gives different results on `compms-cpu-1`, the other node of the default partition.
 - `configs/<run>.config` - a run config: it includes the base config and then sets the parameters of one analysis. Everything defined in the base config can be overridden there, e.g. `data_dir_sc` or the memory of a method (`params.method_memory.dwls = 340`). To run only some of the methods of a profile, add `profiles { apptainer { params.method_list = ["dwls","scaden"] } }`. A workflow stops with a message if the run config does not set a parameter that it needs.
 - `scripts/run.sh <config> <profile> [<workflow>] [nextflow options]` - starts a workflow, e.g. `scripts/run.sh nextflow_norm_resolution rectangle simulation_resolution_analysis -resume`.
+- `scripts/run_profiles.sh <config> <workflow> [--check] [<profile> ...]` - runs one workflow with several profiles one after the other in one launch folder; `--check` runs only Bisque. `scripts/run_revision_*.sh` and `scripts/run_tcga_brca.sh` use it for the runs of the rectangle revision.
+- Memory: with a large reference, set `ncores = 1` for DWLS. Its signature step runs one MAST worker per core, each with its own copy of the data (wu with 66,559 cells: 171 GB with one core, more than 480 GB with eight; see `configs/tcga_brca_dwls.config`).
 
 Nextflow has to be started with Java 17 on this cluster (`run.sh` does this): with Java 21, copying a file larger than about 2 MB to one of the NFS shares never returns, which blocks the publishing of results.
 
@@ -458,6 +462,6 @@ CIBERSORTx is started as a Docker container from inside the benchmark container.
 
 CIBERSORTx offers two batch correction modes, S-mode and B-mode, which should be used in different settings. The usecase depends upon the input dataset characteristics, both from the bulk and single-cell dataset.
 If the bulk dataset has been simulated from the same single-cell dataset that will be used as reference, no batch correction should be used. If the bulk dataset originates from real samples, the batch correction depends on the technology of the single-cell dataset: In 10X-based dataset, S-mode should be used, in all other cases B-mode should be used.
-The technology type of the single-cell dataset has to be added in the `pipeline/sc_datasets_technologies.csv` file, the correct naming convention for 10X-type datasets is simply `10X`, as given in the example.
+The technology type of the single-cell dataset has to be added in the `pipeline/sc_datasets_technologies.csv` file, the correct naming convention for 10X-type datasets is simply `10X`, as given in the example. Every scRNA-seq dataset that CIBERSORTx uses as reference in the **main**, **simulation** and **deconv_only** workflows needs a row there, also while the modes are switched off; otherwise the deconvolution stops with `argument is of length zero`.
 
 **Disclaimer:** During our benchmarking procedure, we were not able to use the B-mode from CIBERSORTx in its provided Docker container, as this ended with an error message that we could not influence. In the current version of the pipeline both modes are switched off for all datasets.

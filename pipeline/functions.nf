@@ -177,7 +177,16 @@ def metricsInput(ch_input, ch_results) {
     def needed = ['deconvolution.rds', 'runtime_signature.rds', 'runtime_deconvolution.rds']
     return ch_input
         .map { meta, _sc_dir, bulk_dir -> [meta, bulk_dir] }
+        // bulk datasets without ground truth (e.g. tumour cohorts) are deconvolved, but have no metrics
+        .filter { meta, bulk_dir -> hasGroundTruth(meta.bulk, bulk_dir) }
         .join(ch_results.map { meta, files -> [meta, files.findAll { f -> f.name in needed && f.parent.name == 'out' }] })
+}
+
+// Has a bulk dataset the true cell-type fractions <bulk>_facs.rds that COMPUTE_METRICS compares with?
+// bulk_dir is the dataset directory, or [directory, stamp file] (see datasetChannel).
+def hasGroundTruth(bulk_name, bulk_dir) {
+    def dir = bulk_dir instanceof List ? bulk_dir[0] : bulk_dir
+    return file("${dir}/${bulk_name}_facs.rds").exists()
 }
 
 // Settings of a method, passed to its script as last argument, e.g. " 'marker_fraction=0.1'".

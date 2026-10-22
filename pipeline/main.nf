@@ -45,6 +45,9 @@ workflow SPLIT_DATASETS {
 workflow {
 
   requireParams(['data_dir_sc', 'data_dir_bulk', 'results_dir_general', 'single_cell_list', 'bulk_list', 'method_list', 'ncores', 'species_sc'])
+  params.bulk_list.findAll { bulk -> !file("${params.data_dir_bulk}/${bulk}/${bulk}_facs.rds").exists() }.each { bulk ->
+    log.warn "${bulk}: no ${bulk}_facs.rds, the results are not compared with a ground truth (no COMPUTE_METRICS)"
+  }
 
   ch_input = deconvolutionInput(datasetChannel(params.single_cell_list, params.data_dir_sc),
                                 datasetChannel(params.bulk_list, params.data_dir_bulk),

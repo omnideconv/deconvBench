@@ -128,8 +128,10 @@ corr.ribbon <- trend_plot(correlation.results.summary, 'Pearson correlation',
                           'Correlation trend with increasing tumor fraction', c(0, 0.5))
 rmse.ribbon <- trend_plot(rmse.results.summary, 'RMSE',
                           'RMSE trend with increasing tumor fraction', 0)
-ggsave(file.path(output_dir, 'unknown_content_correlation.pdf'), corr.ribbon, width = 16, height = 7.5)
-ggsave(file.path(output_dir, 'unknown_content_rmse.pdf'), rmse.ribbon, width = 16, height = 7.5)
+for (ext in c('pdf', 'png')) {
+  ggsave(file.path(output_dir, paste0('unknown_content_correlation.', ext)), corr.ribbon, width = 16, height = 7.5, dpi = 200, bg = 'white')
+  ggsave(file.path(output_dir, paste0('unknown_content_rmse.', ext)), rmse.ribbon, width = 16, height = 7.5, dpi = 200, bg = 'white')
+}
 
 # SECRET: estimated unknown proportion against the true tumour fraction
 if (nrow(secret_unknown) > 0) {
@@ -142,7 +144,9 @@ if (nrow(secret_unknown) > 0) {
     xlab('True tumor fraction') +
     ylab('Unknown proportion estimated by SECRET') +
     labs(title = 'SECRET: estimated unknown content', subtitle = 'points: samples; red: median per tumor fraction')
-  ggsave(file.path(output_dir, 'unknown_content_secret_unknown.pdf'), secret.plot, width = 6, height = 6)
+  for (ext in c('pdf', 'png')) {
+    ggsave(file.path(output_dir, paste0('unknown_content_secret_unknown.', ext)), secret.plot, width = 6, height = 6, dpi = 200, bg = 'white')
+  }
   write_csv(secret_unknown %>% group_by(unknown_fraction) %>%
               dplyr::summarize(median_estimated_unknown = median(predicted_value), n = n()),
             file.path(output_dir, 'unknown_content_secret_unknown.csv'))

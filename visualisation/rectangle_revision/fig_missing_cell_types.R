@@ -76,7 +76,9 @@ heatmap_plot <- function(bulk, title) {
     labs(y = 'Predicted cell type\n', x = 'Missing cell type', title = title)
 }
 
-ggsave(file.path(output_dir, 'missing_cell_types_finotello.pdf'), heatmap_plot('finotello', 'Finotello dataset'), dpi = 350, width = 12, height = 12)
-ggsave(file.path(output_dir, 'missing_cell_types_hoek.pdf'), heatmap_plot('hoek', 'Hoek dataset'), dpi = 350, width = 12, height = 12)
+for (ext in c('pdf', 'png')) {
+  ggsave(file.path(output_dir, paste0('missing_cell_types_finotello.', ext)), heatmap_plot('finotello', 'Finotello dataset'), dpi = 200, width = 12, height = 12, bg = 'white')
+  ggsave(file.path(output_dir, paste0('missing_cell_types_hoek.', ext)), heatmap_plot('hoek', 'Hoek dataset'), dpi = 200, width = 12, height = 12, bg = 'white')
+}
 
 cat('figures written to', output_dir, '\n')

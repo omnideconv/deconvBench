@@ -13,8 +13,10 @@ on:
     paths: ['pipeline/**', 'data/ci/**', '.github/workflows/ci.yml']
   workflow_dispatch:
 
+# a push to a branch with an open pull request starts two runs; they share the group of the branch,
+# so only the later one runs to the end
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 permissions:

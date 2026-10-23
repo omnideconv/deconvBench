@@ -23,4 +23,5 @@ visualisation/*/*.html
 pipeline/*.sh
 old_scripts/
 data/*
+!data/ci/
 launch/

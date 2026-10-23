@@ -434,6 +434,18 @@ Rscript tests/compare_results.R <reference_run>/results <run_dir>/results
 
 The configs in `tests/conf_split/` run the workflows with the reference split by donor (`CONF_DIR=tests/conf_split tests/run_fixture.sh <fixture_dir> <run_dir>`), those in `tests/conf_split_cell/` with the split within every cell type, and the profile `musichc` of the test configs runs the method `music-hc`.
 
+### Continuous integration
+
+`.github/workflows/ci.yml` tests the pipeline on GitHub after every push that changes `pipeline/`, `data/ci/` or the workflow file:
+
+- **static** - `nextflow lint`, every run config of `configs/` with every profile, and a dry run (`-preview`) of all workflows.
+- **workflows** - all eight workflows with MuSiC on the small dataset in `data/ci/` (built by `tests/ci/make_ci_fixture.R`), without split, split by cell and split by donor. `tests/ci/check_results.R` checks the results: complete estimates with the cell-type names of the reference, metrics only where there is a ground truth, unknown-content pseudo-bulks with only the known and the unknown cell types, ground truths of the resolution analysis with the names of the annotation, the split invariants, and MuSiC's values against `tests/ci/expected/`. `tests/ci/unit_tests.R` tests helpers such as the MuSiC-hc groups and SECRET's reference.
+- **methods** - the main workflow with every method in its own image (standard, autogenes, rectangle, secret), when method code changed, for pull requests into `main` and when started by hand. CIBERSORTx is not tested in CI.
+
+The test data contain the cases that broke runs on real data: annotations as factors with unused levels, a cell type from a single donor, names with `+`, `-`, `.`, `_` and names that contain each other, a bulk without ground truth and with non-integer counts, and a bulk named `hoek`.
+
+The images are `.sif` files in `ghcr.io/omnideconv/deconvbench-images` (pushed with `docker/push_ci_images.sh`). The same suites run on the cluster: `tests/ci/run_ci.sh <suite> <run_dir>` with `IMG_STANDARD`, `IMG_AUTOGENES`, `IMG_RECTANGLE` and `IMG_SECRET` pointing to the images. When results change on purpose, run the `workflows` suite and then `check_results.R workflows <run_dir> <pipeline_dir> --update-expected`. `tests/ci/check_mappings.R <dataset_dir> ...` checks the `cell_type_mappings.csv` of real datasets.
+
 ## Running on the DaisyBio cluster
 
 Our own runs use the files in `conf/`, `configs/` and `scripts/`:

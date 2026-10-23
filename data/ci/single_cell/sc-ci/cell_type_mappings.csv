@@ -1,0 +1,14 @@
+Fine,Normal,Coarse
+B cells s1,B cells,B cells
+B cells s2,B cells,B cells
+mDC,mDC,mDC
+Monocytes,Monocytes,Monocytes
+Monocytes classical,Monocytes classical,Monocytes
+NK cells,NK cells,NK cells
+pDC_c4-IRF7+,pDC_c4-IRF7+,pDC
+Plasma cells,Plasma cells,Plasma cells
+Platelets.CD41+,Platelets.CD41+,Platelet
+T cells CD4 conv,T cells CD4 conv,T cells
+T cells CD8 s1,T cells CD8,T cells
+T cells CD8 s2,T cells CD8,T cells
+Tregs,Tregs,T cells

@@ -9,7 +9,7 @@ library(tidyverse)
 reticulate::use_condaenv(condaenv = "r-omnideconv", required = TRUE)
 
 "Usage:
-  analysisNF_unknown_content.R <sc_name> <sc_path> <bulk_name> <bulk_path> <replicate> <deconv_method> <fraction_unknown_cells> <cell_types> <unknown_cell_type> <results_dir> <ncores> <baseDir>
+  analysisNF_unknown_content.R <sc_name> <sc_path> <bulk_name> <bulk_path> <replicate> <deconv_method> <fraction_unknown_cells> <cell_types> <unknown_cell_type> <results_dir> <ncores> <baseDir> [<method_settings>]
 Options:
 <sc_name> name of sc datasets
 <sc_path> path to sc dataset
@@ -22,7 +22,8 @@ Options:
 <unknown_cell_type> string, which cell type will be treated as unknown (i.e. not in the signature)
 <results_dir> results (base) directory
 <ncores> number of cores to use for method (if available)
-<baseDir> nextflow base directory" -> doc
+<baseDir> nextflow base directory
+<method_settings> settings of the method, e.g. marker_fraction=0.1 (optional)" -> doc
 
 args <- docopt::docopt(doc)
 
@@ -37,29 +38,26 @@ replicates <- as.numeric(args$replicate)
 baseDir <- args$baseDir
 
 source(paste0(baseDir, '/bin/utils.R'))
-method_normalizations <- read.table(paste0(baseDir, '/optimal_normalizations.csv'), sep = ',', header = TRUE)
-sc_norm <- method_normalizations[method_normalizations$method == method, 2]
-bulk_norm <- method_normalizations[method_normalizations$method == method, 3]
+method_settings <- parse_method_settings(args$method_settings)
+normalization <- method_normalization(baseDir, method)
+sc_norm <- normalization$sc_norm
+bulk_norm <- normalization$bulk_norm
 
-if(sc_norm == 'counts'){
-    sc_matrix <- readRDS(file.path(sc_path, sc_dataset, 'matrix_counts.rds'))
-} else {
-    sc_matrix <- readRDS(file.path(sc_path, sc_dataset, 'matrix_norm_counts.rds'))
-}
+sc_matrix <- read_sc_matrix(sc_path, sc_dataset, sc_norm)
 
 sc_celltype_annotations <- readRDS(file.path(sc_path, sc_dataset, 'celltype_annotations.rds'))
+# groups of cell types, only used by the hierarchical MuSiC
+celltype_groups <- read_celltype_groups(method, file.path(sc_path, sc_dataset), sc_celltype_annotations)
 sc_batch <- readRDS(file.path(sc_path, sc_dataset, 'batch.rds'))
 
 unknown_cell_type <- args$unknown_cell_type
 
-fractions_unknown <- gsub('\\[|]', '', args$fraction_unknown_cells)
-fractions_unknown <- strsplit(fractions_unknown, ",")[[1]]
+fractions_unknown <- parse_list_argument(args$fraction_unknown_cells)
 fractions_unknown <- as.numeric(fractions_unknown)
 print(fractions_unknown)
 
 # Here we need to filter for those cell types that are in the simulated dataset. 
-cell_types_simulation <- gsub('\\[|]', '', args$cell_types)
-cell_types_simulation <- strsplit(cell_types_simulation, ",")[[1]]
+cell_types_simulation <- parse_list_argument(args$cell_types)
 print(cell_types_simulation)
 
 position_vector <- sc_celltype_annotations %in% cell_types_simulation
@@ -67,13 +65,10 @@ sc_matrix <- sc_matrix[, position_vector]
 sc_batch <- sc_batch[position_vector]
 sc_celltype_annotations <- sc_celltype_annotations[position_vector]
 
-bulk_matrix <- readRDS(file.path(bulk_path, 'replicate_1', paste0(bulk_name, '_', fractions_unknown[1], '_', bulk_norm, '.rds')))
-bulk_matrix <- as.matrix(bulk_matrix)
+bulk_matrix <- read_bulk_matrix(file.path(bulk_path, 'replicate_1'), paste0(bulk_name, '_', fractions_unknown[1]), bulk_norm)
 
-res_path_normal <- paste0(res_base_path, '/', method, '_', bulk_name)
-
-# Docker needs that
-res_path_normal <- tolower(res_path_normal)
+# Docker needs lower-case names
+res_path_normal <- paste0(res_base_path, '/', tolower(paste0(method, '_', bulk_name)))
 
 dir.create(res_path_normal, recursive = TRUE, showWarnings = TRUE)
 
@@ -100,11 +95,14 @@ signature <- signature_workflow_general(
   baseDir=baseDir
 )
 
+if(method == 'rectangle'){
+  sc_matrix <- rectangle_reference(sc_matrix, sc_celltype_annotations)
+}
+
 for(cur_cell_fraction in fractions_unknown){
   
   for (r in 1:replicates){
-    bulk_matrix <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0(bulk_name, '_', cur_cell_fraction, '_', bulk_norm, '.rds')))
-    bulk_matrix <- as.matrix(bulk_matrix)
+    bulk_matrix <- read_bulk_matrix(file.path(bulk_path, paste0('replicate_', r)), paste0(bulk_name, '_', cur_cell_fraction), bulk_norm)
 
     true_fractions <- readRDS(file.path(bulk_path, paste0('replicate_', r), paste0(bulk_name, '_', cur_cell_fraction, '_facs.rds')))
 
@@ -123,7 +121,9 @@ for(cur_cell_fraction in fractions_unknown){
       bulk_norm, 
       ncores, 
       res_path_normal,
-      baseDir=baseDir
+      baseDir=baseDir,
+      celltype_groups = celltype_groups,
+      method_settings = method_settings
     )  
 
     results_list = list(

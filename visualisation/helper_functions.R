@@ -251,7 +251,6 @@ get_all_fractions <- function(output_dir, ct_values, query_sc, method_parameter_
         
         for(query_sc_norm in query_sc_norm_vect){
           
-          
           if(sc_norm == query_sc_norm){
             results_file <- paste0(output_dir,f,'/results_metric.rds')
             

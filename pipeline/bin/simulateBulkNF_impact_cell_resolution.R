@@ -93,6 +93,9 @@ reannotate_facs <- function(facs.table, annotation, new.annotation.level){
     if(length(cur.cell.types) > 1){
       facs.table[c] <- rowSums(facs.table[, c(cur.cell.types)])
       facs.table[, c(cur.cell.types)] <- NULL
+    } else if(length(cur.cell.types) == 1 && cur.cell.types != c){
+      # a cell type with a single fine cell type of another name (e.g. NKT cells in wu)
+      names(facs.table)[names(facs.table) == cur.cell.types] <- c
     }
   }
   facs.table

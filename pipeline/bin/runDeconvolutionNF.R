@@ -67,6 +67,8 @@ if(args$run_preprocessing == 'true'){
 # read scRNA-seq count matrix
 sc_matrix <- read_sc_matrix(sc_path, sc_dataset, sc_norm)
 sc_celltype_annotations <- readRDS(file.path(sc_path, sc_dataset, 'celltype_annotations.rds'))
+# the names before any method-specific escaping
+reference_celltypes <- unique(as.character(sc_celltype_annotations))
 # groups of cell types, only used by the hierarchical MuSiC
 celltype_groups <- read_celltype_groups(method, file.path(sc_path, sc_dataset), sc_celltype_annotations)
 sc_batch <- readRDS(file.path(sc_path, sc_dataset, 'batch.rds'))
@@ -184,8 +186,8 @@ runtime <- system.time({
 
 })
 
-# save deconvolution result
-colnames(deconvolution) <- gsub('\\.',' ',colnames(deconvolution))
+# save deconvolution result, with the cell-type names of the reference
+colnames(deconvolution) <- restore_celltype_names(colnames(deconvolution), reference_celltypes)
 saveRDS(deconvolution, file=paste0(res_path, "/deconvolution.rds"))
 
 # measure runtime

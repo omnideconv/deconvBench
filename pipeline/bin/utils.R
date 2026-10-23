@@ -250,8 +250,26 @@ escapeCelltypesAutogenes <- function(celltype){
   return(gsub(" ", "xxxx", celltype))
 }
 
-reEscapeCelltypesAutogenes <- function(celltype){ 
+reEscapeCelltypesAutogenes <- function(celltype){
+  celltype <- gsub("21b2c6e87f8711ec9bf265fb9bf6ab9c", "+", celltype)
+  celltype <- gsub("21b2c7567f8711ec9bf265fb9bf6ab9a", "-", celltype)
+  celltype <- gsub("21b2c7567f8711ec9bf265fb9bf6ab9f", "(", celltype)
+  celltype <- gsub("21b2c7567f8711ec9bf265fb9bf6ab9g", ")", celltype)
   return(gsub("xxxx", " ", celltype))
+}
+
+# Cell-type names of a result as they are in the reference. Methods change them: Scaden replaces
+# spaces and other characters by dots, CIBERSORTx spaces by 'xxxx'. A name that matches exactly one
+# cell type of the reference on its letters and digits gets that name; any other name stays.
+restore_celltype_names <- function(names, reference_names){
+  key <- function(x) tolower(gsub('[^A-Za-z0-9]', '', gsub('xxxx', '', x)))
+  reference_names <- unique(as.character(reference_names))
+  reference_keys <- key(reference_names)
+  vapply(names, function(name){
+    if(name %in% reference_names) return(name)
+    match <- reference_names[reference_keys == key(name)]
+    if(length(match) == 1) match else name
+  }, character(1), USE.NAMES = FALSE)
 }
 
 compute_metrics <- function(ref_facs, deconvolution, metric = c('cor', 'rmse', 'mae', 'mape'), comparison = c('sample', 'cell_type')){
@@ -738,7 +756,7 @@ deconvolution_workflow_general <- function(sc_matrix, annotations, annotation_ca
     #                       obs = data.frame('cell_type' = annotations, row.names = colnames(sc_matrix)),
     #                       var = data.frame('genes' = rownames(sc_matrix), row.names = rownames(sc_matrix)))
 
-    deconvolution <- rp$rectangle(sc_matrix, bulks = as.data.frame(t(bulk_matrix), n_cpus=ncores))[[1]]
+    deconvolution <- rp$rectangle(sc_matrix, bulks = as.data.frame(t(bulk_matrix)), n_cpus = as.integer(ncores))[[1]]
 
   } else {
     message('Selected method is not supported in the benchmark. Please check again.')

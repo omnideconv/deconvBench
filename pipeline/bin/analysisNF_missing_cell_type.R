@@ -120,9 +120,8 @@ deconvolution <- deconvolution_workflow_general(
   method_settings = method_settings
 )
 
-colnames(deconvolution) <- gsub("xxxx", " ", colnames(deconvolution))
-# Scaden returns the cell-type names with dots instead of spaces
-colnames(deconvolution) <- gsub('\\.', ' ', colnames(deconvolution))
+# the cell-type names of the reference (Scaden returns dots, CIBERSORTx 'xxxx' for spaces)
+colnames(deconvolution) <- restore_celltype_names(colnames(deconvolution), sc_celltype_annotations)
 
 if(bulk_name=='hoek' | bulk_name=='hoek-simulation'){
   deconvolution <- as.data.frame(deconvolution)

@@ -12,9 +12,11 @@ output_dir <- if (length(args) >= 2) args[2] else '/nfs/proj/omnideconv_benchmar
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
 method_names <- c(rectangle = 'Rectangle', scdc = 'SCDC', autogenes = 'AutoGeneS', music = 'MuSiC', `music-hc` = 'MuSiC-hc',
-                  scaden = 'Scaden', bayesprism = 'BayesPrism', bisque = 'Bisque', cibersortx = 'CIBERSORTx', dwls = 'DWLS')
+                  scaden = 'Scaden', bayesprism = 'BayesPrism', bisque = 'Bisque', cibersortx = 'CIBERSORTx', dwls = 'DWLS',
+                  secret = 'SECRET')
 method_colors <- c(Rectangle = '#000000', SCDC = '#AFAFAF', AutoGeneS = '#7BC8A4', MuSiC = '#F2D649', `MuSiC-hc` = '#A39B2F',
-                   Scaden = '#DDBF94', BayesPrism = '#EE8C5E', Bisque = '#8E9CC8', CIBERSORTx = '#DE89C1', DWLS = '#4F8FC0')
+                   Scaden = '#DDBF94', BayesPrism = '#EE8C5E', Bisque = '#8E9CC8', CIBERSORTx = '#DE89C1', DWLS = '#4F8FC0',
+                   SECRET = '#B0413E')
 
 # The methods write the cell-type names in different forms: rectangle with underscores instead of
 # spaces, Scaden with dots for every other character, CIBERSORTx with 'xxxx' for spaces. They are

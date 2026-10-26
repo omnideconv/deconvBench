@@ -26,7 +26,9 @@ permissions:
 env:
   NXF_VER: 25.10.2
   NXF_ANSI_LOG: false
-  IMAGES: oras://ghcr.io/omnideconv/deconvbench-images
+  # images: ghcr.io/omnideconv/deconvbench-images (standard, autogenes, rectangle) and the private
+  # ghcr.io/omnideconv/deconvbench-images-secret (SECRET, whose repository states no licence)
+  REGISTRY: oras://ghcr.io/omnideconv
 
 jobs:
   static:
@@ -87,11 +89,10 @@ jobs:
           # Ubuntu 24.04 restricts the user namespaces that apptainer uses without root
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - name: Pull the standard image
-        # the package may be private; the repository needs read access to it (package settings,
-        # "Manage Actions access")
+        # private packages: the repository needs read access to them (package settings, "Manage Actions access")
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | apptainer registry login --username "${{ github.actor }}" --password-stdin oras://ghcr.io
-          apptainer pull "$RUNNER_TEMP/standard.sif" "$IMAGES:standard-2.0"
+          apptainer pull "$RUNNER_TEMP/standard.sif" "$REGISTRY/deconvbench-images:standard-2.0"
       - name: Run all workflows and check them
         run: |
           export IMG_STANDARD=$RUNNER_TEMP/standard.sif
@@ -114,10 +115,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { suite: standard,  image: standard-2.0,  var: IMG_STANDARD }
-          - { suite: autogenes, image: autogenes-1.3, var: IMG_AUTOGENES }
-          - { suite: rectangle, image: rectangle-2.5, var: IMG_RECTANGLE }
-          - { suite: secret,    image: secret-2.4,    var: IMG_SECRET }
+          - { suite: standard,  image: 'deconvbench-images:standard-2.0',  var: IMG_STANDARD }
+          - { suite: autogenes, image: 'deconvbench-images:autogenes-1.3', var: IMG_AUTOGENES }
+          - { suite: rectangle, image: 'deconvbench-images:rectangle-2.5', var: IMG_RECTANGLE }
+          - { suite: secret,    image: 'deconvbench-images-secret:2.4',    var: IMG_SECRET }
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v6
@@ -131,11 +132,10 @@ jobs:
           # Ubuntu 24.04 restricts the user namespaces that apptainer uses without root
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - name: Pull the image
-        # the package may be private; the repository needs read access to it (package settings,
-        # "Manage Actions access")
+        # private packages: the repository needs read access to them (package settings, "Manage Actions access")
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | apptainer registry login --username "${{ github.actor }}" --password-stdin oras://ghcr.io
-          apptainer pull "$RUNNER_TEMP/image.sif" "$IMAGES:${{ matrix.image }}"
+          apptainer pull "$RUNNER_TEMP/image.sif" "$REGISTRY/${{ matrix.image }}"
       - name: Main workflow with the methods of the image
         run: |
           export ${{ matrix.var }}=$RUNNER_TEMP/image.sif

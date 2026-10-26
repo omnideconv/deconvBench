@@ -5,7 +5,7 @@ This repository serves as the main resource to reproduce our results from the be
 The repository is divided into four sections:
 1) `docker/`
 
-    Here we store the Dockerfile that can be used in the benchmarking pipeline. It includes the [omnideconv](https://github.com/omnideconv/omnideconv) R package with all of its dependencies. An image created by this Dockerfile can also easily be accessed from [Dockerhub](https://hub.docker.com/repository/docker/alexd13/omnideconv_benchmark/general). 
+    Here we store the Dockerfile that can be used in the benchmarking pipeline. It includes the [omnideconv](https://github.com/omnideconv/omnideconv) R package with all of its dependencies. An image created by this Dockerfile can also easily be accessed from [Dockerhub](https://hub.docker.com/repository/docker/alexd13/omnideconv_benchmark/general). All images the pipeline uses (standard, AutoGeneS, rectangle, SECRET) are listed with their Docker and Apptainer sources in [pipeline/README.md](pipeline/README.md#images); `docker/update_rectangle.sh` and `docker/add_secret.sh` derive the rectangle and SECRET images from existing images, and `docker/push_ci_images.sh` pushes the `.sif` files to the GitHub container registry. 
 2) `pipeline/`
 
     This folder includes the nextflow pipeline that can be used to reproduce all results from our study and can also be extended to benchmark new deconvolution methods. A detailed description is included in the directory itself.

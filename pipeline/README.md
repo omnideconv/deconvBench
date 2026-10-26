@@ -15,6 +15,19 @@ apptainer build /location/of/new/image/omnideconv_benchmark.sif docker-daemon://
 ```
 Then adapt the path in the Apptainer profile of `nextflow.config` to the one specified above (i.e. `/location/of/new/image/omnideconv_benchmark.sif`) and use the 'apptainer' profile when running the pipeline. `docker/docker_to_singularity.sh` does both steps. `docker/add_secret.sh` creates an image with the method SECRET from the standard image. `docker/update_rectangle.sh` creates a new rectangle image from an existing one with another version of rectanglepy.
 
+### Images
+
+The methods run in four images; the profiles of `conf/norm.config` select the image of each method.
+
+| Image | Methods | Docker | Apptainer (`.sif`, GitHub container registry) |
+|---|---|---|---|
+| standard 2.0 | bayesprism, bisque, cibersortx, dwls, music, music-hc, scaden, scdc; simulations and the reference split | `alexd13/omnideconv_benchmark:2.0` | `oras://ghcr.io/omnideconv/deconvbench-images:standard-2.0` |
+| autogenes 1.3 | autogenes | `alexd13/omnideconv_benchmark:1.3` | `oras://ghcr.io/omnideconv/deconvbench-images:autogenes-1.3` |
+| rectangle 2.5 | rectangle (rectanglepy 1.7.0) | - | `oras://ghcr.io/omnideconv/deconvbench-images:rectangle-2.5` |
+| secret 2.4 | secret (standard image plus SECRET) | - | `oras://ghcr.io/omnideconv/deconvbench-images-secret:2.4` (private) |
+
+Pull an image with e.g. `apptainer pull standard.sif oras://ghcr.io/omnideconv/deconvbench-images:standard-2.0`. The SECRET image is kept private because the SECRET repository states no licence; build it yourself with `docker/add_secret.sh`, or log in with `apptainer registry login --username <github user> oras://ghcr.io` (a GitHub token with `read:packages`) if you have access. CIBERSORTx itself runs in its own Docker image (see [CIBERSORTx](#cibersortx)). `docker/push_ci_images.sh` builds the `.sif` files from the sandboxes on our cluster and pushes them.
+
 With Apptainer, the directories that hold your data, your results and the Nextflow work directory have to be bound into the container (`apptainer.runOptions = '--bind ...'`), because tasks read the outputs of other tasks from the work directory.
 
 In addition, to run the pipeline you need an installation of [nextflow](https://www.nextflow.io/) (tested with version 25.10).
@@ -444,7 +457,7 @@ The configs in `tests/conf_split/` run the workflows with the reference split by
 
 The test data contain the cases that broke runs on real data: annotations as factors with unused levels, a cell type from a single donor, names with `+`, `-`, `.`, `_` and names that contain each other, a bulk without ground truth and with non-integer counts, and a bulk named `hoek`.
 
-The images are `.sif` files in the private package `ghcr.io/omnideconv/deconvbench-images` (pushed with `docker/push_ci_images.sh`); the repository has read access to it (package settings, "Manage Actions access"), and the jobs log in with their `GITHUB_TOKEN`. The same suites run on the cluster: `tests/ci/run_ci.sh <suite> <run_dir>` with `IMG_STANDARD`, `IMG_AUTOGENES`, `IMG_RECTANGLE` and `IMG_SECRET` pointing to the images. When results change on purpose, run the `workflows` suite and then `check_results.R workflows <run_dir> <pipeline_dir> --update-expected`. `tests/ci/check_mappings.R <dataset_dir> ...` checks the `cell_type_mappings.csv` of real datasets.
+The jobs pull the `.sif` files of the [images](#images) from the GitHub container registry. They log in with their `GITHUB_TOKEN`, so the repository needs read access to every private package (package settings, "Manage Actions access"). The same suites run on the cluster: `tests/ci/run_ci.sh <suite> <run_dir>` with `IMG_STANDARD`, `IMG_AUTOGENES`, `IMG_RECTANGLE` and `IMG_SECRET` pointing to the images. When results change on purpose, run the `workflows` suite and then `check_results.R workflows <run_dir> <pipeline_dir> --update-expected`. `tests/ci/check_mappings.R <dataset_dir> ...` checks the `cell_type_mappings.csv` of real datasets.
 
 ## Running on the DaisyBio cluster
 

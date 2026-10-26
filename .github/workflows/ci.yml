@@ -87,7 +87,11 @@ jobs:
           # Ubuntu 24.04 restricts the user namespaces that apptainer uses without root
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - name: Pull the standard image
-        run: apptainer pull "$RUNNER_TEMP/standard.sif" "$IMAGES:standard-2.0"
+        # the package may be private; the repository needs read access to it (package settings,
+        # "Manage Actions access")
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | apptainer registry login --username "${{ github.actor }}" --password-stdin oras://ghcr.io
+          apptainer pull "$RUNNER_TEMP/standard.sif" "$IMAGES:standard-2.0"
       - name: Run all workflows and check them
         run: |
           export IMG_STANDARD=$RUNNER_TEMP/standard.sif
@@ -127,7 +131,11 @@ jobs:
           # Ubuntu 24.04 restricts the user namespaces that apptainer uses without root
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - name: Pull the image
-        run: apptainer pull "$RUNNER_TEMP/image.sif" "$IMAGES:${{ matrix.image }}"
+        # the package may be private; the repository needs read access to it (package settings,
+        # "Manage Actions access")
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | apptainer registry login --username "${{ github.actor }}" --password-stdin oras://ghcr.io
+          apptainer pull "$RUNNER_TEMP/image.sif" "$IMAGES:${{ matrix.image }}"
       - name: Main workflow with the methods of the image
         run: |
           export ${{ matrix.var }}=$RUNNER_TEMP/image.sif

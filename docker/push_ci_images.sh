@@ -4,7 +4,8 @@
 #
 # Once before:  apptainer registry login --username <github user> oras://ghcr.io
 #               (password: a GitHub token with the scope write:packages)
-# Afterwards:   make the package ghcr.io/omnideconv/deconvbench-images public on GitHub.
+# Afterwards:   give the repository omnideconv/deconvBench read access to the package
+#               (package settings, "Manage Actions access"); the organisation allows no public packages.
 #
 # Usage: ./push_ci_images.sh <build_dir> [<tag> ...]    tags: standard-2.0 autogenes-1.3 rectangle-2.5 secret-2.4
 

@@ -444,7 +444,7 @@ The configs in `tests/conf_split/` run the workflows with the reference split by
 
 The test data contain the cases that broke runs on real data: annotations as factors with unused levels, a cell type from a single donor, names with `+`, `-`, `.`, `_` and names that contain each other, a bulk without ground truth and with non-integer counts, and a bulk named `hoek`.
 
-The images are `.sif` files in `ghcr.io/omnideconv/deconvbench-images` (pushed with `docker/push_ci_images.sh`). The same suites run on the cluster: `tests/ci/run_ci.sh <suite> <run_dir>` with `IMG_STANDARD`, `IMG_AUTOGENES`, `IMG_RECTANGLE` and `IMG_SECRET` pointing to the images. When results change on purpose, run the `workflows` suite and then `check_results.R workflows <run_dir> <pipeline_dir> --update-expected`. `tests/ci/check_mappings.R <dataset_dir> ...` checks the `cell_type_mappings.csv` of real datasets.
+The images are `.sif` files in the private package `ghcr.io/omnideconv/deconvbench-images` (pushed with `docker/push_ci_images.sh`); the repository has read access to it (package settings, "Manage Actions access"), and the jobs log in with their `GITHUB_TOKEN`. The same suites run on the cluster: `tests/ci/run_ci.sh <suite> <run_dir>` with `IMG_STANDARD`, `IMG_AUTOGENES`, `IMG_RECTANGLE` and `IMG_SECRET` pointing to the images. When results change on purpose, run the `workflows` suite and then `check_results.R workflows <run_dir> <pipeline_dir> --update-expected`. `tests/ci/check_mappings.R <dataset_dir> ...` checks the `cell_type_mappings.csv` of real datasets.
 
 ## Running on the DaisyBio cluster
 

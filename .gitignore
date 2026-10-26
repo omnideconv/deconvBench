@@ -25,3 +25,10 @@ old_scripts/
 data/*
 !data/ci/
 launch/
+
+# analyses of the rectangle revision (kept outside this repository)
+visualisation/rectangle_revision/
+pipeline/configs/revision_*.config
+pipeline/configs/tcga_brca*.config
+pipeline/scripts/run_revision_*.sh
+pipeline/scripts/run_tcga_brca.sh

@@ -1,19 +1,13 @@
-# deconvBench: a nextflow pipeline to benchmark second-generation deconvolution methods using omnideconv
+# deconvBench pipeline
 
-For our effort to benchmark second-generation deconvolution methods, most of them included in [omnideconv](https://github.com/omnideconv/omnideconv), we implemented a nextflow pipeline that includes several workflows. These offer various simulation scenarios and the option to deconvolve real bulk RNA-seq datasets, all with different scRNA-seq datasets, deconvolution methods and other parameters.
-A detailed description of the parameters and workflows follows below.
+A Nextflow pipeline to benchmark second-generation deconvolution methods, most of them through [omnideconv](https://github.com/omnideconv/omnideconv). Its workflows deconvolve real bulk RNA-seq datasets and pseudo-bulks simulated with [SimBu](https://github.com/omnideconv/SimBu), with any combination of single-cell references and methods, and compare the estimates with the true cell-type fractions.
+
+**Contents:** [Dependencies](#dependencies) · [Quickstart](#quickstart) · [Structure](#structure-of-the-pipeline) · [Workflows](#workflows) · [Parameters](#parameters) · [Input formats](#input-formats) · [Results](#results) · [Methods](#methods) · [Tests](#tests) · [Running on the DaisyBio cluster](#running-on-the-daisybio-cluster) · [CIBERSORTx](#cibersortx)
 
 ## Dependencies
 
-All method-related dependencies are installed in an included Docker image, that you can either build yourself using the Dockerfile in the directory above (`docker/`) or pull directly from [Dockerhub](https://hub.docker.com/repository/docker/alexd13/omnideconv_benchmark/general).
-*Note:* We currently only provide a Docker image for Linux based systems, MacOS and Windows are not supported. Users working on those operating systems have to install omnideconv manually.
-
-In case you are working on a setup that does not allow the use of Docker, you can also switch to Apptainer (assuming it is already installed) by translating the Docker image to an Apptainer image like this:
-```
-docker pull alexd13/omnideconv_benchmark:latest
-apptainer build /location/of/new/image/omnideconv_benchmark.sif docker-daemon://alexd13/omnideconv_benchmark:latest
-```
-Then adapt the path in the Apptainer profile of `nextflow.config` to the one specified above (i.e. `/location/of/new/image/omnideconv_benchmark.sif`) and use the 'apptainer' profile when running the pipeline. `docker/docker_to_singularity.sh` does both steps. `docker/add_secret.sh` creates an image with the method SECRET from the standard image. `docker/update_rectangle.sh` creates a new rectangle image from an existing one with another version of rectanglepy.
+- [Nextflow](https://www.nextflow.io/) 25.10 with Java 17
+- [Apptainer](https://apptainer.org/) or Docker, and the images of the methods below. All method dependencies are inside the images; only Linux is supported.
 
 ### Images
 
@@ -26,77 +20,58 @@ The methods run in four images; the profiles of `conf/norm.config` select the im
 | rectangle 2.5 | rectangle (rectanglepy 1.7.0) | - | `oras://ghcr.io/omnideconv/deconvbench-images:rectangle-2.5` |
 | secret 2.4 | secret (standard image plus SECRET) | - | `oras://ghcr.io/omnideconv/deconvbench-images-secret:2.4` (private) |
 
-Pull an image with e.g. `apptainer pull standard.sif oras://ghcr.io/omnideconv/deconvbench-images:standard-2.0`. The SECRET image is kept private because the SECRET repository states no licence; build it yourself with `docker/add_secret.sh`, or log in with `apptainer registry login --username <github user> oras://ghcr.io` (a GitHub token with `read:packages`) if you have access. CIBERSORTx itself runs in its own Docker image (see [CIBERSORTx](#cibersortx)). `docker/push_ci_images.sh` builds the `.sif` files from the sandboxes on our cluster and pushes them.
+Pull an image with e.g. `apptainer pull standard.sif oras://ghcr.io/omnideconv/deconvbench-images:standard-2.0`. The SECRET image is kept private because the SECRET repository states no licence; build it yourself with `docker/add_secret.sh`, or log in with `apptainer registry login --username <github user> oras://ghcr.io` (a GitHub token with `read:packages`) if you have access. CIBERSORTx itself runs in its own Docker image (see [CIBERSORTx](#cibersortx)). Scripts in `docker/`: `docker_to_singularity.sh` converts a Docker image into an Apptainer image, `update_rectangle.sh` makes a rectangle image with another version of rectanglepy, `add_secret.sh` adds SECRET to the standard image, and `push_ci_images.sh` builds the `.sif` files from the sandboxes on our cluster and pushes them.
 
-With Apptainer, the directories that hold your data, your results and the Nextflow work directory have to be bound into the container (`apptainer.runOptions = '--bind ...'`), because tasks read the outputs of other tasks from the work directory.
-
-In addition, to run the pipeline you need an installation of [nextflow](https://www.nextflow.io/) (tested with version 25.10).
+With Apptainer, the directories that hold your data, your results and the Nextflow work directory have to be bound into the containers (`apptainer.runOptions = '--bind ...'`), because tasks read the outputs of other tasks from the work directory.
 
 ## Quickstart
 
-If you want to deconvolve two bulk RNA-seq datasets (`bulk1` and `bulk2`) using one scRNA-seq dataset (`sc1`) and compute quality metrics for four selected deconvolution methods (`AutoGeneS`,`DWLS`,`MuSiC` and `Scaden`), you can start the pipeline like this:
+A first run on the included test data is shown in the [repository README](../README.md#quick-start). For your own data, write a config. This one deconvolves two bulk datasets with one single-cell reference and three methods of the standard image, and computes the metrics:
 
-```
-nextflow -C pipeline/nextflow.config run pipeline/main.nf -profile docker
-```
-
-The `nextflow.config` file can then look something like this:
-
-```
+```groovy
 params {
-    data_dir_bulk = "/user/benchmarking/datasets/bulks"
-    data_dir_sc = "/user/benchmarking/datasets/single_cell"
-    results_dir_general = "/user/benchmarking/results"
+    data_dir_sc         = "/data/single_cell/"
+    data_dir_bulk       = "/data/bulks/"
+    results_dir_general = "/data/results"
 
     single_cell_list = ["sc1"]
-    bulk_list = ["bulk1","bulk2"]
-    method_list = ["autogenes", "dwls", "music", "scaden"]
+    bulk_list        = ["bulk1", "bulk2"]
+    method_list      = ["dwls", "music", "scaden"]
 
-    ncores = '4'
+    ncores     = 4
+    species_sc = 'hs'
 }
 
-profiles {
-    docker {
-        docker.enabled = true
-        process.container = 'omnideconv_benchmark:1.0'
-        // add more parameters regarding e.g. memory usage here
-    }
-}
+apptainer.enabled    = true
+apptainer.runOptions = '--bind /data'
+process.container    = '/images/standard.sif'      // or Docker: docker.enabled = true and 'alexd13/omnideconv_benchmark:2.0'
+```
+
+```bash
+nextflow -C my_run.config run pipeline/main.nf                          # main workflow
+nextflow -C my_run.config run pipeline/main.nf -entry simulation        # any other workflow
+```
+
+Methods of other images run with their own container setting; `conf/norm.config` shows a profile per image, `nextflow.config` lists every parameter. The pipeline expects this layout (file formats [below](#input-formats)):
 
 ```
-Input files generally are placed in the two folders `data_dir_bulk` (for bulk mixtures) and `data_dir_sc` (for scRNA-seq references). The bulk datasets and scRNA-seq annotations we used during the omnideconv benchmarking efforts can be found at https://figshare.com/projects/deconvData/197794. The count matrices of the references should be accessed individually from the original data sources and can be preprocessed like we describe in our omnideconv benchmarking manuscript. A small example dataset (`sc1`, `bulk1`, `bulk2`) is included in `data/`.
-Running the pipeline with the above configuration will expect the following folder structure:
-
-
+data
+├── bulks
+│   ├── bulk1
+│   │   ├── bulk1_counts.rds
+│   │   ├── bulk1_tpm.rds
+│   │   └── bulk1_facs.rds          ground truth (optional in the main workflow)
+│   └── bulk2
+│       └── ...
+└── single_cell
+    └── sc1
+        ├── batch.rds
+        ├── celltype_annotations.rds
+        ├── matrix_counts.rds
+        └── matrix_norm_counts.rds
 ```
-user
-└── benchmarking
-    ├── datasets
-    │   ├── bulks
-    │   │   ├── bulk1
-    |   |   |   ├── bulk1_counts.rds
-    |   |   |   ├── bulk1_tpm.rds
-    |   |   |   └── bulk1_facs.rds
-    │   │   └── bulk2
-    |   |       └── ...
-    │   └── single_cell
-    │       └── sc1
-    │           ├── batch.rds
-    │           ├── celltype_annotations.rds
-    │           ├── matrix_counts.rds
-    │           └── matrix_norm_counts.rds
-    ├── results
-    │
-    └── DECONVBENCH
-        ├── docker
-        ├── pipeline
-        │   ├── nextflow.config
-        │   ├── main.nf
-        │   ├── optimal_normalizations.csv
-        │   ├── ...
-        └── visualisation
-```
-You can find information on how the individual files have to look like [below](#input-formats).
+
+The bulk datasets and single-cell annotations of the omnideconv benchmark are on [figshare](https://figshare.com/projects/deconvData/197794); the count matrices of the references have to be obtained from the original sources and preprocessed as described in the manuscript. Small example datasets are in `data/` (`sc1`, `bulk1`, `bulk2`) and `data/ci/`.
 
 ## Structure of the pipeline
 
@@ -466,8 +441,8 @@ Our own runs use the files in `conf/`, `configs/` and `scripts/`:
 - `conf/norm.config` - the base config of the cluster: where the data are, the resources of the processes, and the profiles. There is one profile per container image, and each profile selects the methods that run in its image: `apptainer` (standard image; bayesprism, bisque, dwls, music, scaden, scdc), `autogenes`, `rectangle`, `secret`, and `cibersortx` (local Docker). Simulation, subsampling and the reference split always run in the standard image, so that all methods deconvolve the same simulated datasets with the same references. All Slurm jobs go to the `exbio-cpu` partition: AutoGeneS gives different results on `compms-cpu-1`, the other node of the default partition.
 - `configs/<run>.config` - a run config: it includes the base config and then sets the parameters of one analysis. Everything defined in the base config can be overridden there, e.g. `data_dir_sc` or the memory of a method (`params.method_memory.dwls = 340`). To run only some of the methods of a profile, add `profiles { apptainer { params.method_list = ["dwls","scaden"] } }`. A workflow stops with a message if the run config does not set a parameter that it needs.
 - `scripts/run.sh <config> <profile> [<workflow>] [nextflow options]` - starts a workflow, e.g. `scripts/run.sh nextflow_norm_resolution rectangle simulation_resolution_analysis -resume`.
-- `scripts/run_profiles.sh <config> <workflow> [--check] [<profile> ...]` - runs one workflow with several profiles one after the other in one launch folder; `--check` runs only Bisque. `scripts/run_revision_*.sh` and `scripts/run_tcga_brca.sh` use it for the runs of the rectangle revision.
-- Memory: with a large reference, set `ncores = 1` for DWLS. Its signature step runs one MAST worker per core, each with its own copy of the data (wu with 66,559 cells: 171 GB with one core, more than 480 GB with eight; see `configs/tcga_brca_dwls.config`).
+- `scripts/run_profiles.sh <config> <workflow> [--check] [<profile> ...]` - runs one workflow with several profiles one after the other in one launch folder; `--check` runs only Bisque.
+- Memory: with a large reference, set `ncores = 1` for DWLS. Its signature step runs one MAST worker per core, each with its own copy of the data (wu with 66,559 cells: 171 GB with one core, more than 480 GB with eight).
 
 Nextflow has to be started with Java 17 on this cluster (`run.sh` does this): with Java 21, copying a file larger than about 2 MB to one of the NFS shares never returns, which blocks the publishing of results.
 

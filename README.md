@@ -1,4 +1,4 @@
-# deconvBench
+# deconvBench <img src="pipeline/deconvBench.png" align="right" height="150" alt="deconvBench logo" />
 
 [![CI](https://github.com/omnideconv/deconvBench/actions/workflows/ci.yml/badge.svg)](https://github.com/omnideconv/deconvBench/actions/workflows/ci.yml)
 

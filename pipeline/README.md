@@ -1,4 +1,4 @@
-# deconvBench pipeline
+# deconvBench pipeline <img src="deconvBench.png" align="right" height="150" alt="deconvBench logo" />
 
 A Nextflow pipeline to benchmark second-generation deconvolution methods, most of them through [omnideconv](https://github.com/omnideconv/omnideconv). Its workflows deconvolve real bulk RNA-seq datasets and pseudo-bulks simulated with [SimBu](https://github.com/omnideconv/SimBu), with any combination of single-cell references and methods, and compare the estimates with the true cell-type fractions.
 

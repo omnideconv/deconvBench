@@ -8,7 +8,7 @@ sessionInfo()
 reticulate::py_config()
 
 "Usage:
-  analysisNF_spillover.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <cell_types> <results_dir> <ncores> <baseDir>
+  analysisNF_spillover.R <sc_name> <sc_path> <bulk_name> <bulk_path> <deconv_method> <cell_types> <results_dir> <ncores> <baseDir> [<method_settings>]
 Options:
 <sc_name> name of sc datasets
 <sc_path> path to sc dataset
@@ -18,7 +18,8 @@ Options:
 <cell_types> cell types used in the simulation
 <results_dir> results (base) directory
 <ncores> number of cores to use for method (if available)
-<baseDir> nextflow base directory" -> doc
+<baseDir> nextflow base directory
+<method_settings> settings of the method, e.g. marker_fraction=0.1 (optional)" -> doc
 
 
 args <- docopt::docopt(doc)
@@ -33,25 +34,23 @@ ncores <- as.numeric(args$ncores) # in case a method can use multiple cores
 baseDir <- args$baseDir
 
 source(paste0(baseDir, '/bin/utils.R'))
-method_normalizations <- read.table(paste0(baseDir, '/optimal_normalizations.csv'), sep = ',', header = TRUE)
-sc_norm <- method_normalizations[method_normalizations$method == method, 2]
-bulk_norm <- method_normalizations[method_normalizations$method == method, 3]
+method_settings <- parse_method_settings(args$method_settings)
+normalization <- method_normalization(baseDir, method)
+sc_norm <- normalization$sc_norm
+bulk_norm <- normalization$bulk_norm
 print(paste0('Method: ', method, '; sc-norm: ', sc_norm, '; bulk-norm: ', bulk_norm))
 
-if(sc_norm == 'counts'){
-    sc_matrix <- readRDS(file.path(sc_path, sc_dataset, 'matrix_counts.rds'))
-} else {
-    sc_matrix <- readRDS(file.path(sc_path, sc_dataset, 'matrix_norm_counts.rds'))
-}
+sc_matrix <- read_sc_matrix(sc_path, sc_dataset, sc_norm)
 
 sc_celltype_annotations <- readRDS(file.path(sc_path, sc_dataset, 'celltype_annotations.rds'))
+# groups of cell types, only used by the hierarchical MuSiC
+celltype_groups <- read_celltype_groups(method, file.path(sc_path, sc_dataset), sc_celltype_annotations)
 sc_batch <- readRDS(file.path(sc_path, sc_dataset, 'batch.rds'))
 
 # Here we need to filter for those cell types that are in the simulated dataset. 
 cat(paste0('Number of cells in sc dataset before filtering for target types: ', length(sc_celltype_annotations), '\n'))
 
-cell_types_simulation <- gsub('\\[|]', '', args$cell_types)
-cell_types_simulation <- strsplit(cell_types_simulation, ", ")[[1]]
+cell_types_simulation <- parse_list_argument(args$cell_types, split = ', ')
 
 position_vector <- (sc_celltype_annotations %in% cell_types_simulation)
 sc_matrix <- sc_matrix[, position_vector]
@@ -60,7 +59,7 @@ sc_celltype_annotations <- sc_celltype_annotations[position_vector]
 
 cat(paste0('Number of cells in sc dataset before filtering for target types: ', length(sc_celltype_annotations), '\n'))
 
-bulk_matrix <- as.matrix(readRDS(file.path(bulk_path, paste0(bulk_name, '_', bulk_norm, '.rds'))))
+bulk_matrix <- read_bulk_matrix(bulk_path, bulk_name, bulk_norm)
 
 res_path_normal <- paste0(res_base_path, '/', method, "_", sc_dataset, '_', bulk_name)
 
@@ -83,6 +82,10 @@ signature <- signature_workflow_general(
   baseDir=baseDir
 )
 
+if(method == 'rectangle'){
+  # do not incluce anndata creation in runtime measurement
+  sc_matrix <- rectangle_reference(sc_matrix, gsub(' ','_',sc_celltype_annotations))
+}
 
 deconvolution <- deconvolution_workflow_general(
   sc_matrix, 
@@ -98,7 +101,9 @@ deconvolution <- deconvolution_workflow_general(
   bulk_norm, 
   ncores, 
   res_path_normal,
-  baseDir=baseDir
+  baseDir=baseDir,
+  celltype_groups = celltype_groups,
+  method_settings = method_settings
 )
 
 true_fractions <- readRDS(file.path(bulk_path, paste0(bulk_name, '_facs.rds')))

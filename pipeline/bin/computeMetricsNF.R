@@ -15,7 +15,7 @@ Options:
 <deconv_method>  deconv method
 <subset_value> if < 1: fraction of cell type; if > 1: number of cells per cell type
 <replicate> value of replicate number
-<results_dir> results (base) directory
+<results_dir> directory of this result; signature and deconvolution files are read from and written to it
 <baseDir> nextflow base directory" -> doc
 
 
@@ -34,68 +34,20 @@ replicate <- as.numeric(args$replicate)
 baseDir <- args$baseDir
 
 source(paste0(baseDir, '/bin/utils.R'))
-method_normalizations <- read.table(paste0(baseDir, '/optimal_normalizations.csv'), sep = ',', header = TRUE)
-sc_norm <- method_normalizations[method_normalizations$method == method, 2]
-bulk_norm <- method_normalizations[method_normalizations$method == method, 3]
+normalization <- method_normalization(baseDir, method)
+sc_norm <- normalization$sc_norm
+bulk_norm <- normalization$bulk_norm
 print(paste0('Method: ', method, '; sc-norm: ', sc_norm, '; bulk-norm: ', bulk_norm))
 
 # load ground truth data
 facs_data <- readRDS(file.path(bulk_path, bulk_name, paste0(bulk_name, '_facs.rds')))
 
-res_path <- paste0(res_base_path, '/', method, "_", sc_dataset, "_", sc_norm, "_", bulk_name, "_", bulk_norm, "_ct", subset_value, "_rep", replicate)
+res_path <- res_base_path
 
 deconvolution <- readRDS(paste0(res_path, '/deconvolution.rds'))
 
-# sum up fractions of T cell subtypes in this dataset
-if(args$bulk_name=='hoek' | args$bulk_name=='hoek-simulation' | args$bulk_name=='hoek-simulation-nobias' | args$bulk_name=='hoek_purified'){
-  deconvolution <- as.data.frame(deconvolution)
-  deconvolution$`T cell` <- deconvolution$`T cells CD4 conv` + deconvolution$`T cells CD8` + deconvolution$`Tregs`
-}
-
-if(args$bulk_name == 'morandini'){
-  deconvolution <- as.data.frame(deconvolution)
-
-  deconvolution$`T cells CD4` <- deconvolution$`T cells CD4 conv`
-  deconvolution$`T cells` <- deconvolution$`T cells CD4` + deconvolution$`T cells CD8` + deconvolution$`Tregs`
-
-  if('ILC' %in% colnames(deconvolution)){
-    deconvolution$`Lymphocytes` <- deconvolution$`T cells` + deconvolution$`B cells` + deconvolution$`ILC` + deconvolution$`NK cells`
-  }else{
-    deconvolution$`Lymphocytes` <- deconvolution$`T cells` + deconvolution$`B cells` + deconvolution$`NK cells`
-  }  
-
-  if('Plasma cells' %in% colnames(deconvolution)){
-    deconvolution$`Lymphocytes` <- deconvolution$`Lymphocytes` + deconvolution$`Plasma cells`
-  }
-
-#  deconvolution$`Monocytes_solo` <- deconvolution$`Monocytes`
-#  if('pDC' %in% colnames(deconvolution)){
-#    deconvolution$`Monocytes` <- deconvolution$`Monocytes_solo` + deconvolution$`mDC` + deconvolution$`pDC`
-#  }else{
-#    deconvolution$`Monocytes` <- deconvolution$`Monocytes_solo` + deconvolution$`mDC`
-#  }
-}
-
-if(args$bulk_name == 'altman' | args$bulk_name == 'altman-simulation' | args$bulk_name == 'altman-simulation-nobias'){
-  deconvolution <- as.data.frame(deconvolution)
-
-  if('ILC' %in% colnames(deconvolution)){
-    deconvolution$`Lymphocytes` <- deconvolution$`T cells CD4 conv` + deconvolution$`T cells CD8` + deconvolution$`Tregs` + deconvolution$`B cells` + deconvolution$`NK cells` + deconvolution$`ILC`
-  }else{
-    deconvolution$`Lymphocytes` <- deconvolution$`T cells CD4 conv` + deconvolution$`T cells CD8` + deconvolution$`Tregs` + deconvolution$`B cells` + deconvolution$`NK cells`
-  }   
-
-  if('Plasma cells' %in% colnames(deconvolution)){
-    deconvolution$`Lymphocytes` <- deconvolution$`Lymphocytes` + deconvolution$`Plasma cells`
-  }
-
-  deconvolution$`Monocytes_solo` <- deconvolution$`Monocytes`
-    if('pDC' %in% colnames(deconvolution)){
-    deconvolution$`Monocytes` <- deconvolution$`Monocytes_solo` + deconvolution$`mDC` + deconvolution$`pDC`
-  }else{
-    deconvolution$`Monocytes` <- deconvolution$`Monocytes_solo` + deconvolution$`mDC`
-  }
-}
+# add the cell-type sums that the ground truth of this bulk dataset needs
+deconvolution <- aggregate_cell_types(deconvolution, args$bulk_name, baseDir)
 
 
 #########################

@@ -28,6 +28,7 @@ fraction_unknown <- as.numeric(args$fraction_unknown_cells)
 
 cell_types_simulation <- gsub('\\[|]', '', args$cell_types_minor)
 cell_types_simulation <- strsplit(cell_types_simulation, ",")[[1]]
+cell_types_simulation <- lapply(cell_types_simulation, trimws)
 print(cell_types_simulation)
 
 pseudobulk_name <- paste0(sc_ds, '_resolution_analysis_sim')
@@ -92,6 +93,9 @@ reannotate_facs <- function(facs.table, annotation, new.annotation.level){
     if(length(cur.cell.types) > 1){
       facs.table[c] <- rowSums(facs.table[, c(cur.cell.types)])
       facs.table[, c(cur.cell.types)] <- NULL
+    } else if(length(cur.cell.types) == 1 && cur.cell.types != c){
+      # a cell type with a single fine cell type of another name (e.g. NKT cells in wu)
+      names(facs.table)[names(facs.table) == cur.cell.types] <- c
     }
   }
   facs.table

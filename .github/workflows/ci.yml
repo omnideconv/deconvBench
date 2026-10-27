@@ -2,7 +2,9 @@
 # static     lint, every run config with every profile, dry run of all workflows (no containers)
 # workflows  all eight workflows with MuSiC, without and with the reference split, checks, unit tests
 # methods    the main workflow with every method in its own image; only when method code changed,
-#            on pull requests into main and when started by hand
+#            for pull requests from forks and when started by hand
+# A pull request from a branch of this repository is tested by the push run of the branch; its own
+# run skips all jobs, so that the same commit is not tested twice.
 name: CI
 
 on:
@@ -13,10 +15,9 @@ on:
     paths: ['pipeline/**', 'data/ci/**', '.github/workflows/ci.yml']
   workflow_dispatch:
 
-# a push to a branch with an open pull request starts two runs; they share the group of the branch,
-# so only the later one runs to the end
+# a newer push to the same branch cancels the run of the older one
 concurrency:
-  group: ci-${{ github.head_ref || github.ref_name }}
+  group: ci-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 permissions:
@@ -32,6 +33,7 @@ env:
 
 jobs:
   static:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     outputs:
